@@ -195,6 +195,8 @@ app.MapGet("/", (IHostEnvironment environment) =>
     });
 });
 
+app.MapGet("/favicon.ico", () => Results.NoContent());
+
 app.MapHealthChecks("/health");
 
 if (habilitarDbTestEndpoint)
