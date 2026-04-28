@@ -70,20 +70,26 @@ builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
 builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
 
-var origemFrontendConfigurada = builder.Configuration.GetValue<string>("Frontend:Url");
-var origensFrontend = ConfiguracaoCorsFrontend.ObterOrigens(origemFrontendConfigurada);
+var origemFrontendConfigurada = builder.Configuration["Frontend:Url"];
 
-ValidacaoConfiguracaoProducao.Validar(
-    builder.Environment,
-    configuracaoJwt.Chave,
-    origemFrontendConfigurada,
-    origensFrontend);
+var origensFrontend = builder.Configuration
+    .GetSection("Frontend:Origens")
+    .Get<string[]>() ?? [];
+
+if (!string.IsNullOrWhiteSpace(origemFrontendConfigurada))
+{
+    origensFrontend = origensFrontend
+        .Append(origemFrontendConfigurada)
+        .Distinct()
+        .ToArray();
+}
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("frontend", policy =>
+    options.AddPolicy("Frontend", policy =>
     {
-        policy.SetIsOriginAllowed(origem => ConfiguracaoCorsFrontend.EhOrigemPermitida(origem, origensFrontend))
+        policy
+            .WithOrigins(origensFrontend)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
