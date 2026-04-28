@@ -1,0 +1,26 @@
+# Regras específicas da API
+
+- Controller cuida de HTTP, autorização, binding e status code
+- Regra de negócio fica na aplicação e no domínio
+- Não expor entidades diretamente; seguir DTOs e mapeadores já existentes
+- Reutilizar rotas, padrões de request/response e mensagens já adotados
+- Cadastro de usuário não pode reabrir fluxo público; registro anônimo deve exigir convite válido
+- Em convites, deixar o backend decidir o perfil final do novo usuário e expor ao frontend apenas o necessário para validação e operação
+- Em convites com e-mail automático, o disparo deve sair da API/aplicação; o frontend não deve carregar chave de provedor nem decidir o conteúdo final do envio
+- Falha do provedor de e-mail deve ser rastreável e controlada, sem derrubar a validade do convite nem o fluxo principal
+- Em convites, e-mail e WhatsApp devem reaproveitar o mesmo token e o mesmo fluxo de aceite; integrações externas ficam na infraestrutura com orquestração na aplicação
+- Validar entrada sem duplicar invariantes do serviço ou do domínio
+- Propagar `CancellationToken` e manter respostas claras e consistentes
+- Fluxos novos devem preferir ampliar endpoints existentes antes de criar controller paralelo sem necessidade
+- Para importação CSV, manter upload em `multipart/form-data` e devolver resumo por linha, sem mover validação para controller
+- Em importação ou criação em lote, reutilizar os serviços já existentes de atleta, dupla, inscrição e partida; não criar atalho direto no controller
+- Em fluxos que dependem de dupla inscrita no campeonato, considerar a ordem normalizada dos atletas para evitar falso negativo de inscrição
+- No registro manual de partidas de grupo, o controller deve continuar fino; o frontend envia ids e/ou nomes completos e a aplicação resolve reaproveitamento/criação de atleta, vínculo ao grupo e reaproveitamento/criação da dupla
+- Pendências de atletas devem sair de consulta sobre partidas já registradas; evitar controller ou endpoint paralelo que recalcule pontos ou mantenha fila duplicada
+- Se a pendência depender de quem lançou a partida, persistir a autoria na própria partida e manter autorização dessa edição na aplicação
+- `Program.cs` da API deve continuar mínimo: configuração, registro de serviços, auth, CORS, Swagger, pipeline e chamada da inicialização do banco
+- Alteração estrutural de banco não pertence ao startup da API; não adicionar `ExecuteSqlRaw` ou SQL bruto estrutural em `Program.cs`
+- Evolução de schema deve passar por EF Core com entidades, mapeamentos e migrations; compatibilidade estrutural não deve ficar escondida no boot da aplicação
+- Validação de conexão e aplicação de migrations na subida devem ficar centralizadas em classe própria, com falha explícita fora de Development
+- Em `Staging` e `Production`, tratar ausência de configuração obrigatória como erro de startup e evitar qualquer fallback para `localhost`
+- Endpoints de diagnóstico, Swagger e flags operacionais precisam ficar protegidos por configuração segura por ambiente

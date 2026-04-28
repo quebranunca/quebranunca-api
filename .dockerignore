@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/publish/
+**/*.zip
+**/*.md
+!README.md
+!AGENTS.md
+!**/AGENTS.override.md
+.env
+.env.*
+appsettings.Development.json
+.git
+.gitignore

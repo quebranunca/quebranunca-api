@@ -1,0 +1,66 @@
+@PlataformaFutevolei.Api_HostAddress = http://localhost:5000
+@TokenAdministrador = COLE_O_TOKEN_AQUI
+@ConviteId = 00000000-0000-0000-0000-000000000000
+@ConviteIdPublico = IDENTIFICADOR_PUBLICO_DO_CONVITE
+@CodigoConvite = CODIGO_DO_CONVITE
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/registrar-por-convite
+Content-Type: application/json
+
+{
+  "conviteIdPublico": "{{ConviteIdPublico}}",
+  "codigoConvite": "{{CodigoConvite}}",
+  "nome": "Atleta Convidado",
+  "email": "atleta@futevolei.com",
+  "senha": "123456"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/login
+Content-Type: application/json
+
+{
+  "email": "admin@futevolei.com",
+  "senha": "123456"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/login/codigo/solicitar
+Content-Type: application/json
+
+{
+  "email": "admin@futevolei.com"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/autenticacao/login/codigo
+Content-Type: application/json
+
+{
+  "email": "admin@futevolei.com",
+  "codigo": "123456"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro
+Authorization: Bearer {{TokenAdministrador}}
+Content-Type: application/json
+
+{
+  "email": "atleta@futevolei.com",
+  "telefone": "+5511999999999",
+  "canalEnvio": "E-mail e WhatsApp"
+}
+
+###
+
+POST {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro/{{ConviteId}}/enviar-whatsapp
+Authorization: Bearer {{TokenAdministrador}}
+
+###
+
+GET {{PlataformaFutevolei.Api_HostAddress}}/api/convites-cadastro/publico/{{ConviteIdPublico}}
