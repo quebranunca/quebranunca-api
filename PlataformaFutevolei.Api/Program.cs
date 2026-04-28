@@ -17,10 +17,7 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-if (!string.IsNullOrWhiteSpace(port))
-{
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-}
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 builder.Configuration.Sources.Clear();
 builder.Configuration
@@ -34,11 +31,9 @@ if (builder.Environment.IsDevelopment())
 
 builder.Configuration.AddEnvironmentVariables();
 
-var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
-if (string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
-{
-    applicationInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
-}
+var applicationInsightsConnectionString =
+    builder.Configuration["ApplicationInsights:ConnectionString"]
+    ?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
 
 if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 {
@@ -55,8 +50,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var configuracaoJwt = builder.Configuration.GetSection(ConfiguracaoJwt.Secao).Get<ConfiguracaoJwt>()
-    ?? new ConfiguracaoJwt();
+var configuracaoJwt = builder.Configuration.GetSection(ConfiguracaoJwt.Secao).Get<ConfiguracaoJwt>() ?? new ConfiguracaoJwt();
 
 if (string.IsNullOrWhiteSpace(configuracaoJwt.Chave))
 {
@@ -65,31 +59,28 @@ if (string.IsNullOrWhiteSpace(configuracaoJwt.Chave))
 }
 
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
+
 builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration);
 
-var origemFrontendConfigurada = builder.Configuration["Frontend:Url"];
+var origemFrontendConfigurada = builder.Configuration.GetValue<string>("Frontend:Url");
+var origensFrontend = ConfiguracaoCorsFrontend.ObterOrigens(origemFrontendConfigurada);
 
-var origensFrontend = builder.Configuration
-    .GetSection("Frontend:Origens")
-    .Get<string[]>() ?? [];
-
-if (!string.IsNullOrWhiteSpace(origemFrontendConfigurada))
-{
-    origensFrontend = origensFrontend
-        .Append(origemFrontendConfigurada)
-        .Distinct()
-        .ToArray();
-}
+ValidacaoConfiguracaoProducao.Validar(
+    builder.Environment,
+    configuracaoJwt.Chave,
+    origemFrontendConfigurada,
+    origensFrontend);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
         policy
-            .WithOrigins(origensFrontend)
+            .SetIsOriginAllowed(origem => ConfiguracaoCorsFrontend.EhOrigemPermitida(origem, origensFrontend))
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -112,6 +103,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -141,33 +133,31 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.Logger.LogInformation("Inicializando API no ambiente {Ambiente}.", app.Environment.EnvironmentName);
+app.Logger.LogInformation("Porta configurada: {Porta}.", port);
 app.Logger.LogInformation("Origens CORS configuradas: {Origens}.", string.Join(", ", origensFrontend));
+
 app.Logger.LogInformation(
     !string.IsNullOrWhiteSpace(applicationInsightsConnectionString)
         ? "Application Insights habilitado."
         : "Application Insights desabilitado. Defina ApplicationInsights:ConnectionString ou APPLICATIONINSIGHTS_CONNECTION_STRING para habilitar a telemetria.");
 
 var habilitarSwagger = builder.Configuration.GetValue("Diagnostics:EnableSwagger", true);
-if (habilitarSwagger)
-{
-    app.Logger.LogInformation("Swagger habilitado temporariamente para validação inicial do deploy.");
-}
-else
-{
-    app.Logger.LogInformation("Swagger desabilitado por configuração.");
-}
+app.Logger.LogInformation(
+    habilitarSwagger
+        ? "Swagger habilitado."
+        : "Swagger desabilitado por configuração.");
 
-var habilitarDbTestEndpoint = builder.Configuration.GetValue("Diagnostics:EnableDbTestEndpoint", true);
-if (!habilitarDbTestEndpoint)
-{
-    app.Logger.LogInformation("Endpoint /db-test desabilitado por configuração.");
-}
+var habilitarDbTestEndpoint = builder.Configuration.GetValue("Diagnostics:EnableDbTestEndpoint", false);
+app.Logger.LogInformation(
+    habilitarDbTestEndpoint
+        ? "Endpoint /db-test habilitado."
+        : "Endpoint /db-test desabilitado por configuração.");
 
-var habilitarHttpsRedirection = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
-if (!habilitarHttpsRedirection)
-{
-    app.Logger.LogInformation("Redirecionamento HTTPS desabilitado por configuração.");
-}
+var habilitarHttpsRedirection = builder.Configuration.GetValue("HttpsRedirection:Enabled", false);
+app.Logger.LogInformation(
+    habilitarHttpsRedirection
+        ? "Redirecionamento HTTPS habilitado."
+        : "Redirecionamento HTTPS desabilitado por configuração.");
 
 await InicializacaoBancoDeDados.PrepararAsync(app);
 
@@ -186,7 +176,10 @@ if (habilitarHttpsRedirection)
     app.UseHttpsRedirection();
 }
 
-app.UseCors("frontend");
+app.UseRouting();
+
+app.UseCors("Frontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -202,15 +195,7 @@ app.MapGet("/", (IHostEnvironment environment) =>
     });
 });
 
-app.MapGet("/health", (IHostEnvironment environment) =>
-{
-    return Results.Ok(new
-    {
-        status = "ok",
-        ambiente = environment.EnvironmentName,
-        utc = DateTime.UtcNow
-    });
-});
+app.MapHealthChecks("/health");
 
 if (habilitarDbTestEndpoint)
 {
@@ -219,6 +204,7 @@ if (habilitarDbTestEndpoint)
         try
         {
             var conectou = await dbContext.Database.CanConnectAsync(cancellationToken);
+
             if (!conectou)
             {
                 return Results.Problem(
