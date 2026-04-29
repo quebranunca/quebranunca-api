@@ -417,6 +417,7 @@ Seguranca/UsuarioContextoHttp.cs
  npgsql.entityframeworkcore.postgresql/8.0.4/lib/net8.0/Npgsql.EntityFrameworkCore.PostgreSQL.dll
  npgsql/8.0.3/lib/net8.0/Npgsql.dll
  nunit/3.13.2/lib/netstandard2.0/nunit.framework.dll
+ resend/0.5.0/lib/net8.0/Resend.dll
  swashbuckle.aspnetcore.swagger/6.4.0/lib/net6.0/Swashbuckle.AspNetCore.Swagger.dll
  swashbuckle.aspnetcore.swaggergen/6.4.0/lib/net6.0/Swashbuckle.AspNetCore.SwaggerGen.dll
  swashbuckle.aspnetcore.swaggerui/6.4.0/lib/net6.0/Swashbuckle.AspNetCore.SwaggerUI.dll

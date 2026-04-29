@@ -1,12 +1,10 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
+using Resend;
 
 namespace PlataformaFutevolei.Infraestrutura.Servicos;
 
@@ -56,33 +54,31 @@ public class ResendEmailCodigoLoginServico(
                 emailDestino);
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuracao.ApiKey.Trim());
-        request.Headers.Add("Idempotency-Key", $"codigo-login-{usuario.Id:N}-{DateTime.UtcNow.Ticks}");
-        request.Content = JsonContent.Create(CriarPayload(usuario, codigo, emailDestino));
-
         try
         {
-            var response = await httpClient.SendAsync(request, cancellationToken);
-            var conteudo = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var resend = CriarClienteResend();
+            var response = await resend.EmailSendAsync(
+                $"codigo-login-{usuario.Id:N}-{DateTime.UtcNow.Ticks}",
+                CriarMensagem(usuario, codigo, emailDestino),
+                cancellationToken);
+
+            if (!response.Success)
             {
-                var erro = ExtrairMensagemErro(conteudo);
+                var erro = ExtrairMensagemErro(response.Exception);
                 logger.LogWarning(
                     "Falha ao enviar código de login do usuário {UsuarioId}. Status {StatusCode}. Erro: {Erro}.",
                     usuario.Id,
-                    (int)response.StatusCode,
+                    response.Exception?.StatusCode is null ? null : (int?)response.Exception.StatusCode,
                     erro);
                 return new ResultadoEnvioEmailCodigoLoginDto(true, false, erro, null);
             }
 
-            var identificadorMensagem = ExtrairIdentificadorMensagem(conteudo);
             logger.LogInformation(
                 "Código de login do usuário {UsuarioId} enviado com sucesso. Mensagem: {MensagemId}.",
                 usuario.Id,
-                identificadorMensagem);
+                response.Content);
 
-            return new ResultadoEnvioEmailCodigoLoginDto(true, true, null, identificadorMensagem);
+            return new ResultadoEnvioEmailCodigoLoginDto(true, true, null, response.Content.ToString());
         }
         catch (Exception ex)
         {
@@ -91,79 +87,43 @@ public class ResendEmailCodigoLoginServico(
         }
     }
 
-    private object CriarPayload(Usuario usuario, string codigo, string emailDestino)
+    private IResend CriarClienteResend()
     {
-        var assunto = ConteudoCodigoLoginEmail.MontarAssunto();
-        var texto = ConteudoCodigoLoginEmail.MontarTexto(usuario, codigo);
-        var html = ConteudoCodigoLoginEmail.MontarHtml(usuario, codigo);
-
-        if (string.IsNullOrWhiteSpace(configuracao.ReplyTo))
+        var options = new ResendClientOptions
         {
-            return new
-            {
-                from = configuracao.ObterRemetenteFormatado(),
-                to = new[] { emailDestino },
-                subject = assunto,
-                html,
-                text = texto
-            };
-        }
-
-        return new
-        {
-            from = configuracao.ObterRemetenteFormatado(),
-            to = new[] { emailDestino },
-            subject = assunto,
-            html,
-            text = texto,
-            reply_to = configuracao.ReplyTo!.Trim()
+            ApiToken = configuracao.ApiKey.Trim(),
+            ApiUrl = configuracao.ObterBaseUrl(),
+            ThrowExceptions = false
         };
+
+        return ResendClient.Create(options, httpClient);
     }
 
-    private static string ExtrairIdentificadorMensagem(string conteudo)
+    private EmailMessage CriarMensagem(Usuario usuario, string codigo, string emailDestino)
     {
-        if (string.IsNullOrWhiteSpace(conteudo))
+        var mensagem = new EmailMessage
         {
-            return string.Empty;
+            From = configuracao.ObterRemetenteFormatado(),
+            Subject = ConteudoCodigoLoginEmail.MontarAssunto(),
+            TextBody = ConteudoCodigoLoginEmail.MontarTexto(usuario, codigo),
+            HtmlBody = ConteudoCodigoLoginEmail.MontarHtml(usuario, codigo)
+        };
+
+        mensagem.To.Add(emailDestino);
+
+        if (!string.IsNullOrWhiteSpace(configuracao.ReplyTo))
+        {
+            mensagem.ReplyTo = configuracao.ReplyTo.Trim();
         }
 
-        try
-        {
-            using var documento = JsonDocument.Parse(conteudo);
-            if (documento.RootElement.TryGetProperty("id", out var id))
-            {
-                return id.GetString() ?? string.Empty;
-            }
-        }
-        catch (JsonException)
-        {
-        }
-
-        return string.Empty;
+        return mensagem;
     }
 
-    private static string ExtrairMensagemErro(string conteudo)
+    private static string ExtrairMensagemErro(ResendException? exception)
     {
-        if (string.IsNullOrWhiteSpace(conteudo))
+        if (!string.IsNullOrWhiteSpace(exception?.Message))
         {
-            return "Falha ao enviar o código de acesso por e-mail.";
-        }
-
-        try
-        {
-            using var documento = JsonDocument.Parse(conteudo);
-            if (documento.RootElement.TryGetProperty("message", out var mensagem))
-            {
-                return mensagem.GetString() ?? "Falha ao enviar o código de acesso por e-mail.";
-            }
-
-            if (documento.RootElement.TryGetProperty("error", out var erro))
-            {
-                return erro.GetString() ?? "Falha ao enviar o código de acesso por e-mail.";
-            }
-        }
-        catch (JsonException)
-        {
+            return exception.Message;
         }
 
         return "Falha ao enviar o código de acesso por e-mail.";

@@ -61,7 +61,8 @@ public static class InjecaoDependenciaInfraestrutura
         services.Configure<ConfiguracaoEmailConviteCadastro>(options =>
         {
             options.BaseUrl = secaoEmailConvites["BaseUrl"] ?? "https://api.resend.com";
-            options.ApiKey = secaoEmailConvites["ApiKey"] ?? string.Empty;
+            options.ApiKey = ObterValorConfiguracaoOuAmbiente(secaoEmailConvites["ApiKey"], "RESEND_API_KEY")
+                ?? string.Empty;
             options.RemetenteEmail = secaoEmailConvites["RemetenteEmail"] ?? string.Empty;
             options.RemetenteNome = secaoEmailConvites["RemetenteNome"];
             options.ReplyTo = secaoEmailConvites["ReplyTo"];
@@ -80,7 +81,9 @@ public static class InjecaoDependenciaInfraestrutura
         {
             options.BaseUrl = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "BaseUrl")
                 ?? "https://api.resend.com";
-            options.ApiKey = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ApiKey")
+            options.ApiKey = ObterValorConfiguracaoOuAmbiente(
+                    ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ApiKey"),
+                    "RESEND_API_KEY")
                 ?? string.Empty;
             options.RemetenteEmail = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "RemetenteEmail")
                 ?? string.Empty;
@@ -135,6 +138,19 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IEnvioWhatsappConviteCadastroServico, TwilioWhatsappConviteCadastroServico>();
 
         return services;
+    }
+
+    private static string? ObterValorConfiguracaoOuAmbiente(string? valorConfigurado, string variavelAmbiente)
+    {
+        if (!string.IsNullOrWhiteSpace(valorConfigurado))
+        {
+            return valorConfigurado;
+        }
+
+        var valorAmbiente = Environment.GetEnvironmentVariable(variavelAmbiente);
+        return string.IsNullOrWhiteSpace(valorAmbiente)
+            ? null
+            : valorAmbiente;
     }
 
     private static string? ObterValorComFallback(

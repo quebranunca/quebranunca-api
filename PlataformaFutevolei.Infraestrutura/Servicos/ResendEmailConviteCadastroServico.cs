@@ -1,12 +1,10 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
+using Resend;
 
 namespace PlataformaFutevolei.Infraestrutura.Servicos;
 
@@ -34,35 +32,32 @@ public class ResendEmailConviteCadastroServico(
         }
 
         var linkConvite = ConteudoConviteCadastro.MontarLinkConvite(configuracao.ObterUrlAppBase(), conviteCadastro.IdentificadorPublico);
-        var payload = CriarPayload(conviteCadastro, linkConvite, codigoConvite);
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuracao.ApiKey.Trim());
-        request.Headers.Add("Idempotency-Key", $"convite-cadastro-{conviteCadastro.Id:N}-{conviteCadastro.DataAtualizacao.Ticks}");
-        request.Content = JsonContent.Create(payload);
 
         try
         {
-            var response = await httpClient.SendAsync(request, cancellationToken);
-            var conteudo = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var resend = CriarClienteResend();
+            var response = await resend.EmailSendAsync(
+                $"convite-cadastro-{conviteCadastro.Id:N}-{conviteCadastro.DataAtualizacao.Ticks}",
+                CriarMensagem(conviteCadastro, linkConvite, codigoConvite),
+                cancellationToken);
+
+            if (!response.Success)
             {
-                var erro = ExtrairMensagemErro(conteudo);
+                var erro = ExtrairMensagemErro(response.Exception);
                 logger.LogWarning(
                     "Falha ao enviar e-mail automático do convite {ConviteId}. Status {StatusCode}. Erro: {Erro}.",
                     conviteCadastro.Id,
-                    (int)response.StatusCode,
+                    response.Exception?.StatusCode is null ? null : (int?)response.Exception.StatusCode,
                     erro);
                 return new ResultadoEnvioEmailConviteDto(true, false, erro, null);
             }
 
-            var identificadorMensagem = ExtrairIdentificadorMensagem(conteudo);
             logger.LogInformation(
                 "E-mail automático do convite {ConviteId} enviado com sucesso. Mensagem: {MensagemId}.",
                 conviteCadastro.Id,
-                identificadorMensagem);
+                response.Content);
 
-            return new ResultadoEnvioEmailConviteDto(true, true, null, identificadorMensagem);
+            return new ResultadoEnvioEmailConviteDto(true, true, null, response.Content.ToString());
         }
         catch (Exception ex)
         {
@@ -71,81 +66,47 @@ public class ResendEmailConviteCadastroServico(
         }
     }
 
-    private object CriarPayload(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)
+    private IResend CriarClienteResend()
     {
-        var assunto = ConteudoConviteCadastro.MontarAssuntoEmail();
-        var texto = ConteudoConviteCadastro.MontarTextoEmail(conviteCadastro, linkConvite, codigoConvite);
-        var html = ConteudoConviteCadastro.MontarHtmlEmail(conviteCadastro, linkConvite, codigoConvite);
-
-        if (string.IsNullOrWhiteSpace(configuracao.ReplyTo))
+        var options = new ResendClientOptions
         {
-            return new
-            {
-                from = configuracao.ObterRemetenteFormatado(),
-                to = new[] { conviteCadastro.Email },
-                subject = assunto,
-                html,
-                text = texto
-            };
-        }
-
-        return new
-        {
-            from = configuracao.ObterRemetenteFormatado(),
-            to = new[] { conviteCadastro.Email },
-            subject = assunto,
-            html,
-            text = texto,
-            reply_to = configuracao.ReplyTo!.Trim()
+            ApiToken = configuracao.ApiKey.Trim(),
+            ApiUrl = configuracao.ObterBaseUrl(),
+            ThrowExceptions = false
         };
+
+        return ResendClient.Create(options, httpClient);
     }
 
-    private static string ExtrairIdentificadorMensagem(string conteudo)
+    private EmailMessage CriarMensagem(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)
     {
-        if (string.IsNullOrWhiteSpace(conteudo))
+        var mensagem = new EmailMessage
         {
-            return string.Empty;
+            From = configuracao.ObterRemetenteFormatado(),
+            Subject = ConteudoConviteCadastro.MontarAssuntoEmail(),
+            TextBody = ConteudoConviteCadastro.MontarTextoEmail(conviteCadastro, linkConvite, codigoConvite),
+            HtmlBody = ConteudoConviteCadastro.MontarHtmlEmail(conviteCadastro, linkConvite, codigoConvite)
+        };
+
+        mensagem.To.Add(conviteCadastro.Email);
+
+        if (!string.IsNullOrWhiteSpace(configuracao.ReplyTo))
+        {
+            mensagem.ReplyTo = configuracao.ReplyTo.Trim();
         }
 
-        try
-        {
-            using var documento = JsonDocument.Parse(conteudo);
-            if (documento.RootElement.TryGetProperty("id", out var id))
-            {
-                return id.GetString() ?? string.Empty;
-            }
-        }
-        catch (JsonException)
-        {
-        }
-
-        return string.Empty;
+        return mensagem;
     }
 
-    private static string ExtrairMensagemErro(string conteudo)
+    private static string ExtrairMensagemErro(ResendException? exception)
     {
-        if (string.IsNullOrWhiteSpace(conteudo))
+        if (!string.IsNullOrWhiteSpace(exception?.Message))
         {
-            return "Falha ao enviar o e-mail do convite.";
+            return exception.Message.Length <= 500
+                ? exception.Message
+                : exception.Message[..500];
         }
 
-        try
-        {
-            using var documento = JsonDocument.Parse(conteudo);
-            if (documento.RootElement.TryGetProperty("message", out var mensagem))
-            {
-                return mensagem.GetString() ?? "Falha ao enviar o e-mail do convite.";
-            }
-
-            if (documento.RootElement.TryGetProperty("error", out var erro))
-            {
-                return erro.GetString() ?? "Falha ao enviar o e-mail do convite.";
-            }
-        }
-        catch (JsonException)
-        {
-        }
-
-        return conteudo.Length <= 500 ? conteudo : conteudo[..500];
+        return "Falha ao enviar o e-mail do convite.";
     }
 }
