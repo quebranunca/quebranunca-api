@@ -260,7 +260,7 @@ obj/Debug/net8.0/
  WindowsBase.dll
 
 [analyzerReferences]
-../../../../../../usr/local/share/dotnet/sdk/10.0.200/Sdks/Microsoft.NET.Sdk/analyzers/
+<DOTNET>/sdk/10.0.200/Sdks/Microsoft.NET.Sdk/analyzers/
  Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll
  Microsoft.CodeAnalysis.NetAnalyzers.dll
 <NUGET>/microsoft.netcore.app.ref/8.0.25/analyzers/dotnet/cs/
@@ -272,5 +272,5 @@ obj/Debug/net8.0/
  System.Text.RegularExpressions.Generator.dll
 
 [analyzerConfigFiles]
-../../../../../../usr/local/share/dotnet/sdk/10.0.200/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
+<DOTNET>/sdk/10.0.200/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_8_default.globalconfig
 obj/Debug/net8.0/PlataformaFutevolei.Dominio.GeneratedMSBuildEditorConfig.editorconfig
