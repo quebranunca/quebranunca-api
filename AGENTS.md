@@ -14,4 +14,5 @@
 - Não deixar segredos reais em `appsettings.*`, exemplos locais, chats ou arquivos de publish
 - O primeiro usuário `Administrador` é bootstrap operacional fora do fluxo normal: não criar endpoint público, seed automático em startup ou bypass no `Program.cs`
 - Para bootstrap do primeiro `Administrador`, gerar `senha_hash` com `scripts/gerar-hash-senha-admin.sh` e inserir/promover no banco com `perfil = 1`, `ativo = true` e `atleta_id = null`
+- Quando `Database:MigrateOnStartup` estiver desabilitado em produção, aplicar migrations via `scripts/aplicar-migrations-producao.sh`; não substituir migration por SQL estrutural manual no startup
 - Antes de subir `master`, revisar também `.gitignore`, artefatos de publish, documentação de deploy e checklist operacional

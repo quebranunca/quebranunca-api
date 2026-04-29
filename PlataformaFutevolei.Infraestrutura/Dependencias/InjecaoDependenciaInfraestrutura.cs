@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
@@ -29,14 +28,8 @@ public static class InjecaoDependenciaInfraestrutura
                 "(ou ConnectionStrings:Padrao / ConnectionStrings__DefaultConnection).");
         }
 
-        var connectionStringBuilder = new NpgsqlConnectionStringBuilder(connectionString);
-        if (!connectionString.Contains("Ssl Mode", StringComparison.OrdinalIgnoreCase))
-        {
-            connectionStringBuilder.SslMode = SslMode.Require;
-        }
-
         services.AddDbContext<PlataformaFutevoleiDbContext>(options =>
-            options.UseNpgsql(connectionStringBuilder.ConnectionString)
+            options.UseNpgsql(ConnectionStringPostgres.Normalizar(connectionString))
         );
 
         var secaoJwt = configuration.GetSection(ConfiguracaoJwt.Secao);

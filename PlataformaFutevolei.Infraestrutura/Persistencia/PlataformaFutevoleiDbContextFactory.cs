@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Npgsql;
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia;
 
@@ -18,14 +17,8 @@ public class PlataformaFutevoleiDbContextFactory : IDesignTimeDbContextFactory<P
                 "Defina ConnectionStrings__DefaultConnection (ou ConnectionStrings__Padrao) antes de executar comandos de migration.");
         }
 
-        var connectionStringBuilder = new NpgsqlConnectionStringBuilder(connectionString);
-        if (!connectionString.Contains("Ssl Mode", StringComparison.OrdinalIgnoreCase))
-        {
-            connectionStringBuilder.SslMode = SslMode.Require;
-        }
-
         var optionsBuilder = new DbContextOptionsBuilder<PlataformaFutevoleiDbContext>();
-        optionsBuilder.UseNpgsql(connectionStringBuilder.ConnectionString);
+        optionsBuilder.UseNpgsql(ConnectionStringPostgres.Normalizar(connectionString));
 
         return new PlataformaFutevoleiDbContext(optionsBuilder.Options);
     }
