@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes;
 
 /// <inheritdoc />
+[DbContext(typeof(PlataformaFutevoleiDbContext))]
+[Migration("20260413140000_AdicionarLinkCompeticao")]
 public partial class AdicionarLinkCompeticao : Migration
 {
     /// <inheritdoc />
