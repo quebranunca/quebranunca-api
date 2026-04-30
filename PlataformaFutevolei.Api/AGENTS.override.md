@@ -9,6 +9,8 @@
 - Em convites com e-mail automático, o disparo deve sair da API/aplicação; o frontend não deve carregar chave de provedor nem decidir o conteúdo final do envio
 - Falha do provedor de e-mail deve ser rastreável e controlada, sem derrubar a validade do convite nem o fluxo principal
 - Em convites, e-mail e WhatsApp devem reaproveitar o mesmo token e o mesmo fluxo de aceite; integrações externas ficam na infraestrutura com orquestração na aplicação
+- Em convites, link de aceite, e-mail e WhatsApp devem entregar o mesmo código vigente; controller ou serviço não deve regenerar código como efeito colateral dessas ações
+- Código de convite deve ser tratado como dado sensível operacional: não logar em payloads, respostas de erro ou rastreios fora das respostas administrativas já previstas
 - Validar entrada sem duplicar invariantes do serviço ou do domínio
 - Propagar `CancellationToken` e manter respostas claras e consistentes
 - Fluxos novos devem preferir ampliar endpoints existentes antes de criar controller paralelo sem necessidade

@@ -25,6 +25,9 @@
 - Para teste manual da API, usar `ASPNETCORE_URLS=http://localhost:5080 ASPNETCORE_ENVIRONMENT=Development dotnet run --project PlataformaFutevolei.Api --no-build --no-launch-profile`
 - Validar disponibilidade com `GET http://localhost:5080/health`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
+- Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
+- Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável
+- Ao persistir código de convite para reenvio, manter também o hash usado na validação e limpar o código em claro quando o convite for utilizado
 - Para testar `POST /api/partidas` sem competição prévia, o caminho mais simples é partida avulsa de `Grupo`: informar `nomeGrupo`, quatro atletas por `Id` ou `Nome`, `status` `1` para agendada ou `2` para encerrada, e placar válido quando encerrada
 - Regra importante da partida avulsa de grupo: se o usuário autenticado for atleta, o atleta vinculado ao usuário precisa estar na primeira dupla
 - Se a API retornar erro de coluna/tabela inexistente apesar de dizer que migrations estão atualizadas, conferir `__EFMigrationsHistory` contra os arquivos em `PlataformaFutevolei.Infraestrutura/Persistencia/Migracoes`; corrigir o banco local alinhando com migrations existentes, nunca adicionando SQL estrutural ao startup ou aos serviços
