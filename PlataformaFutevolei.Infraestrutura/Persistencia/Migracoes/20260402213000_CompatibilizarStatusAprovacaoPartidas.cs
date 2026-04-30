@@ -1,10 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes;
 
 [Migration("20260402213000_CompatibilizarStatusAprovacaoPartidas")]
+[DbContext(typeof(PlataformaFutevoleiDbContext))]
 public partial class CompatibilizarStatusAprovacaoPartidas : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

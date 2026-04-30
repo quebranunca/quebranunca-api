@@ -36,7 +36,7 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
     {
         return dbContext.Usuarios
             .AsNoTracking()
-            .Include(x => x.Atleta)
+            //.Include(x => x.Atleta)
             .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
     }
 

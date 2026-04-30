@@ -1,11 +1,14 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [Migration("20260401103000_AdicionarCriadoPorUsuarioNaPartida")]
+    [DbContext(typeof(PlataformaFutevoleiDbContext))]
     public partial class AdicionarCriadoPorUsuarioNaPartida : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

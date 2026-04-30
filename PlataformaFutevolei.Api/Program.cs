@@ -13,6 +13,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
 using PlataformaFutevolei.Infraestrutura.Dependencias;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,7 +131,32 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "QNF.Plataforma.Api")
+        .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
+});
+
 var app = builder.Build();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("Host", httpContext.Request.Host.Value);
+        diagnosticContext.Set("Scheme", httpContext.Request.Scheme);
+        diagnosticContext.Set("QueryString", httpContext.Request.QueryString.Value);
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+        diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString());
+        diagnosticContext.Set("UserId", httpContext.User?.Identity?.Name);
+    };
+});
 
 app.Logger.LogInformation("Inicializando API no ambiente {Ambiente}.", app.Environment.EnvironmentName);
 app.Logger.LogInformation("Porta configurada: {Porta}.", port);
