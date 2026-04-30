@@ -127,6 +127,7 @@ Persistencia/
   20260413120000_AdicionarBairroAtleta.cs
   20260413123000_AtualizarConvitesPendentesParaAtleta.cs
   20260413140000_AdicionarLinkCompeticao.cs
+  20260430143000_ManterCodigoConviteCadastro.cs
   PlataformaFutevoleiDbContextModelSnapshot.cs
  PlataformaFutevoleiDbContext.cs
  PlataformaFutevoleiDbContextFactory.cs

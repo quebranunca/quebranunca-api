@@ -77,7 +77,7 @@ public class ConviteCadastroServico(
         }
 
         ValidarConviteParaGeracaoAcesso(convite);
-        var codigoConvite = await RegenerarCodigoConviteAsync(convite, cancellationToken);
+        var codigoConvite = await ObterOuGerarCodigoConviteAsync(convite, cancellationToken);
 
         return new ConviteCadastroLinkAceiteDto(
             geracaoLinkConviteCadastroServico.Gerar(convite),
@@ -127,6 +127,7 @@ public class ConviteCadastroServico(
             CriadoPorUsuarioId = usuario.Id,
             CanalEnvio = NormalizarTexto(dto.CanalEnvio)
         };
+        DefinirNovoCodigoConvite(convite);
 
         await conviteCadastroRepositorio.AdicionarAsync(convite, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -274,14 +275,29 @@ public class ConviteCadastroServico(
         return expiracaoNormalizada;
     }
 
-    private async Task<string> RegenerarCodigoConviteAsync(
+    private async Task<string> ObterOuGerarCodigoConviteAsync(
         ConviteCadastro conviteCadastro,
         CancellationToken cancellationToken)
     {
-        var codigoConvite = CodigoConviteUtilitario.GerarNovo();
-        conviteCadastro.DefinirCodigoConviteHash(CodigoConviteUtilitario.GerarHash(codigoConvite));
+        if (!string.IsNullOrWhiteSpace(conviteCadastro.CodigoConvite)
+            && !string.IsNullOrWhiteSpace(conviteCadastro.CodigoConviteHash))
+        {
+            return conviteCadastro.CodigoConvite;
+        }
+
+        var codigoConvite = DefinirNovoCodigoConvite(conviteCadastro);
         conviteCadastroRepositorio.Atualizar(conviteCadastro);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return codigoConvite;
+    }
+
+    private static string DefinirNovoCodigoConvite(ConviteCadastro conviteCadastro)
+    {
+        var codigoConvite = CodigoConviteUtilitario.GerarNovo();
+        conviteCadastro.DefinirCodigoConvite(
+            codigoConvite,
+            CodigoConviteUtilitario.GerarHash(codigoConvite));
+
         return codigoConvite;
     }
 
@@ -316,7 +332,7 @@ public class ConviteCadastroServico(
         bool falharQuandoNaoEnviado,
         CancellationToken cancellationToken)
     {
-        var codigoConvite = await RegenerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        var codigoConvite = await ObterOuGerarCodigoConviteAsync(conviteCadastro, cancellationToken);
         var resultado = await envioEmailConviteCadastroServico.EnviarAsync(conviteCadastro, codigoConvite, cancellationToken);
         if (!resultado.TentativaRealizada)
         {
@@ -353,7 +369,7 @@ public class ConviteCadastroServico(
         bool falharQuandoNaoEnviado,
         CancellationToken cancellationToken)
     {
-        var codigoConvite = await RegenerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        var codigoConvite = await ObterOuGerarCodigoConviteAsync(conviteCadastro, cancellationToken);
         var resultado = await envioWhatsappConviteCadastroServico.EnviarAsync(conviteCadastro, codigoConvite, cancellationToken);
         if (!resultado.TentativaRealizada)
         {

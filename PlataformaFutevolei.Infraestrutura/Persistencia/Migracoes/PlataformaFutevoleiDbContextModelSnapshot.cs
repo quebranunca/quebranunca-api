@@ -300,6 +300,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(64)")
                         .HasColumnName("codigo_convite_hash");
 
+                    b.Property<string>("CodigoConvite")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("codigo_convite");
+
                     b.Property<Guid>("CriadoPorUsuarioId")
                         .HasColumnType("uuid")
                         .HasColumnName("criado_por_usuario_id");

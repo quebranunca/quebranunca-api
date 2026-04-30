@@ -7,11 +7,8 @@ internal static class CodigoConviteUtilitario
 {
     public static string GerarNovo()
     {
-        var codigoNormalizado = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
-        return string.Join(
-            "-",
-            Enumerable.Range(0, codigoNormalizado.Length / 4)
-                .Select(indice => codigoNormalizado.Substring(indice * 4, 4)));
+        var codigo = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        return $"{codigo[..3]}-{codigo[3..]}";
     }
 
     public static string Normalizar(string codigoConvite)

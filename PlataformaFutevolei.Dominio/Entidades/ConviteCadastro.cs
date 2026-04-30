@@ -7,6 +7,7 @@ public class ConviteCadastro : EntidadeBase
     public string Email { get; set; } = string.Empty;
     public string? Telefone { get; set; }
     public string IdentificadorPublico { get; set; } = string.Empty;
+    public string? CodigoConvite { get; set; }
     public string? CodigoConviteHash { get; set; }
     public PerfilUsuario PerfilDestino { get; set; } = PerfilUsuario.Atleta;
     public DateTime ExpiraEmUtc { get; set; }
@@ -71,6 +72,7 @@ public class ConviteCadastro : EntidadeBase
     public void MarcarComoUtilizado(DateTime dataUtc)
     {
         UsadoEmUtc = dataUtc;
+        CodigoConvite = null;
         AtualizarDataModificacao();
     }
 
@@ -80,8 +82,9 @@ public class ConviteCadastro : EntidadeBase
         AtualizarDataModificacao();
     }
 
-    public void DefinirCodigoConviteHash(string codigoConviteHash)
+    public void DefinirCodigoConvite(string codigoConvite, string codigoConviteHash)
     {
+        CodigoConvite = codigoConvite;
         CodigoConviteHash = codigoConviteHash;
         AtualizarDataModificacao();
     }
