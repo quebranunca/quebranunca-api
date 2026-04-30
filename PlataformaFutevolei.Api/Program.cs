@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using PlataformaFutevolei.Api.Configuracao;
@@ -14,6 +13,8 @@ using PlataformaFutevolei.Infraestrutura.Configuracoes;
 using PlataformaFutevolei.Infraestrutura.Dependencias;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -134,13 +135,19 @@ builder.Services.AddSwaggerGen(options =>
 builder.Host.UseSerilog((context, services, configuration) =>
 {
     configuration
-        .ReadFrom.Configuration(context.Configuration)
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Application", "QNF.Plataforma.Api")
-        .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
+        .WriteTo.Console(new CompactJsonFormatter());
 });
 
 var app = builder.Build();
+
+app.UseMiddleware<MiddlewareTratamentoErros>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseSerilogRequestLogging(options =>
 {
@@ -149,12 +156,13 @@ app.UseSerilogRequestLogging(options =>
 
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
+        diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
         diagnosticContext.Set("Host", httpContext.Request.Host.Value);
         diagnosticContext.Set("Scheme", httpContext.Request.Scheme);
         diagnosticContext.Set("QueryString", httpContext.Request.QueryString.Value);
         diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
         diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString());
-        diagnosticContext.Set("UserId", httpContext.User?.Identity?.Name);
+        diagnosticContext.Set("UserName", httpContext.User?.Identity?.Name);
     };
 });
 

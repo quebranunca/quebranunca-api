@@ -24,3 +24,7 @@
 - Validação de conexão e aplicação de migrations na subida devem ficar centralizadas em classe própria, com falha explícita fora de Development
 - Em `Staging` e `Production`, tratar ausência de configuração obrigatória como erro de startup e evitar qualquer fallback para `localhost`
 - Endpoints de diagnóstico, Swagger e flags operacionais precisam ficar protegidos por configuração segura por ambiente
+- Payload de request só deve ser logado em caso de erro crítico (500).
+- Deve ser sanitizado antes de logar.
+- Nunca logar dados sensíveis (senha, token, authorization).
+- Deve existir limite de tamanho do payload para logging.

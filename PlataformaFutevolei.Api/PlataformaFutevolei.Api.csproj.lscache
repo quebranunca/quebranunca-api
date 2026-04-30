@@ -75,7 +75,9 @@ Controllers/
  RegrasCompeticaoController.cs
  UsuariosController.cs
 Inicializacao/InicializacaoBancoDeDados.cs
-Middlewares/MiddlewareTratamentoErros.cs
+Middlewares/
+ CorrelationIdMiddleware.cs
+ MiddlewareTratamentoErros.cs
 obj/Debug/net8.0/
  .NETCoreApp,Version=v8.0.AssemblyAttributes.cs
  PlataformaFutevolei.Api.AssemblyInfo.cs
