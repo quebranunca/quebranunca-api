@@ -158,9 +158,35 @@ public class PendenciaServico(
             return;
         }
 
-        var atletas = ObterAtletasParaAprovacao(partida, usuarioRegistradorId);
+        var atletasPartida = ObterAtletasPartida(partida);
+        var atletasDuplaCriadora = ObterAtletasDaDuplaDoUsuario(partida, usuarioRegistradorId);
+        var atletasPendentesAprovacao = atletasPartida
+            .Where(x => atletasDuplaCriadora.All(duplaCriadora => duplaCriadora.Id != x.Id))
+            .ToList();
 
-        foreach (var atleta in atletas)
+        foreach (var atleta in atletasDuplaCriadora)
+        {
+            if (atleta.Usuario is null)
+            {
+                continue;
+            }
+
+            await partidaAprovacaoRepositorio.AdicionarAsync(new PartidaAprovacao
+            {
+                PartidaId = partida.Id,
+                AtletaId = atleta.Id,
+                UsuarioId = atleta.Usuario.Id,
+                Status = StatusPartidaAprovacao.Aprovada,
+                DataSolicitacao = DateTime.UtcNow,
+                DataResposta = DateTime.UtcNow,
+                Observacao = "Aprovada automaticamente para a dupla que registrou a partida.",
+                Partida = partida,
+                Atleta = atleta,
+                Usuario = atleta.Usuario
+            }, cancellationToken);
+        }
+
+        foreach (var atleta in atletasPendentesAprovacao)
         {
             if (atleta.Usuario is null)
             {
@@ -439,21 +465,35 @@ public class PendenciaServico(
         .ToList();
     }
 
-    private static IReadOnlyList<Atleta> ObterAtletasParaAprovacao(Partida partida, Guid usuarioRegistradorId)
+    private static IReadOnlyList<Atleta> ObterAtletasDaDuplaDoUsuario(Partida partida, Guid usuarioId)
     {
-        if (partida.CriadoPorUsuarioId != usuarioRegistradorId || partida.DuplaB is null)
+        if (partida.DuplaA is not null &&
+            (partida.DuplaA.Atleta1?.UsuarioId == usuarioId || partida.DuplaA.Atleta2?.UsuarioId == usuarioId))
         {
-            return ObterAtletasPartida(partida);
+            return new[]
+            {
+                partida.DuplaA.Atleta1,
+                partida.DuplaA.Atleta2
+            }
+            .OfType<Atleta>()
+            .DistinctBy(x => x.Id)
+            .ToList();
         }
 
-        return new[]
+        if (partida.DuplaB is not null &&
+            (partida.DuplaB.Atleta1?.UsuarioId == usuarioId || partida.DuplaB.Atleta2?.UsuarioId == usuarioId))
         {
-            partida.DuplaB.Atleta1,
-            partida.DuplaB.Atleta2
+            return new[]
+            {
+                partida.DuplaB.Atleta1,
+                partida.DuplaB.Atleta2
+            }
+            .OfType<Atleta>()
+            .DistinctBy(x => x.Id)
+            .ToList();
         }
-        .OfType<Atleta>()
-        .DistinctBy(x => x.Id)
-        .ToList();
+
+        return [];
     }
 
     private static IReadOnlyList<Atleta> ObterAtletasDaMesmaDupla(Partida partida, Guid atletaId)
