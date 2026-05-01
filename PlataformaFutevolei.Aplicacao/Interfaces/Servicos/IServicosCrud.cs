@@ -9,6 +9,10 @@ public interface IAtletaServico
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AtletaResumoDto>> BuscarSugestoesPorCompeticaoAsync(
+        Guid competicaoId,
+        string? termo,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AtletaDto?> ObterMeuAsync(CancellationToken cancellationToken = default);

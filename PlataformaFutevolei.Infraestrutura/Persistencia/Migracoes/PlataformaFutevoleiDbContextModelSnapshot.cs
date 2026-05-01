@@ -107,6 +107,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasIndex("Cpf");
 
+                    b.HasIndex("Nome");
+
                     b.ToTable("atletas", (string)null);
                 });
 

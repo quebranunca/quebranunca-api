@@ -13,6 +13,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class AtletaServico(
     IAtletaRepositorio atletaRepositorio,
     IPartidaRepositorio partidaRepositorio,
+    ICompeticaoRepositorio competicaoRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
@@ -41,6 +42,42 @@ public class AtletaServico(
     {
         await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var atletas = await atletaRepositorio.BuscarAsync(termo, cancellationToken);
+        return atletas.Select(x => x.ParaResumoDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<AtletaResumoDto>> BuscarSugestoesPorCompeticaoAsync(
+        Guid competicaoId,
+        string? termo,
+        CancellationToken cancellationToken = default)
+    {
+        var termoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(termo ?? string.Empty);
+        if (termoNormalizado.Length < 3)
+        {
+            return [];
+        }
+
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            var possuiAcesso = await competicaoRepositorio.AtletaPossuiAcessoAsync(
+                competicaoId,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
+            {
+                throw new RegraNegocioException("Você só pode consultar atletas de competições em que participa.");
+            }
+        }
+        else
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
+        }
+
+        var atletas = await atletaRepositorio.BuscarSugestoesPorCompeticaoAsync(
+            competicaoId,
+            termoNormalizado,
+            cancellationToken);
         return atletas.Select(x => x.ParaResumoDto()).ToList();
     }
 

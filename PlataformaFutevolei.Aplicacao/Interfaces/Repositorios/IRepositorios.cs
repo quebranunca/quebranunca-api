@@ -33,6 +33,7 @@ public interface IAtletaRepositorio
     Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<bool> PertenceAoOrganizadorAsync(Guid atletaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> BuscarSugestoesPorCompeticaoAsync(Guid competicaoId, string termo, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default);

@@ -9,7 +9,10 @@ namespace PlataformaFutevolei.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/competicoes")]
-public class CompeticoesController(ICompeticaoServico competicaoServico, ICategoriaCompeticaoServico categoriaServico) : ControllerBase
+public class CompeticoesController(
+    ICompeticaoServico competicaoServico,
+    ICategoriaCompeticaoServico categoriaServico,
+    IAtletaServico atletaServico) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
@@ -68,5 +71,16 @@ public class CompeticoesController(ICompeticaoServico competicaoServico, ICatego
     {
         var categorias = await categoriaServico.ListarPorCompeticaoAsync(id, cancellationToken);
         return Ok(categorias);
+    }
+
+    [HttpGet("{id:guid}/atletas/sugestoes")]
+    [ProducesResponseType(typeof(IReadOnlyList<AtletaResumoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BuscarSugestoesAtletas(
+        Guid id,
+        [FromQuery] string? termo,
+        CancellationToken cancellationToken)
+    {
+        var atletas = await atletaServico.BuscarSugestoesPorCompeticaoAsync(id, termo, cancellationToken);
+        return Ok(atletas);
     }
 }

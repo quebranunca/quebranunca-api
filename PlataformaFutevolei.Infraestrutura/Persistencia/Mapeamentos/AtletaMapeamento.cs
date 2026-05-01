@@ -30,5 +30,6 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
         builder.HasIndex(x => x.Cpf);
+        builder.HasIndex(x => x.Nome);
     }
 }

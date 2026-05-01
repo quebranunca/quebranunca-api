@@ -98,6 +98,43 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Atleta>> BuscarSugestoesPorCompeticaoAsync(
+        Guid competicaoId,
+        string termo,
+        CancellationToken cancellationToken = default)
+    {
+        var termoNormalizado = termo.Trim().ToLowerInvariant();
+        if (termoNormalizado.Length < 3)
+        {
+            return [];
+        }
+
+        return await dbContext.Atletas
+            .AsNoTracking()
+            .Where(x =>
+                x.Nome.ToLower().StartsWith(termoNormalizado) ||
+                (x.Apelido != null && x.Apelido.ToLower().StartsWith(termoNormalizado)))
+            .Where(x =>
+                x.Grupos.Any(grupo => grupo.CompeticaoId == competicaoId) ||
+                x.DuplasComoAtleta1.Any(dupla =>
+                    dbContext.InscricoesCampeonato.Any(inscricao =>
+                        inscricao.CompeticaoId == competicaoId &&
+                        inscricao.Status == StatusInscricaoCampeonato.Ativa &&
+                        inscricao.DuplaId == dupla.Id) ||
+                    dupla.PartidasComoDuplaA.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
+                    dupla.PartidasComoDuplaB.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId)) ||
+                x.DuplasComoAtleta2.Any(dupla =>
+                    dbContext.InscricoesCampeonato.Any(inscricao =>
+                        inscricao.CompeticaoId == competicaoId &&
+                        inscricao.Status == StatusInscricaoCampeonato.Ativa &&
+                        inscricao.DuplaId == dupla.Id) ||
+                    dupla.PartidasComoDuplaA.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
+                    dupla.PartidasComoDuplaB.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId)))
+            .OrderBy(x => x.Nome)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Atletas
