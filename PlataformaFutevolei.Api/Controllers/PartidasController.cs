@@ -80,6 +80,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {
