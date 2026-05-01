@@ -158,7 +158,7 @@ public class PendenciaServico(
             return;
         }
 
-        var atletas = ObterAtletasPartida(partida);
+        var atletas = ObterAtletasParaAprovacao(partida, usuarioRegistradorId);
 
         foreach (var atleta in atletas)
         {
@@ -433,6 +433,23 @@ public class PendenciaServico(
             partida.DuplaA?.Atleta2,
             partida.DuplaB?.Atleta1,
             partida.DuplaB?.Atleta2
+        }
+        .OfType<Atleta>()
+        .DistinctBy(x => x.Id)
+        .ToList();
+    }
+
+    private static IReadOnlyList<Atleta> ObterAtletasParaAprovacao(Partida partida, Guid usuarioRegistradorId)
+    {
+        if (partida.CriadoPorUsuarioId != usuarioRegistradorId || partida.DuplaB is null)
+        {
+            return ObterAtletasPartida(partida);
+        }
+
+        return new[]
+        {
+            partida.DuplaB.Atleta1,
+            partida.DuplaB.Atleta2
         }
         .OfType<Atleta>()
         .DistinctBy(x => x.Id)
