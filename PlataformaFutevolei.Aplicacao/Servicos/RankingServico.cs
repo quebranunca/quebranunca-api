@@ -202,6 +202,20 @@ public class RankingServico(
                NomeCompeticaoPartidasAvulsas,
                StringComparison.OrdinalIgnoreCase);
 
+    private static decimal ObterPontosVitoriaRanking(Partida partida)
+    {
+        var categoria = partida.CategoriaCompeticao;
+        var competicao = categoria.Competicao;
+        var peso = categoria.PesoRanking;
+
+        if (competicao.Tipo == TipoCompeticao.Grupo || EhCompeticaoPartidasAvulsas(competicao))
+        {
+            return 1m;
+        }
+
+        return competicao.ObterPontosVitoria() * peso;
+    }
+
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingLiga(
         Guid ligaId,
         string nomeLiga,
@@ -258,7 +272,7 @@ public class RankingServico(
             var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
-            var pontosVitoria = competicao.ObterPontosVitoria() * peso;
+            var pontosVitoria = ObterPontosVitoriaRanking(partida);
             var pontosDerrota = competicao.ObterPontosDerrota() * peso;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
@@ -374,7 +388,7 @@ public class RankingServico(
             var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
-            var pontosVitoria = competicao.ObterPontosVitoria() * peso;
+            var pontosVitoria = ObterPontosVitoriaRanking(partida);
             var pontosDerrota = competicao.ObterPontosDerrota() * peso;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
@@ -500,7 +514,7 @@ public class RankingServico(
 
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
-            var pontosVitoria = competicao.ObterPontosVitoria() * peso;
+            var pontosVitoria = ObterPontosVitoriaRanking(partida);
             var pontosDerrota = competicao.ObterPontosDerrota() * peso;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
