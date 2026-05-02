@@ -12,6 +12,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class UsuarioServico(
     IUsuarioRepositorio usuarioRepositorio,
     IAtletaRepositorio atletaRepositorio,
+    IPartidaRepositorio partidaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IPendenciaServico pendenciaServico
@@ -21,6 +22,17 @@ public class UsuarioServico(
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         return usuario.ParaDto();
+    }
+
+    public async Task<UsuarioResumoDto> ObterMeuResumoAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            return new UsuarioResumoDto(0, 0, 0, 0, 0);
+        }
+
+        return await partidaRepositorio.ObterResumoUsuarioPorAtletaAsync(usuario.AtletaId.Value, cancellationToken);
     }
 
     public async Task<UsuarioLogadoDto> AtualizarMeuUsuarioAsync(

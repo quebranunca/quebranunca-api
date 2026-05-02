@@ -19,6 +19,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
         return Ok(usuario);
     }
 
+    [HttpGet("resumo")]
+    [ProducesResponseType(typeof(UsuarioResumoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterResumo(CancellationToken cancellationToken)
+    {
+        var resumo = await usuarioServico.ObterMeuResumoAsync(cancellationToken);
+        return Ok(resumo);
+    }
+
     [HttpPut("me")]
     [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> AtualizarMeuUsuario([FromBody] AtualizarMeuUsuarioDto dto, CancellationToken cancellationToken)

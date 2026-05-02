@@ -1,3 +1,4 @@
+using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -155,6 +156,7 @@ public interface IPartidaRepositorio
         Guid? usuarioOrganizadorId,
         Guid? atletaId,
         CancellationToken cancellationToken = default);
+    Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default);
     void Atualizar(Partida partida);

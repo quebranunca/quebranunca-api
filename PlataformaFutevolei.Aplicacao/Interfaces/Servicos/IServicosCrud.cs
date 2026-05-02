@@ -245,6 +245,7 @@ public interface IImportacaoServico
 public interface IUsuarioServico
 {
     Task<UsuarioLogadoDto> ObterMeuUsuarioAsync(CancellationToken cancellationToken = default);
+    Task<UsuarioResumoDto> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> AtualizarMeuUsuarioAsync(AtualizarMeuUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> VincularMeuAtletaAsync(VincularAtletaUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UsuarioDto>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);

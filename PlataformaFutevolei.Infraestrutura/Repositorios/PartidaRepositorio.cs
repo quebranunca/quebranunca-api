@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
@@ -172,6 +173,50 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ThenByDescending(x => x.DataCriacao)
             .Select(x => (Guid?)x.CategoriaCompeticao.CompeticaoId)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        var duplasDoAtleta = dbContext.Duplas
+            .AsNoTracking()
+            .Where(x => x.Atleta1Id == atletaId || x.Atleta2Id == atletaId)
+            .Select(x => x.Id);
+
+        var partidasDoAtleta = dbContext.Partidas
+            .AsNoTracking()
+            .Where(x =>
+                (x.DuplaAId.HasValue && duplasDoAtleta.Contains(x.DuplaAId.Value)) ||
+                (x.DuplaBId.HasValue && duplasDoAtleta.Contains(x.DuplaBId.Value)));
+
+        var partidasAprovadas = partidasDoAtleta
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+            .Where(x => x.DuplaVencedoraId.HasValue);
+
+        var totalPartidas = await partidasAprovadas.CountAsync(cancellationToken);
+        var totalVitorias = await partidasAprovadas
+            .CountAsync(
+                x => duplasDoAtleta.Contains(x.DuplaVencedoraId!.Value),
+                cancellationToken);
+        var totalDerrotas = totalPartidas - totalVitorias;
+        var totalPartidasPendentes = await partidasDoAtleta
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .CountAsync(
+                x => x.StatusAprovacao == StatusAprovacaoPartida.PendenteAprovacao ||
+                     x.StatusAprovacao == StatusAprovacaoPartida.PendenteDeVinculos,
+                cancellationToken);
+        var percentualAproveitamento = totalPartidas == 0
+            ? 0
+            : decimal.Round(totalVitorias * 100m / totalPartidas, 2);
+
+        return new UsuarioResumoDto(
+            totalPartidas,
+            totalVitorias,
+            totalDerrotas,
+            percentualAproveitamento,
+            totalPartidasPendentes);
     }
 
     public Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
