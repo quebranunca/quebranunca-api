@@ -15,7 +15,6 @@ public class RankingServico(
     ILigaRepositorio ligaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
     IPartidaRepositorio partidaRepositorio,
-    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
 {
@@ -181,12 +180,13 @@ public class RankingServico(
 
             if (!competicaoPartidasAvulsas && !usuarioEhDonoDoGrupo)
             {
-                var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
+                var possuiAcessoAoGrupo = await competicaoRepositorio.AtletaPossuiAcessoAsync(
                     competicaoId,
+                    usuario.Id,
                     usuario.AtletaId!.Value,
                     cancellationToken);
 
-                if (grupoAtleta is null)
+                if (!possuiAcessoAoGrupo)
                 {
                     throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
                 }
