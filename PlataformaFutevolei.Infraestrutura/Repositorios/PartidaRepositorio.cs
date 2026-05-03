@@ -34,6 +34,22 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
+    {
+        var duplasDoAtleta = dbContext.Duplas
+            .AsNoTracking()
+            .Where(x => x.Atleta1Id == atletaId || x.Atleta2Id == atletaId)
+            .Select(x => x.Id);
+
+        return await CriarConsultaDetalhadaPartidas()
+            .Where(x =>
+                (x.DuplaAId.HasValue && duplasDoAtleta.Contains(x.DuplaAId.Value)) ||
+                (x.DuplaBId.HasValue && duplasDoAtleta.Contains(x.DuplaBId.Value)))
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Partida?> ObterUltimaDoGrupoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         return CriarConsultaDetalhadaPartidas()

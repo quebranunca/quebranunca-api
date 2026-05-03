@@ -53,6 +53,18 @@ public class PartidaServico(
         return partidas.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            return [];
+        }
+
+        var partidas = await partidaRepositorio.ListarPorAtletaAsync(usuario.AtletaId.Value, cancellationToken);
+        return partidas.Select(x => x.ParaDto()).ToList();
+    }
+
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         await ObterCompeticaoGrupoComAcessoParaConsultaAsync(competicaoId, cancellationToken);

@@ -16,8 +16,15 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     public async Task<IActionResult> Listar(
         [FromQuery] Guid? competicaoId,
         [FromQuery] Guid? categoriaId,
+        [FromQuery] bool minhas,
         CancellationToken cancellationToken)
     {
+        if (minhas)
+        {
+            var minhasPartidas = await partidaServico.ListarMinhasAsync(cancellationToken);
+            return Ok(minhasPartidas);
+        }
+
         if (categoriaId.HasValue)
         {
             var partidasCategoria = await partidaServico.ListarPorCategoriaAsync(categoriaId.Value, cancellationToken);
@@ -31,6 +38,14 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         }
 
         return BadRequest("Informe uma competição ou categoria para consultar as partidas.");
+    }
+
+    [HttpGet("minhas")]
+    [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarMinhas(CancellationToken cancellationToken)
+    {
+        var partidas = await partidaServico.ListarMinhasAsync(cancellationToken);
+        return Ok(partidas);
     }
 
     [HttpGet("estrutura")]
