@@ -4,6 +4,10 @@ namespace PlataformaFutevolei.Dominio.Entidades;
 
 public class Partida : EntidadeBase
 {
+    public const decimal PontosVitoriaRegistradaRanking = 1m;
+    public const decimal PontosBonusAprovacaoVitoriaRanking = 1m;
+    public const decimal PontosDerrotaRanking = 0m;
+
     public Guid? CategoriaCompeticaoId { get; set; }
     public Guid? GrupoId { get; set; }
     public Guid? CriadoPorUsuarioId { get; set; }
@@ -73,7 +77,24 @@ public class Partida : EntidadeBase
         }
 
         var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
-        var pontosVitoria = CategoriaCompeticao?.Competicao?.ObterPontosVitoria() ?? Competicao.PontosVitoriaPadrao;
-        return pontosVitoria * peso;
+        var pontos = PontosVitoriaRegistradaRanking;
+
+        if (StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+        {
+            pontos += PontosBonusAprovacaoVitoriaRanking;
+        }
+
+        return pontos * peso;
+    }
+
+    public decimal CalcularBonusAprovacaoPendenteRanking(decimal? pesoRanking = null)
+    {
+        if (DuplaVencedoraId is null || StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+        {
+            return 0m;
+        }
+
+        var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
+        return PontosBonusAprovacaoVitoriaRanking * peso;
     }
 }

@@ -251,16 +251,12 @@ public class RankingServico(
 
     private static decimal ObterPontosVitoriaRanking(Partida partida)
     {
-        var categoria = partida.CategoriaCompeticao;
-        var competicao = categoria.Competicao;
-        var peso = categoria.PesoRanking;
+        return partida.CalcularPontosRankingVitoria(partida.CategoriaCompeticao?.PesoRanking);
+    }
 
-        if (partida.GrupoId.HasValue || competicao.Tipo == TipoCompeticao.Grupo || EhCompeticaoPartidasAvulsas(competicao))
-        {
-            return Competicao.PontosVitoriaPadrao;
-        }
-
-        return competicao.ObterPontosVitoria() * peso;
+    private static decimal ObterBonusAprovacaoPendenteRanking(Partida partida)
+    {
+        return partida.CalcularBonusAprovacaoPendenteRanking(partida.CategoriaCompeticao?.PesoRanking);
     }
 
     private static IReadOnlyList<RankingCategoriaDto> MontarRankingLiga(
@@ -320,7 +316,8 @@ public class RankingServico(
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = ObterPontosVitoriaRanking(partida);
-            var pontosDerrota = competicao.ObterPontosDerrota() * peso;
+            var pontosBonusAprovacaoPendente = ObterBonusAprovacaoPendenteRanking(partida);
+            var pontosDerrota = Partida.PontosDerrotaRanking;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
             var confronto = MontarConfrontoRanking(partida);
@@ -337,6 +334,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -354,6 +352,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -371,6 +370,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -388,6 +388,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -436,7 +437,8 @@ public class RankingServico(
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = ObterPontosVitoriaRanking(partida);
-            var pontosDerrota = competicao.ObterPontosDerrota() * peso;
+            var pontosBonusAprovacaoPendente = ObterBonusAprovacaoPendenteRanking(partida);
+            var pontosDerrota = Partida.PontosDerrotaRanking;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
             var confronto = MontarConfrontoRanking(partida);
@@ -454,6 +456,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -472,6 +475,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -490,6 +494,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -508,6 +513,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -562,7 +568,8 @@ public class RankingServico(
             var peso = categoria.PesoRanking;
             var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = ObterPontosVitoriaRanking(partida);
-            var pontosDerrota = competicao.ObterPontosDerrota() * peso;
+            var pontosBonusAprovacaoPendente = ObterBonusAprovacaoPendenteRanking(partida);
+            var pontosDerrota = Partida.PontosDerrotaRanking;
             var empate = partida.TerminouEmpatada();
             var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
             var confronto = MontarConfrontoRanking(partida);
@@ -579,6 +586,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -596,6 +604,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaA.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -613,6 +622,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -630,6 +640,7 @@ public class RankingServico(
                 empate,
                 vencedoraId == duplaB.Id,
                 pontosVitoria,
+                pontosBonusAprovacaoPendente,
                 pontosDerrota,
                 pontuacaoPendente,
                 partida.Id,
@@ -963,6 +974,7 @@ public class RankingServico(
         bool empate,
         bool venceu,
         decimal pontosVitoria,
+        decimal pontosBonusAprovacaoPendente,
         decimal pontosDerrota,
         bool pontuacaoPendente,
         Guid partidaId,
@@ -986,6 +998,7 @@ public class RankingServico(
             empate,
             venceu,
             pontosVitoria,
+            pontosBonusAprovacaoPendente,
             pontosDerrota,
             pontuacaoPendente,
             partidaId,
@@ -1005,6 +1018,7 @@ public class RankingServico(
         bool empate,
         bool venceu,
         decimal pontosVitoria,
+        decimal pontosBonusAprovacaoPendente,
         decimal pontosDerrota,
         bool pontuacaoPendente,
         Guid partidaId,
@@ -1029,20 +1043,6 @@ public class RankingServico(
 
         if (empate)
         {
-            if (pontuacaoPendente)
-            {
-                item.PontosPendentes += pontosPartida;
-                item.Partidas.Add(new RankingPartidaDto(
-                    partidaId,
-                    confronto,
-                    dataPartida,
-                    nomeCompeticao,
-                    nomeCategoria,
-                    "Empate pendente",
-                    pontosPartida));
-                return;
-            }
-
             item.Jogos++;
             item.Empates++;
             item.Pontos += pontosPartida;
@@ -1063,7 +1063,10 @@ public class RankingServico(
 
             if (pontuacaoPendente)
             {
-                item.PontosPendentes += pontosPartida;
+                item.Jogos++;
+                item.Vitorias++;
+                item.Pontos += pontosPartida;
+                item.PontosPendentes += pontosBonusAprovacaoPendente;
                 item.Partidas.Add(new RankingPartidaDto(
                     partidaId,
                     confronto,
@@ -1090,20 +1093,6 @@ public class RankingServico(
         }
 
         pontosPartida += pontosDerrota;
-
-        if (pontuacaoPendente)
-        {
-            item.PontosPendentes += pontosPartida;
-            item.Partidas.Add(new RankingPartidaDto(
-                partidaId,
-                confronto,
-                dataPartida,
-                nomeCompeticao,
-                nomeCategoria,
-                "Derrota pendente",
-                pontosPartida));
-            return;
-        }
 
         item.Jogos++;
         item.Derrotas++;

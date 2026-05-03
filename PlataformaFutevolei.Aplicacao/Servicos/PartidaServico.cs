@@ -2604,6 +2604,9 @@ public class PartidaServico(
             tipoJogo,
             partida.FaseCampeonato,
             partida.Status,
+            partida.StatusAprovacao,
+            CalcularPontosClassificacaoDupla(partida, partida.DuplaAId),
+            CalcularPontosClassificacaoDupla(partida, partida.DuplaBId),
             partida.DuplaAId,
             partida.DuplaA?.Nome ?? string.Empty,
             partida.DuplaBId,
@@ -2613,6 +2616,18 @@ public class PartidaServico(
             partida.DuplaVencedoraId,
             partida.DuplaVencedora?.Nome,
             partida.DataPartida);
+    }
+
+    private static decimal CalcularPontosClassificacaoDupla(Partida partida, Guid? duplaId)
+    {
+        if (partida.Status != StatusPartida.Encerrada ||
+            !duplaId.HasValue ||
+            partida.DuplaVencedoraId != duplaId.Value)
+        {
+            return Partida.PontosDerrotaRanking;
+        }
+
+        return partida.CalcularPontosRankingVitoria(partida.CategoriaCompeticao?.PesoRanking);
     }
 
     private static int ObterNumeroRodadaExibicaoChave(MetadadosChave metadados, int maiorRodadaBase = 1)

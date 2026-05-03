@@ -246,13 +246,13 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
                 (x.DuplaAId.HasValue && duplasDoAtleta.Contains(x.DuplaAId.Value)) ||
                 (x.DuplaBId.HasValue && duplasDoAtleta.Contains(x.DuplaBId.Value)));
 
-        var partidasAprovadas = partidasDoAtleta
+        var partidasRegistradas = partidasDoAtleta
             .Where(x => x.Status == StatusPartida.Encerrada)
-            .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
             .Where(x => x.DuplaVencedoraId.HasValue);
 
-        var totalPartidas = await partidasAprovadas.CountAsync(cancellationToken);
-        var totalVitorias = await partidasAprovadas
+        var totalPartidas = await partidasRegistradas.CountAsync(cancellationToken);
+        var totalVitorias = await partidasRegistradas
             .CountAsync(
                 x => duplasDoAtleta.Contains(x.DuplaVencedoraId!.Value),
                 cancellationToken);
