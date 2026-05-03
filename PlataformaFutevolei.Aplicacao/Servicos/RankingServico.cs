@@ -172,12 +172,14 @@ public class RankingServico(
                 throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
             }
 
-            if (!competicaoPartidasAvulsas && !usuario.AtletaId.HasValue)
+            var usuarioEhDonoDoGrupo = competicao.UsuarioOrganizadorId == usuario.Id;
+
+            if (!competicaoPartidasAvulsas && !usuarioEhDonoDoGrupo && !usuario.AtletaId.HasValue)
             {
                 throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
             }
 
-            if (!competicaoPartidasAvulsas)
+            if (!competicaoPartidasAvulsas && !usuarioEhDonoDoGrupo)
             {
                 var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
                     competicaoId,

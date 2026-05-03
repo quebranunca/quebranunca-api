@@ -8,6 +8,8 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
 public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICompeticaoRepositorio
 {
+    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
+
     public async Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Competicoes
@@ -19,6 +21,26 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .Include(x => x.UsuarioOrganizador)
             .OrderByDescending(x => x.DataInicio)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<Competicao?> ObterGrupoResumoUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = dbContext.Competicoes
+            .AsNoTracking()
+            .Where(x => x.Tipo == TipoCompeticao.Grupo)
+            .Where(x => x.Nome.ToLower() != NomeCompeticaoPartidasAvulsas.ToLower())
+            .Where(x =>
+                x.UsuarioOrganizadorId == usuarioId ||
+                (atletaId.HasValue && x.GrupoAtletas.Any(grupo => grupo.AtletaId == atletaId.Value)));
+
+        return consulta
+            .OrderByDescending(x => x.UsuarioOrganizadorId == usuarioId)
+            .ThenByDescending(x => x.DataAtualizacao)
+            .ThenByDescending(x => x.DataInicio)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(

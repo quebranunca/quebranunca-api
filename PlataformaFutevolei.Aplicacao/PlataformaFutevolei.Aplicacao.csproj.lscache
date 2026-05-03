@@ -102,6 +102,7 @@ Servicos/
  DuplaServico.cs
  FormatoCampeonatoServico.cs
  GrupoAtletaServico.cs
+ GrupoResumoUsuarioServico.cs
  ImportacaoServico.cs
  InscricaoCampeonatoServico.cs
  LigaServico.cs

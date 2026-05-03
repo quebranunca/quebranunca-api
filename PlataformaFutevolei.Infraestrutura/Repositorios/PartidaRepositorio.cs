@@ -34,6 +34,17 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public Task<Partida?> ObterUltimaDoGrupoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
+    {
+        return CriarConsultaDetalhadaPartidas()
+            .Where(x => x.CategoriaCompeticao.CompeticaoId == competicaoId)
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(
         Guid usuarioId,
         CancellationToken cancellationToken = default)

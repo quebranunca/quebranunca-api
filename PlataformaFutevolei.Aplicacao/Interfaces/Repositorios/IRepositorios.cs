@@ -80,6 +80,10 @@ public interface ILocalRepositorio
 public interface ICompeticaoRepositorio
 {
     Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<Competicao?> ObterGrupoResumoUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
         Guid usuarioId,
         Guid? atletaId,
@@ -139,6 +143,7 @@ public interface IPartidaRepositorio
 {
     Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<Partida?> ObterUltimaDoGrupoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComPendenteDeVinculoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(

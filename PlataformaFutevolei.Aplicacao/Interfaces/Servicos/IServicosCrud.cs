@@ -63,6 +63,11 @@ public interface ICompeticaoServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IGrupoResumoUsuarioServico
+{
+    Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IGrupoAtletaServico
 {
     Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);

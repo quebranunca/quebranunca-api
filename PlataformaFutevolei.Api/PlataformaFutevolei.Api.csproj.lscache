@@ -65,6 +65,7 @@ Controllers/
  DuplasController.cs
  FormatosCampeonatoController.cs
  GruposAtletasController.cs
+ GruposController.cs
  ImportacoesController.cs
  InscricoesCampeonatoController.cs
  LigasController.cs
