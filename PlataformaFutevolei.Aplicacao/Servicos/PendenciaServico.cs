@@ -14,6 +14,7 @@ public class PendenciaServico(
     IPartidaRepositorio partidaRepositorio,
     IPartidaAprovacaoRepositorio partidaAprovacaoRepositorio,
     IPendenciaUsuarioRepositorio pendenciaUsuarioRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IPendenciaServico
@@ -119,11 +120,16 @@ public class PendenciaServico(
         }
         else
         {
-            atleta.Email = NormalizarEmail(dto.Email);
+            var emailNormalizado = NormalizarEmail(dto.Email);
+            await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, cancellationToken);
+
+            atleta.Email = emailNormalizado;
             atleta.AtualizarDataModificacao();
             await ConcluirPendenciasContatoAtletaAsync(
                 atleta.Id,
-                "Contato informado. A partida continua aguardando vínculo do atleta para liberar a aprovação.",
+                pendencia.PartidaId.HasValue
+                    ? "Contato informado. A partida continua aguardando vínculo do atleta para liberar a aprovação."
+                    : "Contato informado.",
                 cancellationToken);
         }
 
@@ -390,6 +396,27 @@ public class PendenciaServico(
         foreach (var pendencia in pendencias.Where(x => x.Tipo == TipoPendenciaUsuario.CompletarContatoAtletaDaPartida))
         {
             ConcluirPendencia(pendencia, observacao);
+        }
+    }
+
+    private async Task GarantirEmailUnicoNosGruposDoAtletaAsync(
+        Guid atletaId,
+        string emailNormalizado,
+        CancellationToken cancellationToken)
+    {
+        var gruposDoAtleta = await grupoAtletaRepositorio.ListarPorAtletaAsync(atletaId, cancellationToken);
+        foreach (var grupoDoAtleta in gruposDoAtleta)
+        {
+            var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorCompeticaoAsync(grupoDoAtleta.CompeticaoId, cancellationToken);
+            var emailDuplicado = atletasDoGrupo.Any(x =>
+                x.AtletaId != atletaId &&
+                !string.IsNullOrWhiteSpace(x.Atleta.Email) &&
+                string.Equals(x.Atleta.Email, emailNormalizado, StringComparison.OrdinalIgnoreCase));
+
+            if (emailDuplicado)
+            {
+                throw new RegraNegocioException("Já existe um atleta nesse grupo com este email.");
+            }
         }
     }
 

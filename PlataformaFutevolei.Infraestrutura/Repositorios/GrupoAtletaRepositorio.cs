@@ -19,6 +19,17 @@ public class GrupoAtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IG
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.GruposAtletas
+            .AsNoTracking()
+            .Include(x => x.Atleta)
+            .ThenInclude(x => x.Usuario)
+            .Where(x => x.AtletaId == atletaId)
+            .OrderBy(x => x.CompeticaoId)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<GrupoAtleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.GruposAtletas

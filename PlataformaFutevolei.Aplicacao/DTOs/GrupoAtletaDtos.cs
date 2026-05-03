@@ -2,7 +2,12 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarGrupoAtletaDto(
     string NomeAtleta,
-    string? ApelidoAtleta
+    string? ApelidoAtleta,
+    string? Email
+);
+
+public record AtualizarEmailGrupoAtletaDto(
+    string Email
 );
 
 public record GrupoAtletaDto(
@@ -11,6 +16,7 @@ public record GrupoAtletaDto(
     Guid AtletaId,
     string NomeAtleta,
     string? ApelidoAtleta,
+    string? EmailAtleta,
     bool CadastroPendente,
     bool VinculadoAUsuario,
     DateTime DataCriacao,

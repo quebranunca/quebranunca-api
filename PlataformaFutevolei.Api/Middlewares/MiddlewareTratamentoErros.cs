@@ -35,11 +35,20 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
             context.Response.StatusCode = (int)statusCode;
             context.Response.ContentType = "application/json";
 
-            var resposta = JsonSerializer.Serialize(new
-            {
-                erro = mensagem,
-                correlationId
-            });
+            var resposta = ex is ConflitoGrupoAtletaException conflitoGrupoAtleta
+                ? JsonSerializer.Serialize(new
+                {
+                    erro = mensagem,
+                    codigo = conflitoGrupoAtleta.Codigo,
+                    grupoAtletaId = conflitoGrupoAtleta.GrupoAtletaId,
+                    atletaId = conflitoGrupoAtleta.AtletaId,
+                    correlationId
+                })
+                : JsonSerializer.Serialize(new
+                {
+                    erro = mensagem,
+                    correlationId
+                });
 
             await context.Response.WriteAsync(resposta);
         }

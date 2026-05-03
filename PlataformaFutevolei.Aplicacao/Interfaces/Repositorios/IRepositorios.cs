@@ -99,6 +99,7 @@ public interface ICompeticaoRepositorio
 public interface IGrupoAtletaRepositorio
 {
     Task<IReadOnlyList<GrupoAtleta>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<GrupoAtleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrupoAtleta?> ObterPorCompeticaoEAtletaAsync(Guid competicaoId, Guid atletaId, CancellationToken cancellationToken = default);
     Task AdicionarAsync(GrupoAtleta grupoAtleta, CancellationToken cancellationToken = default);

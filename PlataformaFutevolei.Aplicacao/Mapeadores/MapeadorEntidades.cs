@@ -200,6 +200,7 @@ internal static class MapeadorEntidades
             grupoAtleta.AtletaId,
             grupoAtleta.Atleta?.Nome ?? string.Empty,
             grupoAtleta.Atleta?.Apelido,
+            grupoAtleta.Atleta?.Email,
             grupoAtleta.Atleta?.CadastroPendente ?? false,
             grupoAtleta.Atleta?.Usuario is not null,
             grupoAtleta.DataCriacao,

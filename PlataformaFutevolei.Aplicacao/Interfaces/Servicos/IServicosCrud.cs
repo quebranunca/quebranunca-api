@@ -67,6 +67,7 @@ public interface IGrupoAtletaServico
 {
     Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<GrupoAtletaDto> CriarAsync(Guid competicaoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoAtletaDto> CompletarEmailAsync(Guid competicaoId, Guid id, AtualizarEmailGrupoAtletaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
 }
