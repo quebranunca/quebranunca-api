@@ -68,13 +68,22 @@ public interface IGrupoResumoUsuarioServico
     Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IGrupoServico
+{
+    Task<IReadOnlyList<GrupoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<GrupoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoDto> AtualizarAsync(Guid id, AtualizarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
 public interface IGrupoAtletaServico
 {
-    Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
-    Task<GrupoAtletaDto> CriarAsync(Guid competicaoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
-    Task<GrupoAtletaDto> CompletarEmailAsync(Guid competicaoId, Guid id, AtualizarEmailGrupoAtletaDto dto, CancellationToken cancellationToken = default);
-    Task RemoverAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
-    Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<GrupoAtletaDto> CriarAsync(Guid grupoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoAtletaDto> CompletarEmailAsync(Guid grupoId, Guid id, AtualizarEmailGrupoAtletaDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default);
+    Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default);
 }
 
 public interface IFormatoCampeonatoServico
@@ -179,7 +188,7 @@ public interface IResolvedorAtletaDuplaServico
         CancellationToken cancellationToken = default);
 
     Task<GrupoAtleta> GarantirAtletaNoGrupoAsync(
-        Guid competicaoId,
+        Guid grupoId,
         Atleta atleta,
         CancellationToken cancellationToken = default);
 }

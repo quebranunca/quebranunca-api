@@ -12,7 +12,7 @@ public record AtualizarEmailGrupoAtletaDto(
 
 public record GrupoAtletaDto(
     Guid Id,
-    Guid CompeticaoId,
+    Guid GrupoId,
     Guid AtletaId,
     string NomeAtleta,
     string? ApelidoAtleta,

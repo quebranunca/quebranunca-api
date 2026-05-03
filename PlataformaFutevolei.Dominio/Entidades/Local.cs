@@ -11,4 +11,5 @@ public class Local : EntidadeBase
 
     public Usuario? UsuarioCriador { get; set; }
     public ICollection<Competicao> Competicoes { get; set; } = new List<Competicao>();
+    public ICollection<Grupo> Grupos { get; set; } = new List<Grupo>();
 }

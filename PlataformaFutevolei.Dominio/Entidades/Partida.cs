@@ -4,7 +4,8 @@ namespace PlataformaFutevolei.Dominio.Entidades;
 
 public class Partida : EntidadeBase
 {
-    public Guid CategoriaCompeticaoId { get; set; }
+    public Guid? CategoriaCompeticaoId { get; set; }
+    public Guid? GrupoId { get; set; }
     public Guid? CriadoPorUsuarioId { get; set; }
     public Guid? DuplaAId { get; set; }
     public Guid? DuplaBId { get; set; }
@@ -32,7 +33,8 @@ public class Partida : EntidadeBase
     public DateTime? DataPartida { get; set; }
     public string? Observacoes { get; set; }
 
-    public CategoriaCompeticao CategoriaCompeticao { get; set; } = default!;
+    public CategoriaCompeticao? CategoriaCompeticao { get; set; }
+    public Grupo? Grupo { get; set; }
     public Usuario? CriadoPorUsuario { get; set; }
     public Dupla? DuplaA { get; set; }
     public Dupla? DuplaB { get; set; }
@@ -70,7 +72,7 @@ public class Partida : EntidadeBase
             return 0m;
         }
 
-        var peso = pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
+        var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
         var pontosVitoria = CategoriaCompeticao?.Competicao?.ObterPontosVitoria() ?? Competicao.PontosVitoriaPadrao;
         return pontosVitoria * peso;
     }

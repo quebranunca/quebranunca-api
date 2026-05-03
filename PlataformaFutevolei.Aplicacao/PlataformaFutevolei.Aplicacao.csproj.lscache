@@ -21,7 +21,7 @@ ProjectAssetsFile=<PATH>obj/project.assets.json
 RootNamespace=PlataformaFutevolei.Aplicacao
 RunAnalyzers=
 RunAnalyzersDuringLiveAnalysis=
-SolutionPath=<PATH>../PlataformaFutevolei.sln
+SolutionPath=*Undefined*
 TargetFrameworkIdentifier=.NETCoreApp
 TargetPath=<PATH>bin/Debug/net8.0/PlataformaFutevolei.Aplicacao.dll
 TargetRefPath=<PATH>obj/Debug/net8.0/ref/PlataformaFutevolei.Aplicacao.dll
@@ -63,6 +63,7 @@ DTOs/
  DuplaDtos.cs
  FormatoCampeonatoDtos.cs
  GrupoAtletaDtos.cs
+ GrupoDtos.cs
  ImportacaoDtos.cs
  InscricaoCampeonatoDtos.cs
  LigaDtos.cs
