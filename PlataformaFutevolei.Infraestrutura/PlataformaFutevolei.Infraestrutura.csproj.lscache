@@ -130,6 +130,7 @@ Persistencia/
   20260413140000_AdicionarLinkCompeticao.cs
   20260430143000_ManterCodigoConviteCadastro.cs
   20260501120000_AdicionarIndiceNomeAtletaSugestoesCompeticao.cs
+  20260503120000_SepararGruposDeCompeticoes.cs
   PlataformaFutevoleiDbContextModelSnapshot.cs
  PlataformaFutevoleiDbContext.cs
  PlataformaFutevoleiDbContextFactory.cs

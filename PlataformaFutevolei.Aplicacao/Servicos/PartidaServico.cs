@@ -12,7 +12,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class PartidaServico(
     IPartidaRepositorio partidaRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
-    ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
     IInscricaoCampeonatoRepositorio inscricaoRepositorio,
@@ -41,8 +41,14 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        await ObterCompeticaoGrupoComAcessoParaConsultaAsync(competicaoId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        return partidas.Select(x => x.ParaDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
+    {
+        await ObterGrupoComAcessoParaConsultaAsync(grupoId, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
         return partidas.Select(x => x.ParaDto()).ToList();
     }
 
@@ -67,8 +73,8 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        await ObterCompeticaoGrupoComAcessoParaConsultaAsync(competicaoId, cancellationToken);
-        var partidas = await partidaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        await ObterGrupoComAcessoParaConsultaAsync(competicaoId, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorGrupoAsync(competicaoId, cancellationToken);
         return MontarEstruturaRodadasPadrao(partidas);
     }
 
@@ -119,46 +125,48 @@ public class PartidaServico(
 
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            if (partida.CategoriaCompeticao.Competicao.Tipo != TipoCompeticao.Grupo)
+            if (!partida.GrupoId.HasValue)
             {
                 throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
             }
 
             await GarantirAcessoAtletaAoGrupoAsync(
                 usuario,
-                partida.CategoriaCompeticao.CompeticaoId,
+                partida.GrupoId.Value,
                 cancellationToken);
         }
         else
         {
-            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(partida.CategoriaCompeticao.CompeticaoId, cancellationToken);
+            if (partida.GrupoId.HasValue)
+            {
+                await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
+            }
+            else if (partida.CategoriaCompeticao is not null)
+            {
+                await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(partida.CategoriaCompeticao.CompeticaoId, cancellationToken);
+            }
         }
 
         return partida.ParaDto();
     }
 
-    private async Task<Competicao> ObterCompeticaoGrupoComAcessoParaConsultaAsync(Guid competicaoId, CancellationToken cancellationToken)
+    private async Task<Grupo> ObterGrupoComAcessoParaConsultaAsync(Guid grupoId, CancellationToken cancellationToken)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
-        if (competicao is null)
+        var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
+        if (grupo is null)
         {
-            throw new EntidadeNaoEncontradaException("Competição não encontrada.");
-        }
-
-        if (competicao.Tipo != TipoCompeticao.Grupo)
-        {
-            throw new RegraNegocioException("A consulta por competição está disponível apenas para grupos.");
+            throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            await GarantirAcessoAtletaAoGrupoAsync(usuario, competicao.Id, cancellationToken);
-            return competicao;
+            await GarantirAcessoAtletaAoGrupoAsync(usuario, grupo.Id, cancellationToken);
+            return grupo;
         }
 
-        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicao.Id, cancellationToken);
-        return competicao;
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
+        return grupo;
     }
 
     private async Task<CategoriaCompeticao> ObterCategoriaComAcessoParaConsultaAsync(Guid categoriaId, CancellationToken cancellationToken)
@@ -189,7 +197,7 @@ public class PartidaServico(
 
     private async Task GarantirAcessoAtletaAoGrupoAsync(
         Usuario usuario,
-        Guid competicaoId,
+        Guid grupoId,
         CancellationToken cancellationToken)
     {
         if (!usuario.AtletaId.HasValue)
@@ -197,8 +205,8 @@ public class PartidaServico(
             throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar partidas do grupo.");
         }
 
-        var grupoAtleta = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
-            competicaoId,
+        var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(
+            grupoId,
             usuario.AtletaId.Value,
             cancellationToken);
 
@@ -315,8 +323,9 @@ public class PartidaServico(
     public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
     {
         var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var (categoria, duplaA, duplaB, metadadosLados) = await ValidarRelacionamentosAsync(
+        var (categoria, grupo, duplaA, duplaB, metadadosLados) = await ValidarRelacionamentosAsync(
             dto.CompeticaoId,
+            dto.GrupoId,
             dto.NomeGrupo,
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
@@ -335,8 +344,10 @@ public class PartidaServico(
 
         var partida = new Partida
         {
-            CategoriaCompeticaoId = categoria.Id,
+            CategoriaCompeticaoId = categoria?.Id,
+            GrupoId = grupo?.Id,
             CategoriaCompeticao = categoria,
+            Grupo = grupo,
             CriadoPorUsuarioId = usuarioAtual.Id,
             CriadoPorUsuario = usuarioAtual,
             DuplaAId = duplaA.Id,
@@ -349,18 +360,24 @@ public class PartidaServico(
             Observacoes = MontarObservacoesPartida(dto.Observacoes?.Trim(), null, null, metadadosLados)
         };
 
-        ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
+        if (categoria is not null)
+        {
+            ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
+        }
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dataAtualPadraoUtc: DateTime.UtcNow);
-        AtualizarNavegacoesPartida(partida, categoria, duplaA, duplaB, usuarioAtual);
-        ValidarPartida(partida, categoria.Competicao);
+        AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB, usuarioAtual);
+        ValidarPartida(partida, categoria?.Competicao, grupo);
 
         await partidaRepositorio.AdicionarAsync(partida, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         var partidaPersistida = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Partida não encontrada após o cadastro.");
         await pendenciaServico.InicializarFluxoPartidaAsync(partidaPersistida, usuarioAtual.Id, cancellationToken);
-        await ProcessarAvancoChaveAsync(categoria, cancellationToken);
-        await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
+        if (categoria is not null)
+        {
+            await ProcessarAvancoChaveAsync(categoria, cancellationToken);
+            await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
+        }
         var partidaCriada = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken);
         return partidaCriada!.ParaDto();
     }
@@ -373,7 +390,14 @@ public class PartidaServico(
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
+        if (partida.GrupoId.HasValue)
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
+        }
+        else if (partida.CategoriaCompeticao is not null)
+        {
+            await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
+        }
         var categoriaOriginalId = partida.CategoriaCompeticaoId;
         var duplaOriginalAId = partida.DuplaAId;
         var duplaOriginalBId = partida.DuplaBId;
@@ -386,8 +410,9 @@ public class PartidaServico(
         var metadadosRodada = ExtrairMetadadosRodada(partida.Observacoes);
         var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
 
-        var (categoria, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
+        var (categoria, grupo, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
             dto.CompeticaoId,
+            dto.GrupoId,
             dto.NomeGrupo,
             dto.CategoriaCompeticaoId,
             dto.DuplaAId,
@@ -405,27 +430,31 @@ public class PartidaServico(
         );
 
         var faseAtualizada = NormalizarFaseCampeonato(dto.FaseCampeonato);
-        await ValidarEdicaoPartidaGerenciadaPorChaveDuplaEliminacaoAsync(
-            partida,
-            categoria,
-            categoriaOriginalId,
-            duplaOriginalAId,
-            duplaOriginalBId,
-            faseOriginal,
-            statusOriginal,
-            placarOriginalA,
-            placarOriginalB,
-            vencedorOriginalId,
-            faseAtualizada,
-            dto.Status,
-            dto.PlacarDuplaA,
-            dto.PlacarDuplaB,
-            duplaA,
-            duplaB,
-            metadadosChave,
-            cancellationToken);
+        if (categoria is not null)
+        {
+            await ValidarEdicaoPartidaGerenciadaPorChaveDuplaEliminacaoAsync(
+                partida,
+                categoria,
+                categoriaOriginalId!.Value,
+                duplaOriginalAId,
+                duplaOriginalBId,
+                faseOriginal,
+                statusOriginal,
+                placarOriginalA,
+                placarOriginalB,
+                vencedorOriginalId,
+                faseAtualizada,
+                dto.Status,
+                dto.PlacarDuplaA,
+                dto.PlacarDuplaB,
+                duplaA,
+                duplaB,
+                metadadosChave,
+                cancellationToken);
+        }
 
-        partida.CategoriaCompeticaoId = categoria.Id;
+        partida.CategoriaCompeticaoId = categoria?.Id;
+        partida.GrupoId = grupo?.Id;
         partida.DuplaAId = duplaA.Id;
         partida.DuplaBId = duplaB.Id;
         partida.CriadoPorUsuarioId ??= (await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken)).Id;
@@ -433,10 +462,13 @@ public class PartidaServico(
         partida.Status = dto.Status;
         partida.DataPartida = dto.DataPartida.HasValue ? NormalizarParaUtc(dto.DataPartida.Value) : DateTime.UtcNow;
         partida.Observacoes = dto.Observacoes?.Trim();
-        ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
+        if (categoria is not null)
+        {
+            ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
+        }
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, partida.DataPartida ?? DateTime.UtcNow);
-        AtualizarNavegacoesPartida(partida, categoria, duplaA, duplaB);
-        ValidarPartida(partida, categoria.Competicao);
+        AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB);
+        ValidarPartida(partida, categoria?.Competicao, grupo);
         partida.AtualizarDataModificacao();
         partida.Observacoes = MontarObservacoesPartida(dto.Observacoes?.Trim(), metadadosChave, metadadosRodada, metadadosLadosAtualizados);
 
@@ -446,8 +478,11 @@ public class PartidaServico(
             partida,
             partida.CriadoPorUsuarioId ?? Guid.Empty,
             cancellationToken);
-        await ProcessarAvancoChaveAsync(categoria, cancellationToken);
-        await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
+        if (categoria is not null)
+        {
+            await ProcessarAvancoChaveAsync(categoria, cancellationToken);
+            await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
+        }
         var partidaAtualizada = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         return partidaAtualizada!.ParaDto();
     }
@@ -460,7 +495,14 @@ public class PartidaServico(
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
+        if (partida.GrupoId.HasValue)
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
+        }
+        else if (partida.CategoriaCompeticao is not null)
+        {
+            await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
+        }
 
         partidaRepositorio.Remover(partida);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -509,8 +551,9 @@ public class PartidaServico(
         };
     }
 
-    private async Task<(CategoriaCompeticao categoria, Dupla duplaA, Dupla duplaB, MetadadosLados? metadadosLados)> ValidarRelacionamentosAsync(
+    private async Task<(CategoriaCompeticao? categoria, Grupo? grupo, Dupla duplaA, Dupla duplaB, MetadadosLados? metadadosLados)> ValidarRelacionamentosAsync(
         Guid? competicaoId,
+        Guid? grupoId,
         string? nomeGrupo,
         Guid? categoriaCompeticaoId,
         Guid? duplaAId,
@@ -527,7 +570,8 @@ public class PartidaServico(
         CancellationToken cancellationToken
     )
     {
-        CategoriaCompeticao categoria;
+        CategoriaCompeticao? categoria = null;
+        Grupo? grupo = null;
         if (categoriaCompeticaoId.HasValue)
         {
             categoria = await categoriaRepositorio.ObterPorIdAsync(categoriaCompeticaoId.Value, cancellationToken)
@@ -540,26 +584,27 @@ public class PartidaServico(
         }
         else
         {
-            var competicaoExistente = competicaoId.HasValue && competicaoId.Value != Guid.Empty
-                ? await competicaoRepositorio.ObterPorIdAsync(competicaoId.Value, cancellationToken)
+            var grupoIdEfetivo = grupoId ?? competicaoId;
+            var grupoExistente = grupoIdEfetivo.HasValue && grupoIdEfetivo.Value != Guid.Empty
+                ? await grupoRepositorio.ObterPorIdAsync(grupoIdEfetivo.Value, cancellationToken)
                 : null;
-            var competicao = competicaoExistente
-                ?? await ObterOuCriarCompeticaoPartidasAvulsasAsync(nomeGrupo, cancellationToken);
-
-            if (competicao.Tipo != TipoCompeticao.Grupo)
-            {
-                throw new RegraNegocioException("Toda partida de campeonato ou evento deve pertencer a uma categoria.");
-            }
-
-            categoria = await ObterOuCriarCategoriaSemCategoriaGrupoAsync(competicao, cancellationToken);
+            grupo = grupoExistente
+                ?? await ObterOuCriarGrupoPartidasAvulsasAsync(nomeGrupo, cancellationToken);
         }
 
-        await GarantirEdicaoPartidasAsync(categoria.Competicao, cancellationToken);
+        if (categoria is not null)
+        {
+            await GarantirEdicaoPartidasAsync(categoria.Competicao, cancellationToken);
+        }
+        else if (grupo is not null)
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
+        }
 
         Dupla duplaA;
         Dupla duplaB;
         MetadadosLados? metadadosLados = metadadosLadosExistentes;
-        if (categoria.Competicao.Tipo == TipoCompeticao.Grupo)
+        if (grupo is not null)
         {
             var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
@@ -572,7 +617,7 @@ public class PartidaServico(
 
             foreach (var atleta in new[] { atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2 }.DistinctBy(x => x.Id))
             {
-                await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(categoria.CompeticaoId, atleta, cancellationToken);
+                await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(grupo.Id, atleta, cancellationToken);
             }
 
             duplaA = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaDuplaA1, atletaDuplaA2, cancellationToken);
@@ -614,37 +659,10 @@ public class PartidaServico(
 
         ValidarAtletasDuplicadosNaPartida(duplaA, duplaB);
 
-        return (categoria, duplaA, duplaB, metadadosLados);
+        return (categoria, grupo, duplaA, duplaB, metadadosLados);
     }
 
-    private async Task<CategoriaCompeticao> ObterOuCriarCategoriaSemCategoriaGrupoAsync(
-        Competicao competicao,
-        CancellationToken cancellationToken)
-    {
-        var categorias = await categoriaRepositorio.ListarPorCompeticaoAsync(competicao.Id, cancellationToken);
-        var categoriaExistente = categorias.FirstOrDefault(categoria =>
-            string.Equals(categoria.Nome, NomeCategoriaSemCategoria, StringComparison.OrdinalIgnoreCase));
-        if (categoriaExistente is not null)
-        {
-            return await categoriaRepositorio.ObterPorIdAsync(categoriaExistente.Id, cancellationToken)
-                ?? categoriaExistente;
-        }
-
-        var categoria = new CategoriaCompeticao
-        {
-            CompeticaoId = competicao.Id,
-            Competicao = competicao,
-            Nome = NomeCategoriaSemCategoria,
-            Genero = GeneroCategoria.Misto,
-            Nivel = NivelCategoria.Livre,
-            PesoRanking = 1m
-        };
-
-        await categoriaRepositorio.AdicionarAsync(categoria, cancellationToken);
-        return categoria;
-    }
-
-    private async Task<Competicao> ObterOuCriarCompeticaoPartidasAvulsasAsync(
+    private async Task<Grupo> ObterOuCriarGrupoPartidasAvulsasAsync(
         string? nomeGrupo,
         CancellationToken cancellationToken)
     {
@@ -652,38 +670,29 @@ public class PartidaServico(
         var usuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta
             ? (Guid?)usuario.Id
             : null;
-        var nomeCompeticao = string.IsNullOrWhiteSpace(nomeGrupo)
+        var nome = string.IsNullOrWhiteSpace(nomeGrupo)
             ? NomeCompeticaoPartidasAvulsas
             : nomeGrupo.Trim();
 
-        var competicaoExistente = (await competicaoRepositorio.ListarAsync(cancellationToken))
-            .FirstOrDefault(competicao =>
-                competicao.Tipo == TipoCompeticao.Grupo &&
-                competicao.UsuarioOrganizadorId == usuarioOrganizadorId &&
-                string.Equals(competicao.Nome, nomeCompeticao, StringComparison.OrdinalIgnoreCase));
+        var grupoExistente = await grupoRepositorio.ObterPorNomeEOrganizadorAsync(nome, usuarioOrganizadorId, cancellationToken);
 
-        if (competicaoExistente is not null)
+        if (grupoExistente is not null)
         {
-            return await competicaoRepositorio.ObterPorIdAsync(competicaoExistente.Id, cancellationToken)
-                ?? competicaoExistente;
+            return grupoExistente;
         }
 
-        var competicao = new Competicao
+        var grupo = new Grupo
         {
-            Nome = nomeCompeticao,
-            Tipo = TipoCompeticao.Grupo,
-            Descricao = string.Equals(nomeCompeticao, NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase)
+            Nome = nome,
+            Descricao = string.Equals(nome, NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase)
                 ? "Criada automaticamente para lançamento de partidas sem contexto prévio."
                 : "Criada automaticamente a partir do registro rápido de partidas.",
             DataInicio = DateTime.UtcNow,
-            UsuarioOrganizadorId = usuarioOrganizadorId,
-            ContaRankingLiga = false,
-            InscricoesAbertas = false,
-            PossuiFinalReset = false
+            UsuarioOrganizadorId = usuarioOrganizadorId
         };
 
-        await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
-        return competicao;
+        await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
+        return grupo;
     }
 
     private async Task ValidarInscricaoCompeticaoAsync(
@@ -831,12 +840,14 @@ public class PartidaServico(
 
     private static void AtualizarNavegacoesPartida(
         Partida partida,
-        CategoriaCompeticao categoria,
+        CategoriaCompeticao? categoria,
+        Grupo? grupo,
         Dupla duplaA,
         Dupla duplaB,
         Usuario? usuarioCriador = null)
     {
         partida.CategoriaCompeticao = categoria;
+        partida.Grupo = grupo;
         partida.DuplaA = duplaA;
         partida.DuplaB = duplaB;
 
@@ -853,8 +864,13 @@ public class PartidaServico(
         };
     }
 
-    private static void ValidarPartida(Partida partida, Competicao competicao)
+    private static void ValidarPartida(Partida partida, Competicao? competicao, Grupo? grupo)
     {
+        if (competicao is null && grupo is null)
+        {
+            throw new RegraNegocioException("A partida deve estar vinculada a uma competição/categoria ou a um grupo.");
+        }
+
         var exigeFaseCampeonato = ExigeFaseCampeonato(partida, competicao);
         if (exigeFaseCampeonato && string.IsNullOrWhiteSpace(partida.FaseCampeonato))
         {
@@ -903,7 +919,7 @@ public class PartidaServico(
 
         if (partida.TerminouEmpatada())
         {
-            if (!competicao.ObterPermiteEmpate())
+            if (!ObterPermiteEmpate(competicao))
             {
                 throw new RegraNegocioException("A partida não pode terminar empatada.");
             }
@@ -913,22 +929,22 @@ public class PartidaServico(
                 throw new RegraNegocioException("Partidas empatadas não devem informar dupla vencedora.");
             }
 
-            if (partida.ObterMaiorPlacar() < competicao.ObterPontosMinimosPartida())
+            if (partida.ObterMaiorPlacar() < ObterPontosMinimosPartida(competicao))
             {
-                throw new RegraNegocioException($"Em caso de empate, a partida deve atingir no mínimo {competicao.ObterPontosMinimosPartida()} pontos.");
+                throw new RegraNegocioException($"Em caso de empate, a partida deve atingir no mínimo {ObterPontosMinimosPartida(competicao)} pontos.");
             }
 
             return;
         }
 
-        if (partida.ObterMaiorPlacar() < competicao.ObterPontosMinimosPartida())
+        if (partida.ObterMaiorPlacar() < ObterPontosMinimosPartida(competicao))
         {
-            throw new RegraNegocioException($"A dupla vencedora deve alcançar no mínimo {competicao.ObterPontosMinimosPartida()} pontos.");
+            throw new RegraNegocioException($"A dupla vencedora deve alcançar no mínimo {ObterPontosMinimosPartida(competicao)} pontos.");
         }
 
-        if (partida.ObterDiferencaPlacar() < competicao.ObterDiferencaMinimaPartida())
+        if (partida.ObterDiferencaPlacar() < ObterDiferencaMinimaPartida(competicao))
         {
-            throw new RegraNegocioException($"A partida deve terminar com diferença mínima de {competicao.ObterDiferencaMinimaPartida()} pontos.");
+            throw new RegraNegocioException($"A partida deve terminar com diferença mínima de {ObterDiferencaMinimaPartida(competicao)} pontos.");
         }
 
         if (partida.ObterDuplaVencedoraPorPlacar() != partida.DuplaVencedoraId)
@@ -937,8 +953,22 @@ public class PartidaServico(
         }
     }
 
-    private static bool ExigeFaseCampeonato(Partida partida, Competicao competicao)
+    private static int ObterPontosMinimosPartida(Competicao? competicao)
+        => competicao?.ObterPontosMinimosPartida() ?? Competicao.PontosMinimosPartidaPadrao;
+
+    private static int ObterDiferencaMinimaPartida(Competicao? competicao)
+        => competicao?.ObterDiferencaMinimaPartida() ?? Competicao.DiferencaMinimaPartidaPadrao;
+
+    private static bool ObterPermiteEmpate(Competicao? competicao)
+        => competicao?.ObterPermiteEmpate() ?? Competicao.PermiteEmpatePadrao;
+
+    private static bool ExigeFaseCampeonato(Partida partida, Competicao? competicao)
     {
+        if (competicao is null)
+        {
+            return false;
+        }
+
         if (competicao.Tipo == TipoCompeticao.Campeonato)
         {
             return true;

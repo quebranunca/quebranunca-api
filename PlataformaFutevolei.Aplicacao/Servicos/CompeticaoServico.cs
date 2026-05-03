@@ -13,7 +13,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
-    IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IFormatoCampeonatoRepositorio formatoRepositorio,
     ILigaRepositorio ligaRepositorio,
     ILocalRepositorio localRepositorio,
@@ -29,7 +29,9 @@ public class CompeticaoServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
-        var competicoes = await competicaoRepositorio.ListarAsync(cancellationToken);
+        var competicoes = (await competicaoRepositorio.ListarAsync(cancellationToken))
+            .Where(x => x.Tipo != TipoCompeticao.Grupo)
+            .ToList();
         if (usuario is null)
         {
             return OrdenarCompeticoes(competicoes.Where(x => AceitaInscricoes(x.Tipo)))
@@ -47,7 +49,7 @@ public class CompeticaoServico(
 
             return OrdenarCompeticoes(competicoes.Where(x =>
                     AceitaInscricoes(x.Tipo) ||
-                    (x.Tipo == TipoCompeticao.Grupo && idsComAcesso.Contains(x.Id))))
+                    idsComAcesso.Contains(x.Id)))
                 .Select(x => x.ParaDto())
                 .ToList();
         }
@@ -79,8 +81,8 @@ public class CompeticaoServico(
 
     public async Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default)
     {
-        var competicoes = await competicaoRepositorio.ListarAsync(cancellationToken);
-        var totalGrupos = competicoes.Count(EhGrupoVisivelNoResumo);
+        var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
+        var totalGrupos = grupos.Count(x => !string.Equals(x.Nome?.Trim(), NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase));
 
         return new ResumoCompeticoesPublicoDto(totalGrupos);
     }
@@ -122,14 +124,16 @@ public class CompeticaoServico(
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            if (dto.Tipo != TipoCompeticao.Grupo)
-            {
-                throw new RegraNegocioException("Usuário com perfil atleta só pode criar grupos.");
-            }
+            throw new RegraNegocioException("Usuário com perfil atleta deve criar grupos pelo endpoint de grupos.");
         }
         else if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
         {
-            throw new RegraNegocioException("Apenas administradores, organizadores ou atletas para grupos podem criar competições.");
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem criar competições.");
+        }
+
+        if (dto.Tipo == TipoCompeticao.Grupo)
+        {
+            throw new RegraNegocioException("Grupo deve ser criado pelo endpoint de grupos.");
         }
 
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
@@ -168,18 +172,6 @@ public class CompeticaoServico(
 
         await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
 
-        if (dto.Tipo == TipoCompeticao.Grupo)
-        {
-            if (usuario.AtletaId.HasValue && await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(competicao.Id, usuario.AtletaId.Value, cancellationToken) is null)
-            {
-                await grupoAtletaRepositorio.AdicionarAsync(new GrupoAtleta
-                {
-                    CompeticaoId = competicao.Id,
-                    AtletaId = usuario.AtletaId.Value
-                }, cancellationToken);
-            }
-        }
-
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         var competicaoCriada = await competicaoRepositorio.ObterPorIdAsync(competicao.Id, cancellationToken);
         return competicaoCriada!.ParaDto();
@@ -189,9 +181,14 @@ public class CompeticaoServico(
     {
         await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(id, cancellationToken);
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Atleta && dto.Tipo != TipoCompeticao.Grupo)
+        if (usuario.Perfil == PerfilUsuario.Atleta)
         {
-            throw new RegraNegocioException("Usuário com perfil atleta só pode manter competições do tipo grupo.");
+            throw new RegraNegocioException("Usuário com perfil atleta deve gerenciar grupos pelo endpoint de grupos.");
+        }
+
+        if (dto.Tipo == TipoCompeticao.Grupo)
+        {
+            throw new RegraNegocioException("Grupo deve ser atualizado pelo endpoint de grupos.");
         }
 
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);

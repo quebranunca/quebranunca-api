@@ -104,6 +104,7 @@ Servicos/
  FormatoCampeonatoServico.cs
  GrupoAtletaServico.cs
  GrupoResumoUsuarioServico.cs
+ GrupoServico.cs
  ImportacaoServico.cs
  InscricaoCampeonatoServico.cs
  LigaServico.cs

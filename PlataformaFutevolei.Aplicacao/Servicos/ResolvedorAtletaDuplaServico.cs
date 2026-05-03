@@ -177,12 +177,12 @@ public class ResolvedorAtletaDuplaServico(
     }
 
     public async Task<GrupoAtleta> GarantirAtletaNoGrupoAsync(
-        Guid competicaoId,
+        Guid grupoId,
         Atleta atleta,
         CancellationToken cancellationToken = default)
     {
-        var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(
-            competicaoId,
+        var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(
+            grupoId,
             atleta.Id,
             cancellationToken);
         if (grupoAtletaExistente is not null)
@@ -192,7 +192,7 @@ public class ResolvedorAtletaDuplaServico(
 
         var grupoAtleta = new GrupoAtleta
         {
-            CompeticaoId = competicaoId,
+            GrupoId = grupoId,
             AtletaId = atleta.Id,
             Atleta = atleta
         };

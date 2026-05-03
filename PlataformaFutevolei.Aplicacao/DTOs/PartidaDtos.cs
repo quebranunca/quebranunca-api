@@ -4,6 +4,7 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
     Guid? CompeticaoId,
+    Guid? GrupoId,
     string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
@@ -26,6 +27,7 @@ public record CriarPartidaDto(
 
 public record AtualizarPartidaDto(
     Guid? CompeticaoId,
+    Guid? GrupoId,
     string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
@@ -116,7 +118,8 @@ public record PartidaAtletaPendenteDto(
 
 public record PartidaDto(
     Guid Id,
-    Guid CategoriaCompeticaoId,
+    Guid? CategoriaCompeticaoId,
+    Guid? GrupoId,
     string NomeCategoria,
     Guid? CriadoPorUsuarioId,
     string? NomeCriadoPorUsuario,

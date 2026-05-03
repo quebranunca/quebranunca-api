@@ -9,6 +9,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class AutorizacaoUsuarioServico(
     IUsuarioRepositorio usuarioRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IUsuarioContexto usuarioContexto
 ) : IAutorizacaoUsuarioServico
 {
@@ -111,5 +112,32 @@ public class AutorizacaoUsuarioServico(
         }
 
         throw new RegraNegocioException("Apenas administradores, organizadores ou o atleta dono do grupo podem gerenciar competições.");
+    }
+
+    public async Task GarantirGestaoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
+    {
+        var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
+        if (grupo is null)
+        {
+            throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Administrador)
+        {
+            return;
+        }
+
+        if (usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta)
+        {
+            if (grupo.UsuarioOrganizadorId != usuario.Id)
+            {
+                throw new RegraNegocioException("Você só pode alterar grupos vinculados ao próprio usuário.");
+            }
+
+            return;
+        }
+
+        throw new RegraNegocioException("Apenas administradores, organizadores ou o atleta dono do grupo podem gerenciar grupos.");
     }
 }

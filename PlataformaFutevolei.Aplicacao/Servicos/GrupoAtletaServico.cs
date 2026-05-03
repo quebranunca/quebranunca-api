@@ -12,7 +12,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class GrupoAtletaServico(
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
-    ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IAtletaRepositorio atletaRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IPendenciaUsuarioRepositorio pendenciaUsuarioRepositorio,
@@ -27,22 +27,22 @@ public class GrupoAtletaServico(
     private const string MensagemPossivelDuplicidadeNome = "Já existe um atleta com esse nome ou apelido e sem email. É o mesmo atleta?";
     private const string ObservacaoPendenciaEmailGrupo = "Atleta incompleto por falta de email.";
 
-    public async Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var competicao = await ObterGrupoValidoAsync(competicaoId, cancellationToken);
+        var grupo = await ObterGrupoValidoAsync(grupoId, cancellationToken);
 
         if (usuario.Perfil is PerfilUsuario.Administrador or PerfilUsuario.Organizador)
         {
-            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
+            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
         }
 
-        var atletas = await grupoAtletaRepositorio.ListarPorCompeticaoAsync(competicao.Id, cancellationToken);
+        var atletas = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupo.Id, cancellationToken);
         return atletas.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<GrupoAtletaDto> CriarAsync(
-        Guid competicaoId,
+        Guid grupoId,
         CriarGrupoAtletaDto dto,
         CancellationToken cancellationToken = default)
     {
@@ -52,10 +52,10 @@ public class GrupoAtletaServico(
             throw new RegraNegocioException("Nome ou apelido é obrigatório.");
         }
 
-        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
-        var competicao = await ObterGrupoValidoAsync(competicaoId, cancellationToken);
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
+        var grupo = await ObterGrupoValidoAsync(grupoId, cancellationToken);
         var emailNormalizado = NormalizarEmailOpcional(dto.Email);
-        var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
 
         GarantirEmailUnicoNoGrupo(atletasDoGrupo, emailNormalizado);
         GarantirNomeDisponivelParaNovoAtleta(atletasDoGrupo, nomeOuApelido);
@@ -69,7 +69,7 @@ public class GrupoAtletaServico(
             atletaRepositorio.Atualizar(atleta);
         }
 
-        var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorCompeticaoEAtletaAsync(competicaoId, atleta.Id, cancellationToken);
+        var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(grupoId, atleta.Id, cancellationToken);
         if (grupoAtletaExistente is not null)
         {
             throw new RegraNegocioException("Este atleta já faz parte do grupo.");
@@ -77,14 +77,14 @@ public class GrupoAtletaServico(
 
         var grupoAtleta = new GrupoAtleta
         {
-            CompeticaoId = competicaoId,
+            GrupoId = grupoId,
             AtletaId = atleta.Id,
-            Competicao = competicao,
+            Grupo = grupo,
             Atleta = atleta
         };
 
         await grupoAtletaRepositorio.AdicionarAsync(grupoAtleta, cancellationToken);
-        await GarantirPendenciaEmailAtletaGrupoAsync(competicao, atleta, cancellationToken);
+        await GarantirPendenciaEmailAtletaGrupoAsync(grupo, atleta, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         var grupoAtletaCriado = await grupoAtletaRepositorio.ObterPorIdAsync(grupoAtleta.Id, cancellationToken);
@@ -92,22 +92,22 @@ public class GrupoAtletaServico(
     }
 
     public async Task<GrupoAtletaDto> CompletarEmailAsync(
-        Guid competicaoId,
+        Guid grupoId,
         Guid id,
         AtualizarEmailGrupoAtletaDto dto,
         CancellationToken cancellationToken = default)
     {
-        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
-        await ObterGrupoValidoAsync(competicaoId, cancellationToken);
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
+        await ObterGrupoValidoAsync(grupoId, cancellationToken);
 
         var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (grupoAtleta is null || grupoAtleta.CompeticaoId != competicaoId)
+        if (grupoAtleta is null || grupoAtleta.GrupoId != grupoId)
         {
             throw new EntidadeNaoEncontradaException("Atleta do grupo não encontrado.");
         }
 
-        var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
         GarantirEmailUnicoNoGrupo(atletasDoGrupo, emailNormalizado, grupoAtleta.AtletaId);
 
         grupoAtleta.Atleta.Email = emailNormalizado;
@@ -123,14 +123,14 @@ public class GrupoAtletaServico(
         return atualizado.ParaDto();
     }
 
-    public async Task RemoverAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default)
+    public async Task RemoverAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default)
     {
-        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(competicaoId, cancellationToken);
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
         var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        await ObterGrupoValidoAsync(competicaoId, cancellationToken);
+        await ObterGrupoValidoAsync(grupoId, cancellationToken);
 
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (grupoAtleta is null || grupoAtleta.CompeticaoId != competicaoId)
+        if (grupoAtleta is null || grupoAtleta.GrupoId != grupoId)
         {
             throw new EntidadeNaoEncontradaException("Atleta do grupo não encontrado.");
         }
@@ -145,7 +145,7 @@ public class GrupoAtletaServico(
     }
 
     public async Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(
-        Guid competicaoId,
+        Guid grupoId,
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -155,10 +155,10 @@ public class GrupoAtletaServico(
             throw new RegraNegocioException("Apenas usuários com perfil atleta podem assumir um nome no grupo.");
         }
 
-        await ObterGrupoValidoAsync(competicaoId, cancellationToken);
+        await ObterGrupoValidoAsync(grupoId, cancellationToken);
 
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (grupoAtleta is null || grupoAtleta.CompeticaoId != competicaoId)
+        if (grupoAtleta is null || grupoAtleta.GrupoId != grupoId)
         {
             throw new EntidadeNaoEncontradaException("Atleta do grupo não encontrado.");
         }
@@ -190,20 +190,15 @@ public class GrupoAtletaServico(
         return atualizado.ParaDto();
     }
 
-    private async Task<Competicao> ObterGrupoValidoAsync(Guid competicaoId, CancellationToken cancellationToken)
+    private async Task<Grupo> ObterGrupoValidoAsync(Guid grupoId, CancellationToken cancellationToken)
     {
-        var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
-        if (competicao is null)
+        var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
+        if (grupo is null)
         {
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
-        if (competicao.Tipo != TipoCompeticao.Grupo)
-        {
-            throw new RegraNegocioException("A operação solicitada está disponível apenas para grupos.");
-        }
-
-        return competicao;
+        return grupo;
     }
 
     private async Task<Atleta> ObterOuCriarAtletaGrupoAsync(
@@ -313,18 +308,18 @@ public class GrupoAtletaServico(
     }
 
     private async Task GarantirPendenciaEmailAtletaGrupoAsync(
-        Competicao competicao,
+        Grupo grupo,
         Atleta atleta,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(atleta.Email) || !competicao.UsuarioOrganizadorId.HasValue)
+        if (!string.IsNullOrWhiteSpace(atleta.Email) || !grupo.UsuarioOrganizadorId.HasValue)
         {
             return;
         }
 
         var pendenciaExistente = await pendenciaUsuarioRepositorio.ObterPendenteAsync(
             TipoPendenciaUsuario.CompletarContatoAtletaDaPartida,
-            competicao.UsuarioOrganizadorId.Value,
+            grupo.UsuarioOrganizadorId.Value,
             partidaId: null,
             atleta.Id,
             cancellationToken);
@@ -336,7 +331,7 @@ public class GrupoAtletaServico(
         await pendenciaUsuarioRepositorio.AdicionarAsync(new PendenciaUsuario
         {
             Tipo = TipoPendenciaUsuario.CompletarContatoAtletaDaPartida,
-            UsuarioId = competicao.UsuarioOrganizadorId.Value,
+            UsuarioId = grupo.UsuarioOrganizadorId.Value,
             AtletaId = atleta.Id,
             PartidaId = null,
             Status = StatusPendenciaUsuario.Pendente,

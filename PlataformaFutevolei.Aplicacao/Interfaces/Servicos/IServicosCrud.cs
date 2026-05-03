@@ -117,6 +117,7 @@ public interface ICategoriaCompeticaoServico
 public interface IPartidaServico
 {
     Task<IReadOnlyList<PartidaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
@@ -245,6 +246,9 @@ public interface IRankingServico
 
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(
         Guid competicaoId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorGrupoAsync(
+        Guid grupoId,
         CancellationToken cancellationToken = default);
 }
 

@@ -7,7 +7,7 @@ using PlataformaFutevolei.Dominio.Entidades;
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class GrupoResumoUsuarioServico(
-    ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IRankingServico rankingServico,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
@@ -16,7 +16,7 @@ public class GrupoResumoUsuarioServico(
     public async Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupo = await competicaoRepositorio.ObterGrupoResumoUsuarioAsync(
+        var grupo = await grupoRepositorio.ObterResumoUsuarioAsync(
             usuario.Id,
             usuario.AtletaId,
             cancellationToken);
@@ -27,7 +27,7 @@ public class GrupoResumoUsuarioServico(
         }
 
         var ultimoJogo = await partidaRepositorio.ObterUltimaDoGrupoAsync(grupo.Id, cancellationToken);
-        var ranking = await rankingServico.ListarAtletasPorCompeticaoAsync(grupo.Id, cancellationToken);
+        var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupo.Id, cancellationToken);
 
         return new GrupoResumoUsuarioDto(
             grupo.Id,

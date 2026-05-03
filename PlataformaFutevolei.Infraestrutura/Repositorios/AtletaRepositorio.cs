@@ -115,7 +115,6 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
                 x.Nome.ToLower().StartsWith(termoNormalizado) ||
                 (x.Apelido != null && x.Apelido.ToLower().StartsWith(termoNormalizado)))
             .Where(x =>
-                x.Grupos.Any(grupo => grupo.CompeticaoId == competicaoId) ||
                 x.DuplasComoAtleta1.Any(dupla =>
                     dbContext.InscricoesCampeonato.Any(inscricao =>
                         inscricao.CompeticaoId == competicaoId &&

@@ -15,6 +15,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(
         [FromQuery] Guid? competicaoId,
+        [FromQuery] Guid? grupoId,
         [FromQuery] Guid? categoriaId,
         [FromQuery] bool minhas,
         CancellationToken cancellationToken)
@@ -29,6 +30,12 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         {
             var partidasCategoria = await partidaServico.ListarPorCategoriaAsync(categoriaId.Value, cancellationToken);
             return Ok(partidasCategoria);
+        }
+
+        if (grupoId.HasValue)
+        {
+            var partidasGrupo = await partidaServico.ListarPorGrupoAsync(grupoId.Value, cancellationToken);
+            return Ok(partidasGrupo);
         }
 
         if (competicaoId.HasValue)
@@ -52,6 +59,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<RodadaEstruturaCompeticaoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarEstrutura(
         [FromQuery] Guid? competicaoId,
+        [FromQuery] Guid? grupoId,
         [FromQuery] Guid? categoriaId,
         CancellationToken cancellationToken)
     {
@@ -59,6 +67,12 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         {
             var estruturaCategoria = await partidaServico.ListarEstruturaPorCategoriaAsync(categoriaId.Value, cancellationToken);
             return Ok(estruturaCategoria);
+        }
+
+        if (grupoId.HasValue)
+        {
+            var estruturaGrupo = await partidaServico.ListarEstruturaPorCompeticaoAsync(grupoId.Value, cancellationToken);
+            return Ok(estruturaGrupo);
         }
 
         if (competicaoId.HasValue)

@@ -118,15 +118,6 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
             x.UsuarioOrganizadorId == usuarioId ||
-            x.GrupoAtletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
-            (x.Tipo == TipoCompeticao.Grupo &&
-             x.Categorias.Any(categoria => categoria.Partidas.Any(partida =>
-                 partida.DuplaA != null &&
-                 partida.DuplaB != null &&
-                 (partida.DuplaA.Atleta1Id == atletaIdValor ||
-                  partida.DuplaA.Atleta2Id == atletaIdValor ||
-                  partida.DuplaB.Atleta1Id == atletaIdValor ||
-                  partida.DuplaB.Atleta2Id == atletaIdValor)))) ||
             x.Inscricoes.Any(inscricao =>
                 inscricao.Status != StatusInscricaoCampeonato.Cancelada &&
                 (inscricao.Dupla.Atleta1Id == atletaIdValor || inscricao.Dupla.Atleta2Id == atletaIdValor)));

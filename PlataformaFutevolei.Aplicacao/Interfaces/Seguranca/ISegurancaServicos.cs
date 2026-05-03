@@ -29,4 +29,5 @@ public interface IAutorizacaoUsuarioServico
     Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default);
     Task GarantirAcessoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task GarantirGestaoCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task GarantirGestaoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
 }

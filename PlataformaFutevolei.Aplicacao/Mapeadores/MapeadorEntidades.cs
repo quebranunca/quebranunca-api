@@ -286,6 +286,7 @@ internal static class MapeadorEntidades
         return new PartidaDto(
             partida.Id,
             partida.CategoriaCompeticaoId,
+            partida.GrupoId,
             partida.CategoriaCompeticao?.Nome ?? string.Empty,
             partida.CriadoPorUsuarioId,
             partida.CriadoPorUsuario?.Nome,

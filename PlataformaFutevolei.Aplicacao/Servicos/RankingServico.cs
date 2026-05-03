@@ -14,6 +14,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class RankingServico(
     ILigaRepositorio ligaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
@@ -197,6 +198,50 @@ public class RankingServico(
         return MontarRankingPorCategoria(partidas);
     }
 
+    public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorGrupoAsync(
+        Guid grupoId,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
+        if (grupo is null)
+        {
+            throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        }
+
+        if (usuario?.Perfil == PerfilUsuario.Atleta)
+        {
+            var usuarioEhDonoDoGrupo = grupo.UsuarioOrganizadorId == usuario.Id;
+            if (!usuarioEhDonoDoGrupo && !usuario.AtletaId.HasValue)
+            {
+                throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
+            }
+
+            if (!usuarioEhDonoDoGrupo)
+            {
+                var possuiAcessoAoGrupo = await grupoRepositorio.AtletaPossuiAcessoAsync(
+                    grupoId,
+                    usuario.Id,
+                    usuario.AtletaId!.Value,
+                    cancellationToken);
+
+                if (!possuiAcessoAoGrupo)
+                {
+                    throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
+                }
+            }
+        }
+
+        var partidas = await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId, cancellationToken);
+        var ranking = MontarRankingConsolidado(
+            grupo.Id,
+            grupo.Id,
+            grupo.Nome,
+            "Ranking do grupo",
+            partidas);
+        return ranking is null ? [] : [ranking];
+    }
+
     private static bool EhCompeticaoPartidasAvulsas(Competicao competicao)
         => competicao.Tipo == TipoCompeticao.Grupo &&
            string.Equals(
@@ -210,9 +255,9 @@ public class RankingServico(
         var competicao = categoria.Competicao;
         var peso = categoria.PesoRanking;
 
-        if (competicao.Tipo == TipoCompeticao.Grupo || EhCompeticaoPartidasAvulsas(competicao))
+        if (partida.GrupoId.HasValue || competicao.Tipo == TipoCompeticao.Grupo || EhCompeticaoPartidasAvulsas(competicao))
         {
-            return 1m;
+            return Competicao.PontosVitoriaPadrao;
         }
 
         return competicao.ObterPontosVitoria() * peso;
@@ -596,7 +641,8 @@ public class RankingServico(
 
         foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
         {
-            if (acumuladoPorCategoria.TryGetValue(partidasCategoria.Key, out var categoriaAcumulada))
+            if (partidasCategoria.Key.HasValue &&
+                acumuladoPorCategoria.TryGetValue(partidasCategoria.Key.Value, out var categoriaAcumulada))
             {
                 AplicarPontuacaoColocacao(partidasCategoria.ToList(), categoriaAcumulada.Atletas);
             }

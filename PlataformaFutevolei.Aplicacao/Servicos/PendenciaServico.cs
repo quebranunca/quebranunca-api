@@ -407,7 +407,7 @@ public class PendenciaServico(
         var gruposDoAtleta = await grupoAtletaRepositorio.ListarPorAtletaAsync(atletaId, cancellationToken);
         foreach (var grupoDoAtleta in gruposDoAtleta)
         {
-            var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorCompeticaoAsync(grupoDoAtleta.CompeticaoId, cancellationToken);
+            var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupoDoAtleta.GrupoId, cancellationToken);
             var emailDuplicado = atletasDoGrupo.Any(x =>
                 x.AtletaId != atletaId &&
                 !string.IsNullOrWhiteSpace(x.Atleta.Email) &&

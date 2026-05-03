@@ -67,4 +67,12 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
         var ranking = await rankingServico.ListarAtletasPorCompeticaoAsync(competicaoId, cancellationToken);
         return Ok(ranking);
     }
+
+    [HttpGet("grupos/{grupoId:guid}/atletas")]
+    [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarAtletasPorGrupo(Guid grupoId, CancellationToken cancellationToken)
+    {
+        var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupoId, cancellationToken);
+        return Ok(ranking);
+    }
 }

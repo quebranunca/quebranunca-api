@@ -636,6 +636,7 @@ public class ImportacaoServico(
                     new CriarPartidaDto(
                         null,
                         null,
+                        null,
                         registro.ObterGuidObrigatorio("categoriacompeticaoid", "categoriaid"),
                         registro.ObterGuidObrigatorio("duplaaid"),
                         registro.ObterGuidObrigatorio("duplabid"),
