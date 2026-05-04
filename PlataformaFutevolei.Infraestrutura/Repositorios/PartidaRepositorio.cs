@@ -66,6 +66,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Where(x => x.GrupoId == grupoId)
             .Where(x => x.Status == StatusPartida.Encerrada)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .Where(x => x.DuplaA != null && x.DuplaB != null)
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
             .ThenByDescending(x => x.DataCriacao)
             .FirstOrDefaultAsync(cancellationToken);
@@ -387,6 +388,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.DuplaB)
                 .ThenInclude(x => x.Atleta2)
                     .ThenInclude(x => x.Usuario)
-            .Where(x => x.Status == StatusPartida.Encerrada);
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .Where(x => x.DuplaA != null && x.DuplaB != null);
     }
 }
