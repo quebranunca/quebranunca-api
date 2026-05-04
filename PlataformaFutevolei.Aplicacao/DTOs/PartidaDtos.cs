@@ -123,6 +123,7 @@ public record PartidaDto(
     Guid Id,
     Guid? CategoriaCompeticaoId,
     Guid? GrupoId,
+    string? NomeGrupo,
     string NomeCategoria,
     Guid? CriadoPorUsuarioId,
     string? NomeCriadoPorUsuario,

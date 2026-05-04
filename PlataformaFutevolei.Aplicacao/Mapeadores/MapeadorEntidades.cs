@@ -287,6 +287,7 @@ internal static class MapeadorEntidades
             partida.Id,
             partida.CategoriaCompeticaoId,
             partida.GrupoId,
+            partida.Grupo?.Nome,
             partida.CategoriaCompeticao?.Nome ?? string.Empty,
             partida.CriadoPorUsuarioId,
             partida.CriadoPorUsuario?.Nome,
