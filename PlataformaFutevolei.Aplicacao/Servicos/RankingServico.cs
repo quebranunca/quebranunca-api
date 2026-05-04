@@ -310,11 +310,14 @@ public class RankingServico(
         foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
         {
             var categoria = partida.CategoriaCompeticao;
-            var competicao = categoria.Competicao;
+            var competicao = categoria?.Competicao;
             var dataPartida = partida.DataPartida ?? partida.DataCriacao;
             var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
-            var peso = categoria.PesoRanking;
-            var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
+            var peso = categoria?.PesoRanking ?? 1m;
+            var referenciaParticipacaoId = competicao?.Id ?? partida.GrupoId ?? competicaoId;
+            var nomeCompeticaoPartida = competicao?.Nome ?? partida.Grupo?.Nome ?? nomeCompeticao;
+            var nomeCategoriaPartida = categoria?.Nome ?? nomeCategoria;
+            var pontosParticipacao = competicao is null ? 0m : competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = ObterPontosVitoriaRanking(partida);
             var pontosBonusAprovacaoPendente = ObterBonusAprovacaoPendenteRanking(partida);
             var pontosDerrota = Partida.PontosDerrotaRanking;
@@ -329,7 +332,7 @@ public class RankingServico(
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaA.Atleta1,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaA.Id,
@@ -340,14 +343,14 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             Acumular(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaA.Atleta2,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaA.Id,
@@ -358,14 +361,14 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             Acumular(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaB.Atleta1,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaB.Id,
@@ -376,14 +379,14 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             Acumular(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaB.Atleta2,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaB.Id,
@@ -394,8 +397,8 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
         }
 
         foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
@@ -684,7 +687,12 @@ public class RankingServico(
         }
 
         var categoria = partidasCategoria[0].CategoriaCompeticao;
-        var competicao = categoria.Competicao;
+        var competicao = categoria?.Competicao;
+        if (categoria is null || competicao is null)
+        {
+            return;
+        }
+
         if (competicao.Tipo != TipoCompeticao.Campeonato)
         {
             return;
