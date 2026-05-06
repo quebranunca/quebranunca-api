@@ -13,6 +13,7 @@ public class GrupoServico(
     IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     ILocalRepositorio localRepositorio,
+    IGrupoPadraoServico grupoPadraoServico,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IGrupoServico
@@ -74,6 +75,13 @@ public class GrupoServico(
         }
 
         var nome = Validar(dto.Nome, dto.DataInicio, dto.DataFim, dto.Link);
+        if (string.Equals(nome, grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase))
+        {
+            var grupoGeral = await grupoPadraoServico.ObterOuCriarGrupoGeralAsync(cancellationToken);
+            return grupoGeral.ParaDto();
+        }
+
+        await grupoPadraoServico.ValidarNomeDisponivelOuAcessivelAsync(nome, cancellationToken: cancellationToken);
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
@@ -111,6 +119,13 @@ public class GrupoServico(
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
 
         var nome = Validar(dto.Nome, dto.DataInicio, dto.DataFim, dto.Link);
+        if (string.Equals(nome, grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(grupo.Nome?.Trim(), grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RegraNegocioException("O nome Geral é reservado para o grupo global padrão.");
+        }
+
+        await grupoPadraoServico.ValidarNomeDisponivelOuAcessivelAsync(nome, id, cancellationToken);
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
 
         grupo.Nome = nome;

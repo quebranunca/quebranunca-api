@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
@@ -82,9 +83,21 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var nomeNormalizado = nome.Trim().ToLowerInvariant();
         return dbContext.Grupos
             .FirstOrDefaultAsync(
-                x => x.Nome.ToLower() == nomeNormalizado &&
+                x => x.Nome.Trim().ToLower() == nomeNormalizado &&
                      x.UsuarioOrganizadorId == usuarioOrganizadorId,
                 cancellationToken);
+    }
+
+
+    public Task<Grupo?> ObterPorNomeNormalizadoAsync(
+        string nome,
+        CancellationToken cancellationToken = default)
+    {
+        var nomeNormalizado = nome.Trim().ToLowerInvariant();
+        return dbContext.Grupos
+            .Include(x => x.Local)
+            .Include(x => x.UsuarioOrganizador)
+            .FirstOrDefaultAsync(x => x.Nome.Trim().ToLower() == nomeNormalizado, cancellationToken);
     }
 
     public async Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default)
@@ -115,6 +128,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
             x.UsuarioOrganizadorId == usuarioId ||
+            x.Nome.Trim().ToLower() == GruposPadrao.NomeGeral.ToLower() ||
             x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Partidas.Any(partida =>
                 partida.DuplaA != null &&
