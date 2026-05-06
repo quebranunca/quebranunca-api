@@ -224,6 +224,7 @@ public interface IPendenciaUsuarioRepositorio
         Guid? partidaId,
         Guid? atletaId,
         CancellationToken cancellationToken = default);
+    Task<bool> ExistePendentePorUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default);
     Task<PendenciaUsuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(PendenciaUsuario pendencia, CancellationToken cancellationToken = default);
     void Atualizar(PendenciaUsuario pendencia);

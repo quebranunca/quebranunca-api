@@ -138,6 +138,7 @@ public interface IPartidaServico
 public interface IPendenciaServico
 {
     Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
+    Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default);
     Task<PendenciaUsuarioDto> AprovarPartidaAsync(
         Guid pendenciaId,
         ResponderPendenciaPartidaDto dto,

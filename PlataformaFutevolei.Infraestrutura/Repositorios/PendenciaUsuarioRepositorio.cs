@@ -59,6 +59,16 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public async Task<bool> ExistePendentePorUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PendenciasUsuarios
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.UsuarioId == usuarioId &&
+                     x.Status == StatusPendenciaUsuario.Pendente,
+                cancellationToken);
+    }
+
     public async Task AdicionarAsync(PendenciaUsuario pendencia, CancellationToken cancellationToken = default)
     {
         await dbContext.PendenciasUsuarios.AddAsync(pendencia, cancellationToken);

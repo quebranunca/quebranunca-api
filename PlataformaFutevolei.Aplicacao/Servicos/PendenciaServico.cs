@@ -32,6 +32,14 @@ public class PendenciaServico(
             .ToList();
     }
 
+    public async Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var existePendencia = await pendenciaUsuarioRepositorio.ExistePendentePorUsuarioAsync(usuario.Id, cancellationToken);
+
+        return existePendencia;
+    }
+
     public async Task<PendenciaUsuarioDto> AprovarPartidaAsync(
         Guid pendenciaId,
         ResponderPendenciaPartidaDto dto,
