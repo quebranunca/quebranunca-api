@@ -92,6 +92,14 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return Ok(partida);
     }
 
+    [HttpGet("{id:guid}/compartilhamento")]
+    [ProducesResponseType(typeof(PartidaCompartilhamentoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterCompartilhamento(Guid id, CancellationToken cancellationToken)
+    {
+        var partida = await partidaServico.ObterCompartilhamentoAsync(id, cancellationToken);
+        return Ok(partida);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarPartidaDto dto, CancellationToken cancellationToken)

@@ -125,6 +125,7 @@ public interface IPartidaServico
     Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
         Guid categoriaId,
         GerarTabelaCategoriaDto dto,

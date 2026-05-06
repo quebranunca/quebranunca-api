@@ -119,6 +119,44 @@ public record PartidaAtletaPendenteDto(
     string StatusPendencia
 );
 
+public record PartidaCompartilhamentoAtletaDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string? FotoUrl
+);
+
+public record PartidaCompartilhamentoRankingVizinhoDto(
+    int Posicao,
+    string Apelido,
+    decimal Pontos,
+    string? FotoUrl
+);
+
+public record PartidaCompartilhamentoRankingDto(
+    int Posicao,
+    string Apelido,
+    decimal Pontos,
+    int Vitorias,
+    int Derrotas,
+    int Jogos,
+    PartidaCompartilhamentoRankingVizinhoDto? AtletaAcima,
+    PartidaCompartilhamentoRankingVizinhoDto? AtletaAbaixo
+);
+
+public record PartidaCompartilhamentoDto(
+    Guid PartidaId,
+    Guid? GrupoId,
+    string? GrupoNome,
+    DateTime? DataPartida,
+    IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla1,
+    IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla2,
+    int PlacarDupla1,
+    int PlacarDupla2,
+    string ResultadoAtletaLogado,
+    PartidaCompartilhamentoRankingDto? RankingGrupo
+);
+
 public record PartidaDto(
     Guid Id,
     Guid? CategoriaCompeticaoId,

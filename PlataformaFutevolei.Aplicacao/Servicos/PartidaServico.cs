@@ -19,7 +19,8 @@ public class PartidaServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
-    IPendenciaServico pendenciaServico
+    IPendenciaServico pendenciaServico,
+    IRankingServico rankingServico
 ) : IPartidaServico
 {
     private const string MarcadorMetadadosChave = "[[chave:";
@@ -150,6 +151,51 @@ public class PartidaServico(
         return partida.ParaDto();
     }
 
+    public async Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("Seu usuário não possui atleta vinculado para compartilhar a partida.");
+        }
+
+        var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partida is null)
+        {
+            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+        }
+
+        if (partida.DuplaA is null || partida.DuplaB is null)
+        {
+            throw new RegraNegocioException("A partida não possui as duas duplas definidas para compartilhamento.");
+        }
+
+        var atletaLogadoId = usuario.AtletaId.Value;
+        var atletaNaDuplaA = DuplaContemAtleta(partida.DuplaA, atletaLogadoId);
+        var atletaNaDuplaB = DuplaContemAtleta(partida.DuplaB, atletaLogadoId);
+        if (!atletaNaDuplaA && !atletaNaDuplaB)
+        {
+            throw new RegraNegocioException("Você só pode compartilhar partidas em que participou.");
+        }
+
+        var rankingGrupo = await TentarMontarRankingCompartilhamentoAsync(
+            partida.GrupoId,
+            atletaLogadoId,
+            cancellationToken);
+
+        return new PartidaCompartilhamentoDto(
+            partida.Id,
+            partida.GrupoId,
+            partida.Grupo?.Nome,
+            partida.DataPartida ?? partida.DataCriacao,
+            MontarAtletasCompartilhamento(partida.DuplaA),
+            MontarAtletasCompartilhamento(partida.DuplaB),
+            partida.PlacarDuplaA,
+            partida.PlacarDuplaB,
+            ObterResultadoAtletaLogado(partida, atletaNaDuplaA, atletaNaDuplaB),
+            rankingGrupo);
+    }
+
     private async Task<Grupo> ObterGrupoComAcessoParaConsultaAsync(Guid grupoId, CancellationToken cancellationToken)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -167,6 +213,97 @@ public class PartidaServico(
 
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
         return grupo;
+    }
+
+    private async Task<PartidaCompartilhamentoRankingDto?> MontarRankingCompartilhamentoAsync(
+        Guid grupoId,
+        Guid atletaLogadoId,
+        CancellationToken cancellationToken)
+    {
+        var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupoId, cancellationToken);
+        var atletas = ranking
+            .SelectMany(x => x.Atletas)
+            .OrderBy(x => x.Posicao)
+            .ToList();
+
+        var atleta = atletas.FirstOrDefault(x => x.AtletaId == atletaLogadoId);
+        if (atleta is null)
+        {
+            return null;
+        }
+
+        return new PartidaCompartilhamentoRankingDto(
+            atleta.Posicao,
+            ObterNomeExibicaoRanking(atleta),
+            atleta.Pontos,
+            atleta.Vitorias,
+            atleta.Derrotas,
+            atleta.Jogos,
+            MontarVizinhoRanking(atletas.FirstOrDefault(x => x.Posicao == atleta.Posicao - 1)),
+            MontarVizinhoRanking(atletas.FirstOrDefault(x => x.Posicao == atleta.Posicao + 1)));
+    }
+
+    private async Task<PartidaCompartilhamentoRankingDto?> TentarMontarRankingCompartilhamentoAsync(
+        Guid? grupoId,
+        Guid atletaLogadoId,
+        CancellationToken cancellationToken)
+    {
+        if (!grupoId.HasValue)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await MontarRankingCompartilhamentoAsync(grupoId.Value, atletaLogadoId, cancellationToken);
+        }
+        catch (RegraNegocioException)
+        {
+            return null;
+        }
+        catch (EntidadeNaoEncontradaException)
+        {
+            return null;
+        }
+    }
+
+    private static PartidaCompartilhamentoRankingVizinhoDto? MontarVizinhoRanking(RankingAtletaDto? atleta)
+        => atleta is null
+            ? null
+            : new PartidaCompartilhamentoRankingVizinhoDto(
+                atleta.Posicao,
+                ObterNomeExibicaoRanking(atleta),
+                atleta.Pontos,
+                null);
+
+    private static string ObterNomeExibicaoRanking(RankingAtletaDto atleta)
+        => string.IsNullOrWhiteSpace(atleta.ApelidoAtleta)
+            ? atleta.NomeAtleta
+            : atleta.ApelidoAtleta!;
+
+    private static IReadOnlyList<PartidaCompartilhamentoAtletaDto> MontarAtletasCompartilhamento(Dupla dupla)
+        => [
+            MontarAtletaCompartilhamento(dupla.Atleta1),
+            MontarAtletaCompartilhamento(dupla.Atleta2)
+        ];
+
+    private static PartidaCompartilhamentoAtletaDto MontarAtletaCompartilhamento(Atleta atleta)
+        => new(atleta.Id, atleta.Nome, atleta.Apelido, null);
+
+    private static bool DuplaContemAtleta(Dupla dupla, Guid atletaId)
+        => dupla.Atleta1Id == atletaId || dupla.Atleta2Id == atletaId;
+
+    private static string ObterResultadoAtletaLogado(Partida partida, bool atletaNaDuplaA, bool atletaNaDuplaB)
+    {
+        if (partida.DuplaVencedoraId is null)
+        {
+            return "Indefinido";
+        }
+
+        var venceu = (atletaNaDuplaA && partida.DuplaVencedoraId == partida.DuplaAId) ||
+            (atletaNaDuplaB && partida.DuplaVencedoraId == partida.DuplaBId);
+
+        return venceu ? "Vitoria" : "Derrota";
     }
 
     private async Task<CategoriaCompeticao> ObterCategoriaComAcessoParaConsultaAsync(Guid categoriaId, CancellationToken cancellationToken)
