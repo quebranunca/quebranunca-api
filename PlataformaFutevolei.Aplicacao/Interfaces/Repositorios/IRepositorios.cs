@@ -117,6 +117,7 @@ public interface IGrupoRepositorio
         Guid? atletaId,
         CancellationToken cancellationToken = default);
     Task<Grupo?> ObterPorNomeEOrganizadorAsync(string nome, Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default);
+    Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default);
     Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default);
     void Atualizar(Grupo grupo);

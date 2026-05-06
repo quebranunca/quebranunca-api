@@ -77,6 +77,14 @@ public interface IGrupoServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IGrupoPadraoServico
+{
+    string NomeGrupoGeral { get; }
+    Task<Grupo> ObterOuCriarGrupoGeralAsync(CancellationToken cancellationToken = default);
+    Task<Grupo> ResolverGrupoRegistroPartidaAsync(Guid? grupoId, string? nomeNovoGrupo, CancellationToken cancellationToken = default);
+    Task ValidarNomeDisponivelOuAcessivelAsync(string nome, Guid? grupoIgnoradoId = null, CancellationToken cancellationToken = default);
+}
+
 public interface IGrupoAtletaServico
 {
     Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);

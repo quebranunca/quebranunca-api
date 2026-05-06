@@ -14,6 +14,7 @@ public class PartidaServico(
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
     IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IGrupoPadraoServico grupoPadraoServico,
     IDuplaRepositorio duplaRepositorio,
     IInscricaoCampeonatoRepositorio inscricaoRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
@@ -33,7 +34,6 @@ public class PartidaServico(
     private const string NomeFaseChavePerdedores = "Chave dos perdedores";
     private const string NomeFaseEliminatoriaGrupos = "Fase eliminatória";
     private const string NomeCategoriaSemCategoria = "Sem categoria";
-    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
     private const string SecaoChaveVencedores = "VENCEDORES";
     private const string SecaoChavePerdedores = "PERDEDORES";
     private const string SecaoChaveFinal = "FINAL";
@@ -722,20 +722,15 @@ public class PartidaServico(
         else
         {
             var grupoIdEfetivo = grupoId ?? competicaoId;
-            var grupoExistente = grupoIdEfetivo.HasValue && grupoIdEfetivo.Value != Guid.Empty
-                ? await grupoRepositorio.ObterPorIdAsync(grupoIdEfetivo.Value, cancellationToken)
-                : null;
-            grupo = grupoExistente
-                ?? await ObterOuCriarGrupoPartidasAvulsasAsync(nomeGrupo, cancellationToken);
+            grupo = await grupoPadraoServico.ResolverGrupoRegistroPartidaAsync(
+                grupoIdEfetivo,
+                nomeGrupo,
+                cancellationToken);
         }
 
         if (categoria is not null)
         {
             await GarantirEdicaoPartidasAsync(categoria.Competicao, cancellationToken);
-        }
-        else if (grupo is not null)
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
         }
 
         Dupla duplaA;
@@ -797,39 +792,6 @@ public class PartidaServico(
         ValidarAtletasDuplicadosNaPartida(duplaA, duplaB);
 
         return (categoria, grupo, duplaA, duplaB, metadadosLados);
-    }
-
-    private async Task<Grupo> ObterOuCriarGrupoPartidasAvulsasAsync(
-        string? nomeGrupo,
-        CancellationToken cancellationToken)
-    {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var usuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta
-            ? (Guid?)usuario.Id
-            : null;
-        var nome = string.IsNullOrWhiteSpace(nomeGrupo)
-            ? NomeCompeticaoPartidasAvulsas
-            : nomeGrupo.Trim();
-
-        var grupoExistente = await grupoRepositorio.ObterPorNomeEOrganizadorAsync(nome, usuarioOrganizadorId, cancellationToken);
-
-        if (grupoExistente is not null)
-        {
-            return grupoExistente;
-        }
-
-        var grupo = new Grupo
-        {
-            Nome = nome,
-            Descricao = string.Equals(nome, NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase)
-                ? "Criada automaticamente para lançamento de partidas sem contexto prévio."
-                : "Criada automaticamente a partir do registro rápido de partidas.",
-            DataInicio = DateTime.UtcNow,
-            UsuarioOrganizadorId = usuarioOrganizadorId
-        };
-
-        await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
-        return grupo;
     }
 
     private async Task ValidarInscricaoCompeticaoAsync(

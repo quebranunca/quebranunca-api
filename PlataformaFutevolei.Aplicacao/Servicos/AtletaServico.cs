@@ -494,7 +494,7 @@ public class AtletaServico(
 
     private static IEnumerable<(Atleta Atleta, Guid PartidaId, string NomeCompeticao)> EnumerarPendencias(Partida partida)
     {
-        var nomeCompeticao = partida.CategoriaCompeticao?.Competicao?.Nome ?? "Partidas avulsas";
+        var nomeCompeticao = partida.CategoriaCompeticao?.Competicao?.Nome ?? partida.Grupo?.Nome ?? "Grupo";
 
         return new[]
         {
