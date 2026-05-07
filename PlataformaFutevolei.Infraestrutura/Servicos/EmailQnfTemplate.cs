@@ -20,7 +20,7 @@ internal static class EmailQnfTemplate
     public const string SiteMarca = "quebranunca.com.br";
     public const string FraseMarca = "Mais um jogo na conta.";
 
-    private const string CaminhoLogoLight = "/branding/logo-qnf-light.svg";
+    private const string CaminhoLogoLight = "/branding/logo-qnf-light.png";
 
     public static string Html(string? valor)
     {
@@ -78,8 +78,34 @@ internal static class EmailQnfTemplate
                     <td align="center" style="padding:24px 12px 30px; font-family:Arial, Helvetica, sans-serif;">
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; max-width:640px; border-collapse:collapse;">
                         <tr>
-                          <td align="center" style="padding:0 0 22px;">
-                            <img src="{logoUrl}" width="76" height="76" alt="QuebraNunca Futevôlei" style="display:block; width:76px; height:76px; object-fit:contain; border:0; outline:none; text-decoration:none;">
+                          <td style="padding:0 0 18px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#101318; background-image:linear-gradient(160deg,#191c23 0%,#08090b 58%,#050608 100%); border:1px solid #2d2615; border-radius:28px; overflow:hidden;">
+                              <tr>
+                                <td style="padding:0;">
+                                  <div style="height:6px; line-height:6px; background:#ffb300;">&nbsp;</div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td align="center" style="padding:32px 24px 30px;">
+                                  <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin:0 auto;">
+                                    <tr>
+                                      <td align="center" style="width:124px; height:124px; border-radius:999px; background:#0b0d10; border:1px solid #3f3110; padding:10px;">
+                                        <img src="{logoUrl}" width="104" height="104" alt="QuebraNunca Futevôlei" style="display:block; width:104px; height:104px; object-fit:contain; border:0; outline:none; text-decoration:none;">
+                                      </td>
+                                    </tr>
+                                  </table>
+                                  <div style="margin-top:20px; color:#ffb300; font-size:12px; line-height:16px; font-weight:900; text-transform:uppercase; letter-spacing:1px;">
+                                    QuebraNunca Futevôlei
+                                  </div>
+                                  <div style="margin-top:8px; color:#fff8e8; font-size:28px; line-height:34px; font-weight:900;">
+                                    Experiência premium dentro e fora da quadra
+                                  </div>
+                                  <div style="margin-top:10px; color:#b8bfca; font-size:14px; line-height:22px;">
+                                    @quebranuncaftv · quebranunca.com.br
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
                           </td>
                         </tr>
 
