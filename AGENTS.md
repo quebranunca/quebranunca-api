@@ -13,6 +13,7 @@
 - Reutilizar padrões existentes do repositório antes de criar abstração nova
 - Templates de e-mail devem reutilizar o branding QNF e os assets públicos de `public/branding`, mantendo consistência visual com app e artes de compartilhamento
 - Conteúdo HTML de e-mail deve priorizar layout simples, responsivo e compatível com clientes de e-mail, com estilos inline e versão em texto equivalente
+- Templates de e-mail devem usar estrutura compatível com clientes mobile/desktop, com `body` e container externo com fundo explícito e estilos principais inline
 - Para `Staging` e `Production`, não confiar em fallback local para connection string, JWT, `Frontend:Url` ou URLs de convite
 - Não deixar segredos reais em `appsettings.*`, exemplos locais, chats ou arquivos de publish
 - O primeiro usuário `Administrador` é bootstrap operacional fora do fluxo normal: não criar endpoint público, seed automático em startup ou bypass no `Program.cs`

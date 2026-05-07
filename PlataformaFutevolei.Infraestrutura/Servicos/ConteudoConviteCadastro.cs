@@ -46,7 +46,7 @@ internal static class ConteudoConviteCadastro
         var conteudo = $"""
             <tr>
               <td style="padding:0 24px 8px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#171b22; border:1px solid #342b16; border-radius:18px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#171b22" style="width:100%; border-collapse:collapse; background-color:#171b22; border:1px solid #342b16; border-radius:18px;">
                   <tr>
                     <td style="padding:22px; color:#f6edd8; font-size:16px; line-height:24px;">
                       <div style="font-size:12px; line-height:16px; color:#f4b018; font-weight:800; text-transform:uppercase; letter-spacing:.8px;">
@@ -55,7 +55,7 @@ internal static class ConteudoConviteCadastro
                       <p style="margin:12px 0 14px;">
                         Olá! Seu acesso foi liberado para entrar na plataforma, registrar seus jogos e acompanhar sua posição no ranking.
                       </p>
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse;">
                         <tr>
                           <td style="padding:10px 0; border-top:1px solid #2f333b; color:#9ea6b3; font-size:13px; line-height:18px; text-transform:uppercase; letter-spacing:.6px;">Organizador</td>
                           <td align="right" style="padding:10px 0; border-top:1px solid #2f333b; color:#fff8e8; font-size:14px; line-height:18px; font-weight:800;">{organizador}</td>

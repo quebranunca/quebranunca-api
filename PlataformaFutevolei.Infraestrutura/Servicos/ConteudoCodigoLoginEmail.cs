@@ -33,7 +33,7 @@ internal static class ConteudoCodigoLoginEmail
         var conteudo = $"""
             <tr>
               <td style="padding:0 24px 8px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#171b22; border:1px solid #342b16; border-radius:18px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#171b22" style="width:100%; border-collapse:collapse; background-color:#171b22; border:1px solid #342b16; border-radius:18px;">
                   <tr>
                     <td style="padding:22px; color:#f6edd8; font-size:16px; line-height:24px;">
                       <div style="font-size:12px; line-height:16px; color:#f4b018; font-weight:800; text-transform:uppercase; letter-spacing:.8px;">

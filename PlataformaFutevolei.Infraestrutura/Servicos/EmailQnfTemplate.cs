@@ -33,7 +33,7 @@ internal static class EmailQnfTemplate
         var codigoHtml = Html(codigo);
 
         return $"""
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#0b0d10; border:1px solid #3f3110; border-radius:16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0b0d10" style="width:100%; border-collapse:collapse; background-color:#0b0d10; border:1px solid #3f3110; border-radius:16px;">
               <tr>
                 <td align="center" style="padding:20px 12px;">
                   <div style="font-size:12px; line-height:16px; color:#ffca4b; font-weight:800; text-transform:uppercase; letter-spacing:1px;">
@@ -66,20 +66,22 @@ internal static class EmailQnfTemplate
               <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta name="color-scheme" content="light only">
+                <meta name="supported-color-schemes" content="light">
                 <title>{tituloDocumento}</title>
               </head>
-              <body style="margin:0; padding:0; background:#07080b; color:#f8f1df;">
+              <body bgcolor="#ffffff" style="margin:0; padding:0; background-color:#ffffff; color:#f8f1df;">
                 <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
                   {preHeader}
                 </div>
 
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; background:#07080b; border-collapse:collapse;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%; background-color:#ffffff; border-collapse:collapse;">
                   <tr>
-                    <td align="center" style="padding:24px 12px 30px; font-family:Arial, Helvetica, sans-serif;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; max-width:640px; border-collapse:collapse;">
+                    <td align="center" bgcolor="#ffffff" style="padding:24px 12px 30px; background-color:#ffffff; font-family:Arial, Helvetica, sans-serif;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" align="center" style="width:100%; max-width:600px; border-collapse:collapse; margin:0 auto;">
                         <tr>
                           <td style="padding:0 0 18px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#101318; background-image:linear-gradient(160deg,#191c23 0%,#08090b 58%,#050608 100%); border:1px solid #2d2615; border-radius:28px; overflow:hidden;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#08090B" style="width:100%; border-collapse:collapse; background-color:#08090B; border:1px solid #2d2615; border-radius:20px; overflow:hidden;">
                               <tr>
                                 <td style="padding:0;">
                                   <div style="height:6px; line-height:6px; background:#ffb300;">&nbsp;</div>
@@ -110,8 +112,8 @@ internal static class EmailQnfTemplate
                         </tr>
 
                         <tr>
-                          <td style="background:#111419; border:1px solid #2d2615; border-radius:24px; overflow:hidden; box-shadow:0 22px 60px rgba(0,0,0,0.42);">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                          <td bgcolor="#08090B" style="background-color:#08090B; border:1px solid #2d2615; border-radius:20px; overflow:hidden;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#08090B" style="width:100%; border-collapse:collapse; background-color:#08090B;">
                               <tr>
                                 <td style="padding:0;">
                                   <div style="height:6px; line-height:6px; background:#ffb300;">&nbsp;</div>
@@ -119,7 +121,7 @@ internal static class EmailQnfTemplate
                               </tr>
 
                               <tr>
-                                <td style="padding:30px 24px 22px; background:#101318;">
+                                <td bgcolor="#101318" style="padding:30px 24px 22px; background-color:#101318;">
                                   <div style="display:inline-block; padding:7px 12px; border-radius:999px; background:#221a08; border:1px solid #6b5012; color:#ffca4b; font-size:12px; line-height:16px; font-weight:800; text-transform:uppercase; letter-spacing:.8px;">
                                     {selo}
                                   </div>
