@@ -319,11 +319,25 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
 
+                    b.Property<bool>("DadosAnonimizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("dados_anonimizados");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("email");
+
+                    b.Property<DateTime?>("ExcluidoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("excluido_em_utc");
+
+                    b.Property<Guid?>("ExcluidoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("excluido_por_usuario_id");
 
                     b.Property<DateTime?>("EmailEnviadoEmUtc")
                         .HasColumnType("timestamp with time zone")
@@ -1145,6 +1159,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("ExcluidoPorUsuarioId");
+
                     b.ToTable("usuarios", (string)null);
                 });
 
@@ -1398,7 +1414,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasForeignKey("PlataformaFutevolei.Dominio.Entidades.Usuario", "AtletaId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "ExcluidoPorUsuario")
+                        .WithMany()
+                        .HasForeignKey("ExcluidoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Atleta");
+
+                    b.Navigation("ExcluidoPorUsuario");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Atleta", b =>

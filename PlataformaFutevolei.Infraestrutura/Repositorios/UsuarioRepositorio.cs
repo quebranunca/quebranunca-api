@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
@@ -38,7 +39,7 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
         return dbContext.Usuarios
             .AsNoTracking()
             .CountAsync(
-                x => x.Perfil == Dominio.Enums.PerfilUsuario.Administrador &&
+                x => x.Perfil == PerfilUsuario.Administrador &&
                      x.Ativo &&
                      !x.DadosAnonimizados,
                 cancellationToken);
