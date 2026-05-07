@@ -23,6 +23,13 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> ContarRegistradasAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.Partidas
+            .AsNoTracking()
+            .CountAsync(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
         return await CriarConsultaDetalhadaPartidas()

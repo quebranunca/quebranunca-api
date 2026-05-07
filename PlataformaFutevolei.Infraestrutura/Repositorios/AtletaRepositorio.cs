@@ -17,6 +17,13 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> ContarAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.Atletas
+            .AsNoTracking()
+            .CountAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Atleta>> ListarComEmailEmPartidasSemUsuarioAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Atletas

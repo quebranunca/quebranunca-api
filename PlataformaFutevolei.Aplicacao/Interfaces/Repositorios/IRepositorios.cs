@@ -30,6 +30,7 @@ public interface IConviteCadastroRepositorio
 public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<int> ContarAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarComEmailEmPartidasSemUsuarioAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarInscritosPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<bool> PertenceAoOrganizadorAsync(Guid atletaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
@@ -103,6 +104,7 @@ public interface ICompeticaoRepositorio
 public interface IGrupoRepositorio
 {
     Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default);
     Task<Grupo?> ObterResumoUsuarioAsync(
         Guid usuarioId,
         Guid? atletaId,
@@ -166,6 +168,7 @@ public interface ICategoriaCompeticaoRepositorio
 public interface IPartidaRepositorio
 {
     Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<int> ContarRegistradasAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);

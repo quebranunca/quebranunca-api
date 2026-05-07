@@ -13,6 +13,8 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class CompeticaoServico(
     ICompeticaoRepositorio competicaoRepositorio,
     ICategoriaCompeticaoRepositorio categoriaRepositorio,
+    IAtletaRepositorio atletaRepositorio,
+    IPartidaRepositorio partidaRepositorio,
     IGrupoRepositorio grupoRepositorio,
     IFormatoCampeonatoRepositorio formatoRepositorio,
     ILigaRepositorio ligaRepositorio,
@@ -81,10 +83,11 @@ public class CompeticaoServico(
 
     public async Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default)
     {
-        var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
-        var totalGrupos = grupos.Count(x => !string.Equals(x.Nome?.Trim(), NomeCompeticaoPartidasAvulsas, StringComparison.OrdinalIgnoreCase));
+        var totalAtletas = await atletaRepositorio.ContarAsync(cancellationToken);
+        var totalJogos = await partidaRepositorio.ContarRegistradasAsync(cancellationToken);
+        var totalGrupos = await grupoRepositorio.ContarPublicosAsync(cancellationToken);
 
-        return new ResumoCompeticoesPublicoDto(totalGrupos);
+        return new ResumoCompeticoesPublicoDto(totalAtletas, totalJogos, totalGrupos);
     }
 
     public async Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

@@ -89,6 +89,8 @@ public static class InjecaoDependenciaInfraestrutura
                 ?? string.Empty;
             options.RemetenteNome = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "RemetenteNome");
             options.ReplyTo = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ReplyTo");
+            options.UrlApp = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "UrlApp")
+                ?? frontendUrlPadrao;
             options.EmailOrigemSobrescrito = secaoEmailCodigoLogin["EmailOrigemSobrescrito"];
             options.EmailDestinoSobrescrito = secaoEmailCodigoLogin["EmailDestinoSobrescrito"];
         });

@@ -106,7 +106,7 @@ public class ResendEmailCodigoLoginServico(
             From = configuracao.ObterRemetenteFormatado(),
             Subject = ConteudoCodigoLoginEmail.MontarAssunto(),
             TextBody = ConteudoCodigoLoginEmail.MontarTexto(usuario, codigo),
-            HtmlBody = ConteudoCodigoLoginEmail.MontarHtml(usuario, codigo)
+            HtmlBody = ConteudoCodigoLoginEmail.MontarHtml(usuario, codigo, configuracao.ObterUrlAppBase())
         };
 
         mensagem.To.Add(emailDestino);

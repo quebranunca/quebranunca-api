@@ -64,6 +64,8 @@ public record CompeticaoDto(
 );
 
 public record ResumoCompeticoesPublicoDto(
+    int TotalAtletas,
+    int TotalJogos,
     int TotalGrupos
 );
 

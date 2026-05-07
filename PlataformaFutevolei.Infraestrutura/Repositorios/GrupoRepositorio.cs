@@ -21,6 +21,13 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.Grupos
+            .AsNoTracking()
+            .CountAsync(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower(), cancellationToken);
+    }
+
     public Task<Grupo?> ObterResumoUsuarioAsync(
         Guid usuarioId,
         Guid? atletaId,
