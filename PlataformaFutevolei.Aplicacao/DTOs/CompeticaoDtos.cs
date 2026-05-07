@@ -83,6 +83,7 @@ public record GrupoResumoUltimoJogoDto(
 
 public record GrupoResumoRankingAtletaDto(
     int Posicao,
+    Guid AtletaId,
     string NomeAtleta,
     decimal Pontuacao
 );

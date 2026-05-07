@@ -33,7 +33,7 @@ public class GrupoResumoUsuarioServico(
             grupo.Id,
             grupo.Nome,
             ultimoJogo is null ? null : MontarUltimoJogo(ultimoJogo),
-            MontarTop3(ranking));
+            MontarRankingResumo(ranking, usuario.AtletaId));
     }
 
     private static GrupoResumoUltimoJogoDto MontarUltimoJogo(Partida partida)
@@ -55,24 +55,48 @@ public class GrupoResumoUsuarioServico(
         return [dupla.Atleta1.Nome, dupla.Atleta2.Nome];
     }
 
-    private static IReadOnlyList<GrupoResumoRankingAtletaDto> MontarTop3(
-        IReadOnlyList<RankingCategoriaDto> ranking)
+    private static IReadOnlyList<GrupoResumoRankingAtletaDto> MontarRankingResumo(
+        IReadOnlyList<RankingCategoriaDto> ranking,
+        Guid? atletaUsuarioId)
     {
-        return ranking
+        var rankingOrdenado = ranking
             .SelectMany(x => x.Atletas)
             .GroupBy(x => x.AtletaId)
             .Select(x => new
             {
+                AtletaId = x.Key,
                 NomeAtleta = x.First().NomeAtleta,
                 Pontuacao = x.Sum(atleta => atleta.Pontos)
             })
             .OrderByDescending(x => x.Pontuacao)
             .ThenBy(x => x.NomeAtleta)
-            .Take(3)
             .Select((x, indice) => new GrupoResumoRankingAtletaDto(
                 indice + 1,
+                x.AtletaId,
                 x.NomeAtleta,
                 x.Pontuacao))
+            .ToList();
+
+        if (rankingOrdenado.Count == 0)
+        {
+            return [];
+        }
+
+        var indiceAtleta = atletaUsuarioId.HasValue
+            ? rankingOrdenado.FindIndex(x => x.AtletaId == atletaUsuarioId.Value)
+            : -1;
+
+        if (indiceAtleta <= 0)
+        {
+            return rankingOrdenado.Take(3).ToList();
+        }
+
+        var inicio = Math.Max(indiceAtleta - 1, 0);
+        var quantidade = Math.Min(3, rankingOrdenado.Count - inicio);
+
+        return rankingOrdenado
+            .Skip(inicio)
+            .Take(quantidade)
             .ToList();
     }
 }
