@@ -11,6 +11,8 @@
 - Seed operacional e validação de conexão não substituem migration
 - Em `Development`, tolerância maior na subida pode existir se já adotada no projeto; fora disso, falha de preparação do banco deve interromper a aplicação
 - Reutilizar padrões existentes do repositório antes de criar abstração nova
+- Templates de e-mail devem reutilizar o branding QNF e os assets públicos de `public/branding`, mantendo consistência visual com app e artes de compartilhamento
+- Conteúdo HTML de e-mail deve priorizar layout simples, responsivo e compatível com clientes de e-mail, com estilos inline e versão em texto equivalente
 - Para `Staging` e `Production`, não confiar em fallback local para connection string, JWT, `Frontend:Url` ou URLs de convite
 - Não deixar segredos reais em `appsettings.*`, exemplos locais, chats ou arquivos de publish
 - O primeiro usuário `Administrador` é bootstrap operacional fora do fluxo normal: não criar endpoint público, seed automático em startup ou bypass no `Program.cs`
