@@ -274,13 +274,44 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         var percentualAproveitamento = totalPartidas == 0
             ? 0
             : decimal.Round(totalVitorias * 100m / totalPartidas, 2);
+        var pontuacao = await partidasRegistradas
+            .Where(x => duplasDoAtleta.Contains(x.DuplaVencedoraId!.Value))
+            .Select(x => new
+            {
+                PesoRanking = x.GrupoId.HasValue ? 1m : x.CategoriaCompeticao != null ? x.CategoriaCompeticao.PesoRanking : 1m,
+                x.StatusAprovacao
+            })
+            .ToListAsync(cancellationToken);
+        var pontos = pontuacao.Sum(x => CalcularPontosVitoriaResumo(x.StatusAprovacao, x.PesoRanking));
+        var pontosPendentes = pontuacao.Sum(x => CalcularPontosPendentesResumo(x.StatusAprovacao, x.PesoRanking));
 
         return new UsuarioResumoDto(
             totalPartidas,
             totalVitorias,
             totalDerrotas,
             percentualAproveitamento,
-            totalPartidasPendentes);
+            totalPartidasPendentes,
+            pontos,
+            pontosPendentes);
+    }
+
+    private static decimal CalcularPontosVitoriaResumo(StatusAprovacaoPartida statusAprovacao, decimal pesoRanking)
+    {
+        var pontos = Partida.PontosVitoriaRegistradaRanking;
+
+        if (statusAprovacao == StatusAprovacaoPartida.Aprovada)
+        {
+            pontos += Partida.PontosBonusAprovacaoVitoriaRanking;
+        }
+
+        return pontos * pesoRanking;
+    }
+
+    private static decimal CalcularPontosPendentesResumo(StatusAprovacaoPartida statusAprovacao, decimal pesoRanking)
+    {
+        return statusAprovacao == StatusAprovacaoPartida.Aprovada
+            ? 0m
+            : Partida.PontosBonusAprovacaoVitoriaRanking * pesoRanking;
     }
 
     public Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

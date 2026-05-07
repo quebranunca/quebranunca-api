@@ -83,7 +83,9 @@ public record UsuarioResumoDto(
     int TotalVitorias,
     int TotalDerrotas,
     decimal PercentualAproveitamento,
-    int TotalPartidasPendentes
+    int TotalPartidasPendentes,
+    decimal Pontos,
+    decimal PontosPendentes
 );
 
 public record AtualizarMeuUsuarioDto(
