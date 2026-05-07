@@ -43,6 +43,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
         return Ok(usuario);
     }
 
+    [HttpDelete("meu-perfil")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ExcluirMeuPerfil(CancellationToken cancellationToken)
+    {
+        await usuarioServico.ExcluirMeuPerfilAsync(cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet]
     [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(typeof(IReadOnlyList<UsuarioDto>), StatusCodes.Status200OK)]
@@ -59,5 +67,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
     {
         var usuario = await usuarioServico.AtualizarAsync(id, dto, cancellationToken);
         return Ok(usuario);
+    }
+
+    [HttpDelete("~/api/admin/usuarios/{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ExcluirPorAdministrador(Guid id, CancellationToken cancellationToken)
+    {
+        await usuarioServico.ExcluirPorAdministradorAsync(id, cancellationToken);
+        return NoContent();
     }
 }

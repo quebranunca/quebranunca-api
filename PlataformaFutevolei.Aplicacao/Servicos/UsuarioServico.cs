@@ -5,6 +5,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
+using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
@@ -12,6 +13,9 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class UsuarioServico(
     IUsuarioRepositorio usuarioRepositorio,
     IAtletaRepositorio atletaRepositorio,
+    IConviteCadastroRepositorio conviteCadastroRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IPendenciaUsuarioRepositorio pendenciaUsuarioRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
@@ -153,10 +157,12 @@ public class UsuarioServico(
 
         var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
         var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
-        if (usuario is null)
+        if (usuario is null || usuario.DadosAnonimizados)
         {
             throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         }
+
+        await ValidarManutencaoAdministradorAtivoAsync(usuario, dto.Perfil, dto.Ativo, cancellationToken);
 
         var usuarioMesmoEmail = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
         if (usuarioMesmoEmail is not null && usuarioMesmoEmail.Id != usuario.Id)
@@ -219,6 +225,189 @@ public class UsuarioServico(
         return atualizado.ParaAdminDto();
     }
 
+    public async Task ExcluirPorAdministradorAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var executor = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (executor.Perfil != PerfilUsuario.Administrador)
+        {
+            throw new RegraNegocioException("Apenas administradores podem executar esta operação.");
+        }
+
+        if (executor.Id == id)
+        {
+            throw new RegraNegocioException("O administrador não pode excluir a própria conta por esta tela.");
+        }
+
+        await ExcluirUsuarioAsync(id, executor.Id, OrigemExclusaoUsuario.Admin, cancellationToken);
+    }
+
+    public async Task ExcluirMeuPerfilAsync(CancellationToken cancellationToken = default)
+    {
+        var executor = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        await ExcluirUsuarioAsync(executor.Id, executor.Id, OrigemExclusaoUsuario.ProprioUsuario, cancellationToken);
+    }
+
+    private async Task ExcluirUsuarioAsync(
+        Guid usuarioAlvoId,
+        Guid usuarioExecutorId,
+        OrigemExclusaoUsuario origem,
+        CancellationToken cancellationToken)
+    {
+        await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
+        {
+            var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioAlvoId, ct);
+            if (usuario is null || usuario.DadosAnonimizados)
+            {
+                throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
+            }
+
+            if (!usuario.Ativo)
+            {
+                throw new RegraNegocioException("Usuário já está inativo.");
+            }
+
+            if (origem == OrigemExclusaoUsuario.Admin && usuarioExecutorId == usuario.Id)
+            {
+                throw new RegraNegocioException("O administrador não pode excluir a própria conta por esta tela.");
+            }
+
+            await ValidarPodeExcluirAdministradorAsync(usuario, ct);
+
+            var agora = DateTime.UtcNow;
+            var emailOriginal = usuario.Email;
+            var atleta = usuario.Atleta;
+
+            await CancelarPendenciasAsync(usuario.Id, agora, ct);
+            await DesativarConvitesAsync(usuario.Id, emailOriginal, ct);
+            await RemoverVinculosGrupoAsync(atleta?.Id, ct);
+            AnonimizarAtleta(atleta);
+            AnonimizarUsuario(usuario, usuarioExecutorId, agora);
+
+            usuarioRepositorio.Atualizar(usuario);
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+        }, cancellationToken);
+    }
+
+    private async Task ValidarPodeExcluirAdministradorAsync(Usuario usuario, CancellationToken cancellationToken)
+    {
+        if (usuario.Perfil != PerfilUsuario.Administrador)
+        {
+            return;
+        }
+
+        var totalAdministradoresAtivos = await usuarioRepositorio.ContarAdministradoresAtivosAsync(cancellationToken);
+        if (totalAdministradoresAtivos <= 1)
+        {
+            throw new RegraNegocioException(
+                "Não é possível excluir esta conta porque ela é o último administrador ativo da plataforma.");
+        }
+    }
+
+    private async Task ValidarManutencaoAdministradorAtivoAsync(
+        Usuario usuario,
+        PerfilUsuario proximoPerfil,
+        bool proximoAtivo,
+        CancellationToken cancellationToken)
+    {
+        var desativaAdministradorAtivo = usuario.Perfil == PerfilUsuario.Administrador &&
+            usuario.Ativo &&
+            (proximoPerfil != PerfilUsuario.Administrador || !proximoAtivo);
+
+        if (!desativaAdministradorAtivo)
+        {
+            return;
+        }
+
+        var totalAdministradoresAtivos = await usuarioRepositorio.ContarAdministradoresAtivosAsync(cancellationToken);
+        if (totalAdministradoresAtivos <= 1)
+        {
+            throw new RegraNegocioException(
+                "Não é possível excluir esta conta porque ela é o último administrador ativo da plataforma.");
+        }
+    }
+
+    private async Task CancelarPendenciasAsync(Guid usuarioId, DateTime agora, CancellationToken cancellationToken)
+    {
+        var pendencias = await pendenciaUsuarioRepositorio.ListarPendentesPorUsuarioParaAtualizacaoAsync(usuarioId, cancellationToken);
+        foreach (var pendencia in pendencias)
+        {
+            pendencia.Status = StatusPendenciaUsuario.Cancelada;
+            pendencia.DataConclusao = agora;
+            pendencia.Observacao = "Cancelada pela exclusão do usuário.";
+            pendencia.AtualizarDataModificacao();
+            pendenciaUsuarioRepositorio.Atualizar(pendencia);
+        }
+    }
+
+    private async Task DesativarConvitesAsync(Guid usuarioId, string email, CancellationToken cancellationToken)
+    {
+        var convites = await conviteCadastroRepositorio.ListarAtivosPorUsuarioOuEmailAsync(usuarioId, email, cancellationToken);
+        foreach (var convite in convites)
+        {
+            convite.Desativar();
+            convite.CodigoConvite = null;
+            convite.CodigoConviteHash = null;
+            conviteCadastroRepositorio.Atualizar(convite);
+        }
+    }
+
+    private async Task RemoverVinculosGrupoAsync(Guid? atletaId, CancellationToken cancellationToken)
+    {
+        if (!atletaId.HasValue)
+        {
+            return;
+        }
+
+        var vinculos = await grupoAtletaRepositorio.ListarPorAtletaParaAtualizacaoAsync(atletaId.Value, cancellationToken);
+        foreach (var vinculo in vinculos)
+        {
+            grupoAtletaRepositorio.Remover(vinculo);
+        }
+    }
+
+    private static void AnonimizarUsuario(Usuario usuario, Guid usuarioExecutorId, DateTime agora)
+    {
+        usuario.Nome = "Usuário excluído";
+        usuario.Email = $"usuario-excluido-{usuario.Id:N}@excluido.local";
+        usuario.SenhaHash = string.Empty;
+        usuario.CodigoLoginHash = null;
+        usuario.CodigoLoginExpiraEmUtc = null;
+        usuario.CodigoRedefinicaoSenhaHash = null;
+        usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
+        usuario.RefreshTokenHash = null;
+        usuario.RefreshTokenExpiraEmUtc = null;
+        usuario.Ativo = false;
+        usuario.DadosAnonimizados = true;
+        usuario.ExcluidoEm = agora;
+        usuario.ExcluidoPorUsuarioId = usuarioExecutorId;
+        usuario.AtletaId = null;
+        usuario.Atleta = null;
+        usuario.AtualizarDataModificacao();
+    }
+
+    private static void AnonimizarAtleta(Atleta? atleta)
+    {
+        if (atleta is null)
+        {
+            return;
+        }
+
+        atleta.Nome = "Usuário excluído";
+        atleta.Apelido = "Usuário excluído";
+        atleta.Telefone = null;
+        atleta.Email = null;
+        atleta.Instagram = null;
+        atleta.Cpf = null;
+        atleta.Bairro = null;
+        atleta.Cidade = null;
+        atleta.Estado = null;
+        atleta.CadastroPendente = false;
+        atleta.Nivel = null;
+        atleta.DataNascimento = null;
+        atleta.Usuario = null;
+        atleta.AtualizarDataModificacao();
+    }
+
     private async Task SalvarAlteracoesUsuarioAtletaAsync(CancellationToken cancellationToken)
     {
         try
@@ -259,5 +448,11 @@ public class UsuarioServico(
         }
 
         return false;
+    }
+
+    private enum OrigemExclusaoUsuario
+    {
+        Admin,
+        ProprioUsuario
     }
 }

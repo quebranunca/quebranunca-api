@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -15,6 +16,7 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,6 +103,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = configuracaoJwt.Audiencia,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuracaoJwt.Chave)),
             ClockSkew = TimeSpan.Zero
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var valorUsuarioId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!Guid.TryParse(valorUsuarioId, out var usuarioId))
+                {
+                    context.Fail("Usuário não identificado.");
+                    return;
+                }
+
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<PlataformaFutevoleiDbContext>();
+                var usuarioAtivo = await dbContext.Usuarios
+                    .AsNoTracking()
+                    .AnyAsync(
+                        x => x.Id == usuarioId && x.Ativo && !x.DadosAnonimizados,
+                        context.HttpContext.RequestAborted);
+
+                if (!usuarioAtivo)
+                {
+                    context.Fail("Usuário inativo ou excluído.");
+                }
+            }
         };
     });
 

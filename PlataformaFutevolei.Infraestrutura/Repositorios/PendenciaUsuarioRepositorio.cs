@@ -36,6 +36,15 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PendenciaUsuario>> ListarPendentesPorUsuarioParaAtualizacaoAsync(
+        Guid usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PendenciasUsuarios
+            .Where(x => x.UsuarioId == usuarioId && x.Status == StatusPendenciaUsuario.Pendente)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<PendenciaUsuario?> ObterPendenteAsync(
         TipoPendenciaUsuario tipo,
         Guid usuarioId,

@@ -16,6 +16,16 @@ public class ConviteCadastroRepositorio(PlataformaFutevoleiDbContext dbContext) 
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ConviteCadastro>> ListarAtivosPorUsuarioOuEmailAsync(
+        Guid usuarioId,
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.ConvitesCadastro
+            .Where(x => x.Ativo && (x.CriadoPorUsuarioId == usuarioId || x.Email == email))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<ConviteCadastro?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.ConvitesCadastro

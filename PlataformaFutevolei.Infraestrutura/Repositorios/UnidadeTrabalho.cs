@@ -9,4 +9,13 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task ExecutarEmTransacaoAsync(
+        Func<CancellationToken, Task> operacao,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transacao = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await operacao(cancellationToken);
+        await transacao.CommitAsync(cancellationToken);
+    }
 }

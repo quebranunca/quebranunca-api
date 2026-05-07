@@ -16,6 +16,10 @@ public class Usuario : EntidadeBase
     public PerfilUsuario Perfil { get; set; } = PerfilUsuario.Atleta;
     public Guid? AtletaId { get; set; }
     public bool Ativo { get; set; } = true;
+    public DateTime? ExcluidoEm { get; set; }
+    public Guid? ExcluidoPorUsuarioId { get; set; }
+    public bool DadosAnonimizados { get; set; }
 
     public Atleta? Atleta { get; set; }
+    public Usuario? ExcluidoPorUsuario { get; set; }
 }

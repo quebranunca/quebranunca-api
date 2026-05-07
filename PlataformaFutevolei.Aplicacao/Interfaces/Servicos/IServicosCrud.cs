@@ -280,4 +280,6 @@ public interface IUsuarioServico
     Task<UsuarioLogadoDto> VincularMeuAtletaAsync(VincularAtletaUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UsuarioDto>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);
     Task<UsuarioDto> AtualizarAsync(Guid id, AtualizarUsuarioDto dto, CancellationToken cancellationToken = default);
+    Task ExcluirPorAdministradorAsync(Guid id, CancellationToken cancellationToken = default);
+    Task ExcluirMeuPerfilAsync(CancellationToken cancellationToken = default);
 }
