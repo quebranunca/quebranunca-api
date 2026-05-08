@@ -1,11 +1,14 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [Migration("20260401233000_AdicionarFluxoAprovacaoResultados")]
+    [DbContext(typeof(PlataformaFutevoleiDbContext))]
     public partial class AdicionarFluxoAprovacaoResultados : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -1,4 +1,3 @@
-using System.Net;
 using PlataformaFutevolei.Dominio.Entidades;
 
 namespace PlataformaFutevolei.Infraestrutura.Servicos;
@@ -22,25 +21,25 @@ internal static class ConteudoConviteCadastro
             [
                 "Olá!",
                 string.Empty,
-                "Você foi convidado(a) para usar a Plataforma QuebraNunca Futevôlei como atleta.",
-                "Preparamos um link pessoal para você confirmar seu acesso.",
+                $"Você foi convidado(a) para acessar a Plataforma {EmailQnfTemplate.NomeMarca}.",
+                $"{ObterNomeOrganizador(conviteCadastro)} convidou você para participar da plataforma e registrar partidas, acompanhar rankings e evoluir no futevôlei.",
                 string.Empty,
-                $"E-mail liberado para o convite: {conviteCadastro.Email}",
-                $"Código do convite: {codigoConvite}",
-                string.Empty,
-                "Abra o link abaixo, informe o código do convite e conclua seu cadastro:",
+                "Acesse a plataforma:",
                 linkConvite,
                 string.Empty,
-                "Importante: este link é individual e só permite concluir o acesso com o e-mail convidado."
+                $"Código do convite: {codigoConvite}",
+                string.Empty,
+                "Este convite pode expirar futuramente.",
+                "Se você não esperava este convite, ignore este e-mail."
             ]);
     }
 
     public static string MontarHtmlEmail(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)
     {
-        var email = WebUtility.HtmlEncode(conviteCadastro.Email);
-        var link = WebUtility.HtmlEncode(linkConvite);
-        var codigoConviteCodificado = WebUtility.HtmlEncode(codigoConvite);
-        var validade = WebUtility.HtmlEncode(conviteCadastro.ExpiraEmUtc.ToString("dd/MM/yyyy 'às' HH:mm 'UTC'"));
+        var link = EmailQnfTemplate.Html(linkConvite);
+        var logoUrl = EmailQnfTemplate.Html(EmailQnfTemplate.MontarUrlLogoLight(linkConvite));
+        var organizador = EmailQnfTemplate.Html(ObterNomeOrganizador(conviteCadastro));
+        var codigo = EmailQnfTemplate.Html(codigoConvite);
 
         return $"""
             <!doctype html>
@@ -48,107 +47,56 @@ internal static class ConteudoConviteCadastro
               <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta name="color-scheme" content="light only">
+                <meta name="supported-color-schemes" content="light">
                 <title>Convite QuebraNunca Futevôlei</title>
               </head>
-              <body style="margin:0; padding:0; background:#0b0d10; color:#171717;">
+              <body bgcolor="#ffffff" style="margin:0; padding:0; background-color:#ffffff; color:#101318;">
                 <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
-                  Seu convite para acessar a Plataforma QuebraNunca Futevôlei.
+                  Você foi convidado para acessar a Plataforma QuebraNunca Futevôlei.
                 </div>
 
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; background:#0b0d10; border-collapse:collapse;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%; background-color:#ffffff; border-collapse:collapse;">
                   <tr>
-                    <td align="center" style="padding:32px 14px; font-family:Arial, Helvetica, sans-serif;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; max-width:640px; border-collapse:collapse;">
+                    <td align="center" bgcolor="#ffffff" style="padding:16px 12px; background-color:#ffffff; font-family:Arial, Helvetica, sans-serif;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" align="center" bgcolor="#08090B" style="width:100%; max-width:520px; border-collapse:collapse; margin:0 auto; background-color:#08090B; border:1px solid #2d2615; border-radius:16px;">
                         <tr>
-                          <td style="padding:0 4px 16px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                              <tr>
-                                <td style="vertical-align:middle;">
-                                  <div style="display:inline-block; width:46px; height:46px; line-height:46px; text-align:center; border-radius:14px; background:#ffb400; color:#111111; font-size:18px; font-weight:800; letter-spacing:0;">
-                                    QN
-                                  </div>
-                                </td>
-                                <td style="vertical-align:middle; padding-left:12px;">
-                                  <div style="font-size:12px; line-height:16px; color:#c8c8c8; text-transform:uppercase; letter-spacing:1px;">
-                                    Plataforma
-                                  </div>
-                                  <div style="font-size:22px; line-height:26px; color:#f6f2ea; font-weight:800;">
-                                    QuebraNunca Futevôlei
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
+                          <td style="padding:0;">
+                            <div style="height:4px; line-height:4px; background:#ffb300;">&nbsp;</div>
                           </td>
                         </tr>
-
                         <tr>
-                          <td style="background:#ffffff; border:1px solid #ded7c7; border-radius:16px; overflow:hidden; box-shadow:0 14px 34px rgba(0,0,0,0.22);">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                              <tr>
-                                <td style="background:#171a20; padding:26px 24px; border-bottom:4px solid #ffb400;">
-                                  <div style="font-size:13px; line-height:18px; color:#ffb400; font-weight:700; text-transform:uppercase; letter-spacing:1px;">
-                                    Convite de acesso
-                                  </div>
-                                  <h1 style="margin:8px 0 0; color:#ffffff; font-size:28px; line-height:34px; font-weight:800;">
-                                    Entre para acompanhar seus jogos
-                                  </h1>
-                                </td>
-                              </tr>
+                          <td align="center" style="padding:18px 20px 22px;">
+                            <img src="{logoUrl}" width="52" height="52" alt="QuebraNunca Futevôlei" style="display:block; width:52px; height:52px; object-fit:contain; border:0; outline:none; text-decoration:none; margin:0 auto 14px;">
 
-                              <tr>
-                                <td style="padding:26px 24px 8px; color:#171717; font-size:16px; line-height:24px;">
-                                  <p style="margin:0 0 14px;">Olá!</p>
-                                  <p style="margin:0 0 14px;">
-                                    Você foi convidado(a) para acessar a <strong>Plataforma QuebraNunca Futevôlei</strong> como atleta.
-                                  </p>
-                                  <p style="margin:0;">
-                                    Use o botão abaixo e informe o código do convite para confirmar seu primeiro acesso.
-                                  </p>
-                                </td>
-                              </tr>
+                            <h1 style="margin:0; color:#fff8e8; font-size:24px; line-height:30px; font-weight:900;">
+                              Você foi convidado
+                            </h1>
 
-                              <tr>
-                                <td style="padding:18px 24px 8px;">
-                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; background:#f7f4ed; border:1px solid #ded7c7; border-radius:12px;">
-                                    <tr>
-                                      <td style="padding:18px;">
-                                        <div style="font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:18px; color:#575757; font-weight:700; text-transform:uppercase; letter-spacing:.8px;">
-                                          Código do convite
-                                        </div>
-                                        <div style="margin-top:8px; font-size:30px; line-height:36px; color:#111111; font-weight:800; letter-spacing:3px;">
-                                          {codigoConviteCodificado}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </table>
-                                </td>
-                              </tr>
+                            <p style="margin:10px 0 0; color:#f6edd8; font-size:16px; line-height:23px;">
+                              Você foi convidado para acessar a Plataforma QuebraNunca Futevôlei.
+                            </p>
 
-                              <tr>
-                                <td style="padding:18px 24px 10px;">
-                                  <a href="{link}" style="display:inline-block; background:#ffb400; color:#111111; text-decoration:none; border-radius:10px; padding:14px 18px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:20px; font-weight:800;">
-                                    Abrir convite
-                                  </a>
-                                </td>
-                              </tr>
+                            <p style="margin:10px 0 16px; color:#b8bfca; font-size:14px; line-height:21px;">
+                              <strong style="color:#fff8e8;">{organizador}</strong> convidou você para participar da plataforma e registrar partidas, acompanhar rankings e evoluir no futevôlei.
+                            </p>
 
-                              <tr>
-                                <td style="padding:8px 24px 24px; color:#575757; font-size:14px; line-height:22px;">
-                                  <p style="margin:0 0 8px;"><strong style="color:#171717;">E-mail liberado:</strong> {email}</p>
-                                  <p style="margin:0 0 8px;"><strong style="color:#171717;">Validade:</strong> {validade}</p>
-                                  <p style="margin:0;">
-                                    Este convite é individual e só permite concluir o acesso com o e-mail convidado.
-                                  </p>
-                                </td>
-                              </tr>
-                            </table>
-                          </td>
-                        </tr>
+                            <a href="{link}" style="display:block; width:100%; box-sizing:border-box; background:#ffb300; color:#0b0d10; text-decoration:none; border-radius:14px; padding:16px 18px; font-family:Arial, Helvetica, sans-serif; font-size:17px; line-height:22px; font-weight:900; text-align:center;">
+                              Acessar Plataforma
+                            </a>
 
-                        <tr>
-                          <td style="padding:18px 4px 0; color:#c8c8c8; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:20px;">
-                            <p style="margin:0 0 8px;">Se o botão não funcionar, copie e cole este endereço no navegador:</p>
-                            <a href="{link}" style="color:#ffb400; text-decoration:underline; word-break:break-all;">{link}</a>
+                            <p style="margin:12px 0 0; color:#d8d0bd; font-size:13px; line-height:19px;">
+                              Se solicitado, informe o código <strong style="color:#ffca4b;">{codigo}</strong>.
+                            </p>
+
+                            <p style="margin:14px 0 0; color:#929ba8; font-size:12px; line-height:18px;">
+                              Se o botão não funcionar:<br>
+                              <a href="{link}" style="color:#ffca4b; text-decoration:underline; word-break:break-all;">{link}</a>
+                            </p>
+
+                            <p style="margin:10px 0 0; color:#777f8c; font-size:12px; line-height:18px;">
+                              Este convite pode expirar futuramente.
+                            </p>
                           </td>
                         </tr>
                       </table>
@@ -158,6 +106,13 @@ internal static class ConteudoConviteCadastro
               </body>
             </html>
             """;
+    }
+
+    private static string ObterNomeOrganizador(ConviteCadastro conviteCadastro)
+    {
+        return string.IsNullOrWhiteSpace(conviteCadastro.CriadoPorUsuario?.Nome)
+            ? "Equipe QuebraNunca"
+            : conviteCadastro.CriadoPorUsuario.Nome.Trim();
     }
 
     public static string MontarTextoWhatsapp(ConviteCadastro conviteCadastro, string linkConvite, string codigoConvite)

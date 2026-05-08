@@ -63,6 +63,7 @@ DTOs/
  DuplaDtos.cs
  FormatoCampeonatoDtos.cs
  GrupoAtletaDtos.cs
+ GrupoDtos.cs
  ImportacaoDtos.cs
  InscricaoCampeonatoDtos.cs
  LigaDtos.cs
@@ -72,6 +73,7 @@ DTOs/
  RankingDtos.cs
  RegraCompeticaoDtos.cs
 Excecoes/
+ ConflitoGrupoAtletaException.cs
  EntidadeNaoEncontradaException.cs
  RegraNegocioException.cs
 Interfaces/
@@ -101,6 +103,8 @@ Servicos/
  DuplaServico.cs
  FormatoCampeonatoServico.cs
  GrupoAtletaServico.cs
+ GrupoResumoUsuarioServico.cs
+ GrupoServico.cs
  ImportacaoServico.cs
  InscricaoCampeonatoServico.cs
  LigaServico.cs

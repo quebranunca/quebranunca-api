@@ -61,6 +61,7 @@ Entidades/
  Dupla.cs
  EntidadeBase.cs
  FormatoCampeonato.cs
+ Grupo.cs
  GrupoAtleta.cs
  InscricaoCampeonato.cs
  Liga.cs

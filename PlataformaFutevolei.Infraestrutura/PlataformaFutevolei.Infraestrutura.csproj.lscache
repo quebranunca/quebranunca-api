@@ -74,6 +74,7 @@ Persistencia/
   DuplaMapeamento.cs
   FormatoCampeonatoMapeamento.cs
   GrupoAtletaMapeamento.cs
+  GrupoMapeamento.cs
   InscricaoCampeonatoMapeamento.cs
   LigaMapeamento.cs
   LocalMapeamento.cs
@@ -127,6 +128,11 @@ Persistencia/
   20260413120000_AdicionarBairroAtleta.cs
   20260413123000_AtualizarConvitesPendentesParaAtleta.cs
   20260413140000_AdicionarLinkCompeticao.cs
+  20260430143000_ManterCodigoConviteCadastro.cs
+  20260501120000_AdicionarIndiceNomeAtletaSugestoesCompeticao.cs
+  20260503120000_SepararGruposDeCompeticoes.cs
+  20260506120000_GarantirGrupoGeralUnico.cs
+  20260507120000_AdicionarExclusaoAnonimizacaoUsuario.cs
   PlataformaFutevoleiDbContextModelSnapshot.cs
  PlataformaFutevoleiDbContext.cs
  PlataformaFutevoleiDbContextFactory.cs
@@ -138,6 +144,7 @@ Repositorios/
  DuplaRepositorio.cs
  FormatoCampeonatoRepositorio.cs
  GrupoAtletaRepositorio.cs
+ GrupoRepositorio.cs
  InscricaoCampeonatoRepositorio.cs
  LigaRepositorio.cs
  LocalRepositorio.cs
@@ -153,6 +160,7 @@ Seguranca/
 Servicos/
  ConteudoCodigoLoginEmail.cs
  ConteudoConviteCadastro.cs
+ EmailQnfTemplate.cs
  GeracaoLinkConviteCadastroServico.cs
  ResendEmailCodigoLoginServico.cs
  ResendEmailConviteCadastroServico.cs

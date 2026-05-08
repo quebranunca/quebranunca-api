@@ -19,6 +19,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
         return Ok(usuario);
     }
 
+    [HttpGet("resumo")]
+    [ProducesResponseType(typeof(UsuarioResumoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterResumo(CancellationToken cancellationToken)
+    {
+        var resumo = await usuarioServico.ObterMeuResumoAsync(cancellationToken);
+        return Ok(resumo);
+    }
+
     [HttpPut("me")]
     [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> AtualizarMeuUsuario([FromBody] AtualizarMeuUsuarioDto dto, CancellationToken cancellationToken)
@@ -33,6 +41,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
     {
         var usuario = await usuarioServico.VincularMeuAtletaAsync(dto, cancellationToken);
         return Ok(usuario);
+    }
+
+    [HttpDelete("meu-perfil")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ExcluirMeuPerfil(CancellationToken cancellationToken)
+    {
+        await usuarioServico.ExcluirMeuPerfilAsync(cancellationToken);
+        return NoContent();
     }
 
     [HttpGet]
@@ -51,5 +67,14 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
     {
         var usuario = await usuarioServico.AtualizarAsync(id, dto, cancellationToken);
         return Ok(usuario);
+    }
+
+    [HttpDelete("~/api/admin/usuarios/{id:guid}")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ExcluirPorAdministrador(Guid id, CancellationToken cancellationToken)
+    {
+        await usuarioServico.ExcluirPorAdministradorAsync(id, cancellationToken);
+        return NoContent();
     }
 }

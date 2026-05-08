@@ -193,13 +193,30 @@ internal static class MapeadorEntidades
             competicao.DataAtualizacao
         );
 
+    public static GrupoDto ParaDto(this Grupo grupo)
+        => new(
+            grupo.Id,
+            grupo.Nome,
+            grupo.Descricao,
+            grupo.Link,
+            grupo.DataInicio,
+            grupo.DataFim,
+            grupo.LocalId,
+            grupo.UsuarioOrganizadorId,
+            grupo.Local?.Nome,
+            grupo.UsuarioOrganizador?.Nome,
+            grupo.DataCriacao,
+            grupo.DataAtualizacao
+        );
+
     public static GrupoAtletaDto ParaDto(this GrupoAtleta grupoAtleta)
         => new(
             grupoAtleta.Id,
-            grupoAtleta.CompeticaoId,
+            grupoAtleta.GrupoId,
             grupoAtleta.AtletaId,
             grupoAtleta.Atleta?.Nome ?? string.Empty,
             grupoAtleta.Atleta?.Apelido,
+            grupoAtleta.Atleta?.Email,
             grupoAtleta.Atleta?.CadastroPendente ?? false,
             grupoAtleta.Atleta?.Usuario is not null,
             grupoAtleta.DataCriacao,
@@ -269,6 +286,8 @@ internal static class MapeadorEntidades
         return new PartidaDto(
             partida.Id,
             partida.CategoriaCompeticaoId,
+            partida.GrupoId,
+            partida.Grupo?.Nome,
             partida.CategoriaCompeticao?.Nome ?? string.Empty,
             partida.CriadoPorUsuarioId,
             partida.CriadoPorUsuario?.Nome,

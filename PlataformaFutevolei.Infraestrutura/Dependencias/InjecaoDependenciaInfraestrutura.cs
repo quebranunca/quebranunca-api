@@ -89,6 +89,8 @@ public static class InjecaoDependenciaInfraestrutura
                 ?? string.Empty;
             options.RemetenteNome = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "RemetenteNome");
             options.ReplyTo = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "ReplyTo");
+            options.UrlApp = ObterValorComFallback(secaoEmailCodigoLogin, secaoEmailConvites, "UrlApp")
+                ?? frontendUrlPadrao;
             options.EmailOrigemSobrescrito = secaoEmailCodigoLogin["EmailOrigemSobrescrito"];
             options.EmailDestinoSobrescrito = secaoEmailCodigoLogin["EmailDestinoSobrescrito"];
         });
@@ -113,6 +115,7 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IRegraCompeticaoRepositorio, RegraCompeticaoRepositorio>();
         services.AddScoped<IDuplaRepositorio, DuplaRepositorio>();
         services.AddScoped<ICompeticaoRepositorio, CompeticaoRepositorio>();
+        services.AddScoped<IGrupoRepositorio, GrupoRepositorio>();
         services.AddScoped<IGrupoAtletaRepositorio, GrupoAtletaRepositorio>();
         services.AddScoped<ICategoriaCompeticaoRepositorio, CategoriaCompeticaoRepositorio>();
         services.AddScoped<IInscricaoCampeonatoRepositorio, InscricaoCampeonatoRepositorio>();

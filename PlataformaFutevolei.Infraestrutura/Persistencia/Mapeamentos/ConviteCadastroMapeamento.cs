@@ -15,6 +15,7 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Telefone).HasColumnName("telefone").HasMaxLength(30);
         builder.Property(x => x.IdentificadorPublico).HasColumnName("identificador_publico").HasMaxLength(40).IsRequired();
+        builder.Property(x => x.CodigoConvite).HasColumnName("codigo_convite").HasMaxLength(7);
         builder.Property(x => x.CodigoConviteHash).HasColumnName("codigo_convite_hash").HasMaxLength(64);
         builder.Property(x => x.PerfilDestino).HasColumnName("perfil_destino").IsRequired();
         builder.Property(x => x.ExpiraEmUtc).HasColumnName("expira_em_utc").IsRequired();

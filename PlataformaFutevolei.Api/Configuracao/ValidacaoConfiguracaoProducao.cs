@@ -19,7 +19,7 @@ internal static class ValidacaoConfiguracaoProducao
                 "A configuração JWT de produção está inválida. Defina uma chave forte em Jwt:Chave " +
                 "(ou Jwt__Chave) e não utilize o placeholder do repositório.");
         }
-
+/*
         if (string.IsNullOrWhiteSpace(origemFrontendConfigurada) ||
             origensFrontend.Any(ConfiguracaoCorsFrontend.EhOrigemInvalidaParaProducao))
         {
@@ -27,6 +27,7 @@ internal static class ValidacaoConfiguracaoProducao
                 "A configuração Frontend:Url é obrigatória em produção e não pode apontar para localhost. " +
                 "Defina Frontend:Url (ou Frontend__Url) com a URL pública do frontend.");
         }
+*/
     }
 
     private static bool EhChaveJwtPadrao(string? chave)

@@ -8,6 +8,8 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
 public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICompeticaoRepositorio
 {
+    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
+
     public async Task<IReadOnlyList<Competicao>> ListarAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Competicoes
@@ -19,6 +21,26 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .Include(x => x.UsuarioOrganizador)
             .OrderByDescending(x => x.DataInicio)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<Competicao?> ObterGrupoResumoUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = AplicarFiltroAcessoAtleta(
+                dbContext.Competicoes
+                    .AsNoTracking()
+                    .Where(x => x.Tipo == TipoCompeticao.Grupo)
+                    .Where(x => x.Nome.ToLower() != NomeCompeticaoPartidasAvulsas.ToLower()),
+                usuarioId,
+                atletaId);
+
+        return consulta
+            .OrderByDescending(x => x.UsuarioOrganizadorId == usuarioId)
+            .ThenByDescending(x => x.DataAtualizacao)
+            .ThenByDescending(x => x.DataInicio)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
@@ -96,7 +118,6 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
             x.UsuarioOrganizadorId == usuarioId ||
-            x.GrupoAtletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Inscricoes.Any(inscricao =>
                 inscricao.Status != StatusInscricaoCampeonato.Cancelada &&
                 (inscricao.Dupla.Atleta1Id == atletaIdValor || inscricao.Dupla.Atleta2Id == atletaIdValor)));

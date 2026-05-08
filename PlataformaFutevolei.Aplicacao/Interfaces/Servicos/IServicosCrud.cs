@@ -9,6 +9,10 @@ public interface IAtletaServico
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AtletaResumoDto>> BuscarSugestoesPorCompeticaoAsync(
+        Guid competicaoId,
+        string? termo,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AtletaDto?> ObterMeuAsync(CancellationToken cancellationToken = default);
@@ -59,12 +63,36 @@ public interface ICompeticaoServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IGrupoResumoUsuarioServico
+{
+    Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IGrupoServico
+{
+    Task<IReadOnlyList<GrupoDto>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<GrupoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoDto> AtualizarAsync(Guid id, AtualizarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IGrupoPadraoServico
+{
+    string NomeGrupoGeral { get; }
+    Task<Grupo> ObterOuCriarGrupoGeralAsync(CancellationToken cancellationToken = default);
+    Task<Grupo> ResolverGrupoRegistroPartidaAsync(Guid? grupoId, string? nomeNovoGrupo, CancellationToken cancellationToken = default);
+    Task ValidarNomeDisponivelOuAcessivelAsync(string nome, Guid? grupoIgnoradoId = null, CancellationToken cancellationToken = default);
+}
+
 public interface IGrupoAtletaServico
 {
-    Task<IReadOnlyList<GrupoAtletaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
-    Task<GrupoAtletaDto> CriarAsync(Guid competicaoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
-    Task RemoverAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
-    Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(Guid competicaoId, Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtletaBuscaDto>> BuscarPorGrupoAsync(Guid grupoId, string? termo, CancellationToken cancellationToken = default);
+    Task<GrupoAtletaDto> CriarAsync(Guid grupoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoAtletaDto> CompletarEmailAsync(Guid grupoId, Guid id, AtualizarEmailGrupoAtletaDto dto, CancellationToken cancellationToken = default);
+    Task RemoverAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default);
+    Task<UsuarioLogadoDto> AssumirMeuNomeNoGrupoAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default);
 }
 
 public interface IFormatoCampeonatoServico
@@ -98,12 +126,15 @@ public interface ICategoriaCompeticaoServico
 public interface IPartidaServico
 {
     Task<IReadOnlyList<PartidaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
         Guid categoriaId,
         GerarTabelaCategoriaDto dto,
@@ -117,6 +148,7 @@ public interface IPartidaServico
 public interface IPendenciaServico
 {
     Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
+    Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default);
     Task<PendenciaUsuarioDto> AprovarPartidaAsync(
         Guid pendenciaId,
         ResponderPendenciaPartidaDto dto,
@@ -168,7 +200,7 @@ public interface IResolvedorAtletaDuplaServico
         CancellationToken cancellationToken = default);
 
     Task<GrupoAtleta> GarantirAtletaNoGrupoAsync(
-        Guid competicaoId,
+        Guid grupoId,
         Atleta atleta,
         CancellationToken cancellationToken = default);
 }
@@ -226,6 +258,9 @@ public interface IRankingServico
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(
         Guid competicaoId,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorGrupoAsync(
+        Guid grupoId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IImportacaoServico
@@ -241,8 +276,11 @@ public interface IImportacaoServico
 public interface IUsuarioServico
 {
     Task<UsuarioLogadoDto> ObterMeuUsuarioAsync(CancellationToken cancellationToken = default);
+    Task<UsuarioResumoDto> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> AtualizarMeuUsuarioAsync(AtualizarMeuUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> VincularMeuAtletaAsync(VincularAtletaUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UsuarioDto>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);
     Task<UsuarioDto> AtualizarAsync(Guid id, AtualizarUsuarioDto dto, CancellationToken cancellationToken = default);
+    Task ExcluirPorAdministradorAsync(Guid id, CancellationToken cancellationToken = default);
+    Task ExcluirMeuPerfilAsync(CancellationToken cancellationToken = default);
 }

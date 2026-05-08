@@ -4,6 +4,7 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarPartidaDto(
     Guid? CompeticaoId,
+    Guid? GrupoId,
     string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
@@ -26,6 +27,7 @@ public record CriarPartidaDto(
 
 public record AtualizarPartidaDto(
     Guid? CompeticaoId,
+    Guid? GrupoId,
     string? NomeGrupo,
     Guid? CategoriaCompeticaoId,
     Guid? DuplaAId,
@@ -85,6 +87,9 @@ public record JogoRodadaCompeticaoDto(
     string TipoJogo,
     string? NomeFase,
     StatusPartida Status,
+    StatusAprovacaoPartida StatusAprovacao,
+    decimal PontosClassificacaoDuplaA,
+    decimal PontosClassificacaoDuplaB,
     Guid? DuplaAId,
     string NomeDuplaA,
     Guid? DuplaBId,
@@ -114,9 +119,49 @@ public record PartidaAtletaPendenteDto(
     string StatusPendencia
 );
 
+public record PartidaCompartilhamentoAtletaDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string? FotoUrl
+);
+
+public record PartidaCompartilhamentoRankingVizinhoDto(
+    int Posicao,
+    string Apelido,
+    decimal Pontos,
+    string? FotoUrl
+);
+
+public record PartidaCompartilhamentoRankingDto(
+    int Posicao,
+    string Apelido,
+    decimal Pontos,
+    int Vitorias,
+    int Derrotas,
+    int Jogos,
+    PartidaCompartilhamentoRankingVizinhoDto? AtletaAcima,
+    PartidaCompartilhamentoRankingVizinhoDto? AtletaAbaixo
+);
+
+public record PartidaCompartilhamentoDto(
+    Guid PartidaId,
+    Guid? GrupoId,
+    string? GrupoNome,
+    DateTime? DataPartida,
+    IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla1,
+    IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla2,
+    int PlacarDupla1,
+    int PlacarDupla2,
+    string ResultadoAtletaLogado,
+    PartidaCompartilhamentoRankingDto? RankingGrupo
+);
+
 public record PartidaDto(
     Guid Id,
-    Guid CategoriaCompeticaoId,
+    Guid? CategoriaCompeticaoId,
+    Guid? GrupoId,
+    string? NomeGrupo,
     string NomeCategoria,
     Guid? CriadoPorUsuarioId,
     string? NomeCriadoPorUsuario,

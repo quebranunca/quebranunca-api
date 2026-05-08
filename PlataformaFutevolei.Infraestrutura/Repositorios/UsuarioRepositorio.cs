@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
@@ -12,6 +13,7 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
         var query = dbContext.Usuarios
             .AsNoTracking()
             .Include(x => x.Atleta)
+            .Where(x => !x.DadosAnonimizados)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(nome))
@@ -32,19 +34,30 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+    {
+        return dbContext.Usuarios
+            .AsNoTracking()
+            .CountAsync(
+                x => x.Perfil == PerfilUsuario.Administrador &&
+                     x.Ativo &&
+                     !x.DadosAnonimizados,
+                cancellationToken);
+    }
+
     public Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         return dbContext.Usuarios
             .AsNoTracking()
-            .Include(x => x.Atleta)
-            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+            //.Include(x => x.Atleta)
+            .FirstOrDefaultAsync(x => x.Email == email && !x.DadosAnonimizados, cancellationToken);
     }
 
     public Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default)
     {
         return dbContext.Usuarios
             .Include(x => x.Atleta)
-            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Email == email && !x.DadosAnonimizados, cancellationToken);
     }
 
     public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)

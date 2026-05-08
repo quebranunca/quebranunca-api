@@ -86,3 +86,5 @@ postgres-data/
 
 *.tmp
 *.temp
+PlataformaFutevolei.Api/appsettings.Production.json
+PlataformaFutevolei.Api/Properties/launchSettings.json

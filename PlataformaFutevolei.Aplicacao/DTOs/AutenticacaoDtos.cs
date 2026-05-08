@@ -78,6 +78,16 @@ public record UsuarioDto(
     DateTime DataAtualizacao
 );
 
+public record UsuarioResumoDto(
+    int TotalPartidas,
+    int TotalVitorias,
+    int TotalDerrotas,
+    decimal PercentualAproveitamento,
+    int TotalPartidasPendentes,
+    decimal Pontos,
+    decimal PontosPendentes
+);
+
 public record AtualizarMeuUsuarioDto(
     string Nome
 );

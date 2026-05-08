@@ -36,6 +36,15 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PendenciaUsuario>> ListarPendentesPorUsuarioParaAtualizacaoAsync(
+        Guid usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PendenciasUsuarios
+            .Where(x => x.UsuarioId == usuarioId && x.Status == StatusPendenciaUsuario.Pendente)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<PendenciaUsuario?> ObterPendenteAsync(
         TipoPendenciaUsuario tipo,
         Guid usuarioId,
@@ -57,6 +66,16 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
     {
         return CriarConsultaDetalhada(usarNoTracking: false)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<bool> ExistePendentePorUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PendenciasUsuarios
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.UsuarioId == usuarioId &&
+                     x.Status == StatusPendenciaUsuario.Pendente,
+                cancellationToken);
     }
 
     public async Task AdicionarAsync(PendenciaUsuario pendencia, CancellationToken cancellationToken = default)

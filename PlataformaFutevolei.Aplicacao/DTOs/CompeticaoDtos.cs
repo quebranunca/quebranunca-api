@@ -64,5 +64,28 @@ public record CompeticaoDto(
 );
 
 public record ResumoCompeticoesPublicoDto(
+    int TotalAtletas,
+    int TotalJogos,
     int TotalGrupos
+);
+
+public record GrupoResumoUsuarioDto(
+    Guid GrupoId,
+    string Nome,
+    GrupoResumoUltimoJogoDto? UltimoJogo,
+    IReadOnlyList<GrupoResumoRankingAtletaDto> RankingTop3
+);
+
+public record GrupoResumoUltimoJogoDto(
+    DateTime Data,
+    IReadOnlyList<string> Dupla1,
+    IReadOnlyList<string> Dupla2,
+    string Placar
+);
+
+public record GrupoResumoRankingAtletaDto(
+    int Posicao,
+    Guid AtletaId,
+    string NomeAtleta,
+    decimal Pontuacao
 );

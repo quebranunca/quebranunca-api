@@ -9,9 +9,12 @@
 - Em convites com e-mail automático, o disparo deve sair da API/aplicação; o frontend não deve carregar chave de provedor nem decidir o conteúdo final do envio
 - Falha do provedor de e-mail deve ser rastreável e controlada, sem derrubar a validade do convite nem o fluxo principal
 - Em convites, e-mail e WhatsApp devem reaproveitar o mesmo token e o mesmo fluxo de aceite; integrações externas ficam na infraestrutura com orquestração na aplicação
+- Em convites, link de aceite, e-mail e WhatsApp devem entregar o mesmo código vigente; controller ou serviço não deve regenerar código como efeito colateral dessas ações
+- Código de convite deve ser tratado como dado sensível operacional: não logar em payloads, respostas de erro ou rastreios fora das respostas administrativas já previstas
 - Validar entrada sem duplicar invariantes do serviço ou do domínio
 - Propagar `CancellationToken` e manter respostas claras e consistentes
 - Fluxos novos devem preferir ampliar endpoints existentes antes de criar controller paralelo sem necessidade
+- Autocomplete de atletas por competição deve ser endpoint fino e reutilizável; elegibilidade, autorização e limite mínimo de 3 caracteres ficam na aplicação/repositório, não no controller
 - Para importação CSV, manter upload em `multipart/form-data` e devolver resumo por linha, sem mover validação para controller
 - Em importação ou criação em lote, reutilizar os serviços já existentes de atleta, dupla, inscrição e partida; não criar atalho direto no controller
 - Em fluxos que dependem de dupla inscrita no campeonato, considerar a ordem normalizada dos atletas para evitar falso negativo de inscrição
@@ -24,3 +27,7 @@
 - Validação de conexão e aplicação de migrations na subida devem ficar centralizadas em classe própria, com falha explícita fora de Development
 - Em `Staging` e `Production`, tratar ausência de configuração obrigatória como erro de startup e evitar qualquer fallback para `localhost`
 - Endpoints de diagnóstico, Swagger e flags operacionais precisam ficar protegidos por configuração segura por ambiente
+- Payload de request só deve ser logado em caso de erro crítico (500).
+- Deve ser sanitizado antes de logar.
+- Nunca logar dados sensíveis (senha, token, authorization).
+- Deve existir limite de tamanho do payload para logging.

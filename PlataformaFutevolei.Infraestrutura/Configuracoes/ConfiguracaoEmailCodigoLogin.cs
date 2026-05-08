@@ -9,6 +9,7 @@ public class ConfiguracaoEmailCodigoLogin
     public string RemetenteEmail { get; set; } = string.Empty;
     public string? RemetenteNome { get; set; }
     public string? ReplyTo { get; set; }
+    public string? UrlApp { get; set; }
 
     public string? EmailOrigemSobrescrito { get; set; }
     public string? EmailDestinoSobrescrito { get; set; }
@@ -52,6 +53,13 @@ public class ConfiguracaoEmailCodigoLogin
         return string.IsNullOrWhiteSpace(RemetenteNome)
             ? email
             : $"{RemetenteNome.Trim()} <{email}>";
+    }
+
+    public string ObterUrlAppBase()
+    {
+        return string.IsNullOrWhiteSpace(UrlApp)
+            ? string.Empty
+            : UrlApp.Trim().TrimEnd('/');
     }
 
     public string ObterEmailDestino(string emailUsuario)

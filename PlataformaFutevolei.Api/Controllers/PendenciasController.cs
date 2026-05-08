@@ -18,6 +18,14 @@ public class PendenciasController(IPendenciaServico pendenciaServico) : Controll
         return Ok(pendencias);
     }
 
+    [HttpGet("existe")]
+    [ProducesResponseType(typeof(IReadOnlyList<PendenciaUsuarioDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Existe(CancellationToken cancellationToken)
+    {
+        var existePendencia = await pendenciaServico.ExistePendenciaAsync(cancellationToken);
+        return Ok(existePendencia);
+    }
+
     [HttpPost("{id:guid}/aprovar")]
     [ProducesResponseType(typeof(PendenciaUsuarioDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Aprovar(Guid id, [FromBody] ResponderPendenciaPartidaDto dto, CancellationToken cancellationToken)

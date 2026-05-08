@@ -36,8 +36,6 @@ public class Competicao : EntidadeBase
     public Usuario? UsuarioOrganizador { get; set; }
     public ICollection<CategoriaCompeticao> Categorias { get; set; } = new List<CategoriaCompeticao>();
     public ICollection<InscricaoCampeonato> Inscricoes { get; set; } = new List<InscricaoCampeonato>();
-    public ICollection<GrupoAtleta> GrupoAtletas { get; set; } = new List<GrupoAtleta>();
-
     public int ObterPontosMinimosPartida() => RegraCompeticao?.PontosMinimosPartida ?? PontosMinimosPartidaPadrao;
 
     public int ObterDiferencaMinimaPartida() => RegraCompeticao?.DiferencaMinimaPartida ?? DiferencaMinimaPartidaPadrao;

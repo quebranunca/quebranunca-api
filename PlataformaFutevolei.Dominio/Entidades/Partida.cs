@@ -4,7 +4,12 @@ namespace PlataformaFutevolei.Dominio.Entidades;
 
 public class Partida : EntidadeBase
 {
-    public Guid CategoriaCompeticaoId { get; set; }
+    public const decimal PontosVitoriaRegistradaRanking = 1m;
+    public const decimal PontosBonusAprovacaoVitoriaRanking = 1m;
+    public const decimal PontosDerrotaRanking = 0m;
+
+    public Guid? CategoriaCompeticaoId { get; set; }
+    public Guid? GrupoId { get; set; }
     public Guid? CriadoPorUsuarioId { get; set; }
     public Guid? DuplaAId { get; set; }
     public Guid? DuplaBId { get; set; }
@@ -32,7 +37,8 @@ public class Partida : EntidadeBase
     public DateTime? DataPartida { get; set; }
     public string? Observacoes { get; set; }
 
-    public CategoriaCompeticao CategoriaCompeticao { get; set; } = default!;
+    public CategoriaCompeticao? CategoriaCompeticao { get; set; }
+    public Grupo? Grupo { get; set; }
     public Usuario? CriadoPorUsuario { get; set; }
     public Dupla? DuplaA { get; set; }
     public Dupla? DuplaB { get; set; }
@@ -70,8 +76,25 @@ public class Partida : EntidadeBase
             return 0m;
         }
 
-        var peso = pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
-        var pontosVitoria = CategoriaCompeticao?.Competicao?.ObterPontosVitoria() ?? Competicao.PontosVitoriaPadrao;
-        return pontosVitoria * peso;
+        var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
+        var pontos = PontosVitoriaRegistradaRanking;
+
+        if (StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+        {
+            pontos += PontosBonusAprovacaoVitoriaRanking;
+        }
+
+        return pontos * peso;
+    }
+
+    public decimal CalcularBonusAprovacaoPendenteRanking(decimal? pesoRanking = null)
+    {
+        if (DuplaVencedoraId is null || StatusAprovacao == StatusAprovacaoPartida.Aprovada)
+        {
+            return 0m;
+        }
+
+        var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
+        return PontosBonusAprovacaoVitoriaRanking * peso;
     }
 }
