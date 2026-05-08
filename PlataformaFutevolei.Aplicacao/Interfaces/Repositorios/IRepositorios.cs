@@ -134,6 +134,7 @@ public interface IGrupoRepositorio
 public interface IGrupoAtletaRepositorio
 {
     Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtleta>> BuscarPorGrupoAsync(Guid grupoId, string termo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<GrupoAtleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);

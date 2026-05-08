@@ -41,6 +41,47 @@ public class GrupoAtletaServico(
         return atletas.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<IReadOnlyList<GrupoAtletaBuscaDto>> BuscarPorGrupoAsync(
+        Guid grupoId,
+        string? termo,
+        CancellationToken cancellationToken = default)
+    {
+        var termoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(termo ?? string.Empty);
+        if (termoNormalizado.Length < 3)
+        {
+            return [];
+        }
+
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var grupo = await ObterGrupoValidoAsync(grupoId, cancellationToken);
+
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            var possuiAcesso = await grupoRepositorio.AtletaPossuiAcessoAsync(
+                grupo.Id,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
+            {
+                throw new RegraNegocioException("Você só pode consultar atletas dos grupos em que participa.");
+            }
+        }
+        else
+        {
+            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
+        }
+
+        var atletas = await grupoAtletaRepositorio.BuscarPorGrupoAsync(grupo.Id, termoNormalizado, cancellationToken);
+        return atletas.Select(x =>
+        {
+            var nome = x.Atleta?.Nome ?? string.Empty;
+            var apelido = x.Atleta?.Apelido;
+            var textoExibicao = string.IsNullOrWhiteSpace(apelido) ? nome : apelido!;
+            return new GrupoAtletaBuscaDto(x.AtletaId, nome, apelido, textoExibicao);
+        }).ToList();
+    }
+
     public async Task<GrupoAtletaDto> CriarAsync(
         Guid grupoId,
         CriarGrupoAtletaDto dto,

@@ -709,6 +709,7 @@ public class PartidaServico(
     {
         CategoriaCompeticao? categoria = null;
         Grupo? grupo = null;
+        var grupoEspecificoExistenteInformado = false;
         if (categoriaCompeticaoId.HasValue)
         {
             categoria = await categoriaRepositorio.ObterPorIdAsync(categoriaCompeticaoId.Value, cancellationToken)
@@ -722,6 +723,15 @@ public class PartidaServico(
         else
         {
             var grupoIdEfetivo = grupoId ?? competicaoId;
+            grupoEspecificoExistenteInformado = grupoIdEfetivo.HasValue && grupoIdEfetivo.Value != Guid.Empty;
+            if (!grupoEspecificoExistenteInformado &&
+                !string.IsNullOrWhiteSpace(nomeGrupo) &&
+                !string.Equals(nomeGrupo.Trim(), grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase))
+            {
+                grupoEspecificoExistenteInformado =
+                    await grupoRepositorio.ObterPorNomeNormalizadoAsync(nomeGrupo.Trim(), cancellationToken) is not null;
+            }
+
             grupo = await grupoPadraoServico.ResolverGrupoRegistroPartidaAsync(
                 grupoIdEfetivo,
                 nomeGrupo,
@@ -738,18 +748,24 @@ public class PartidaServico(
         MetadadosLados? metadadosLados = metadadosLadosExistentes;
         if (grupo is not null)
         {
-            var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+            var grupoEspecificoSelecionado = grupoEspecificoExistenteInformado && !EhGrupoGeral(grupo);
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
             var atletaDuplaA2 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta2Id, duplaAAtleta2Nome, cancellationToken);
             var atletaDuplaB1 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta1Id, duplaBAtleta1Nome, cancellationToken);
             var atletaDuplaB2 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta2Id, duplaBAtleta2Nome, cancellationToken);
 
-            ValidarAtletaUsuarioNaPartidaGrupo(usuarioAtual, atletaDuplaA1, atletaDuplaA2);
             ValidarAtletasGrupo(atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2);
 
             foreach (var atleta in new[] { atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2 }.DistinctBy(x => x.Id))
             {
-                await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(grupo.Id, atleta, cancellationToken);
+                if (grupoEspecificoSelecionado)
+                {
+                    await GarantirAtletaPertenceAoGrupoAsync(grupo.Id, atleta.Id, cancellationToken);
+                }
+                else
+                {
+                    await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(grupo.Id, atleta, cancellationToken);
+                }
             }
 
             duplaA = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaDuplaA1, atletaDuplaA2, cancellationToken);
@@ -777,7 +793,8 @@ public class PartidaServico(
                 duplaBAtleta2Nome,
                 cancellationToken);
 
-            if (categoria.Competicao.Tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento)
+            if (categoria is not null &&
+                categoria.Competicao.Tipo is TipoCompeticao.Campeonato or TipoCompeticao.Evento)
             {
                 await ValidarInscricaoCompeticaoAsync(categoria.Id, duplaA, cancellationToken);
                 await ValidarInscricaoCompeticaoAsync(categoria.Id, duplaB, cancellationToken);
@@ -877,23 +894,23 @@ public class PartidaServico(
         }
     }
 
-    private static void ValidarAtletaUsuarioNaPartidaGrupo(Usuario usuario, Atleta atletaDuplaA1, Atleta atletaDuplaA2)
+    private async Task GarantirAtletaPertenceAoGrupoAsync(
+        Guid grupoId,
+        Guid atletaId,
+        CancellationToken cancellationToken)
     {
-        if (usuario.Perfil != PerfilUsuario.Atleta)
+        var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(grupoId, atletaId, cancellationToken);
+        if (grupoAtleta is null)
         {
-            return;
-        }
-
-        if (!usuario.AtletaId.HasValue)
-        {
-            throw new RegraNegocioException("Você precisa ter um atleta vinculado para registrar partidas no grupo.");
-        }
-
-        if (usuario.AtletaId.Value != atletaDuplaA1.Id && usuario.AtletaId.Value != atletaDuplaA2.Id)
-        {
-            throw new RegraNegocioException("O atleta vinculado ao seu usuário precisa compor a primeira dupla.");
+            throw new RegraNegocioException("Todos os atletas da partida precisam pertencer ao grupo selecionado.");
         }
     }
+
+    private bool EhGrupoGeral(Grupo grupo)
+        => string.Equals(
+            grupo.Nome?.Trim(),
+            grupoPadraoServico.NomeGrupoGeral,
+            StringComparison.OrdinalIgnoreCase);
 
     private static void ValidarAtletasDuplicadosNaPartida(Dupla duplaA, Dupla duplaB)
     {

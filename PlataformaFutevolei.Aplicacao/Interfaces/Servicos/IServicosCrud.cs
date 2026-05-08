@@ -88,6 +88,7 @@ public interface IGrupoPadraoServico
 public interface IGrupoAtletaServico
 {
     Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtletaBuscaDto>> BuscarPorGrupoAsync(Guid grupoId, string? termo, CancellationToken cancellationToken = default);
     Task<GrupoAtletaDto> CriarAsync(Guid grupoId, CriarGrupoAtletaDto dto, CancellationToken cancellationToken = default);
     Task<GrupoAtletaDto> CompletarEmailAsync(Guid grupoId, Guid id, AtualizarEmailGrupoAtletaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid grupoId, Guid id, CancellationToken cancellationToken = default);

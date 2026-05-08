@@ -22,3 +22,10 @@ public record GrupoAtletaDto(
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
+
+public record GrupoAtletaBuscaDto(
+    Guid Id,
+    string Nome,
+    string? Apelido,
+    string TextoExibicao
+);

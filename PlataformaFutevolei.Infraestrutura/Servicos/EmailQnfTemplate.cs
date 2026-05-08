@@ -22,6 +22,11 @@ internal static class EmailQnfTemplate
 
     private const string CaminhoLogoLight = "/branding/logo-qnf-light.png";
 
+    public static string MontarUrlLogoLight(string? urlBase)
+    {
+        return MontarUrlAsset(urlBase, CaminhoLogoLight);
+    }
+
     public static string Html(string? valor)
     {
         return WebUtility.HtmlEncode(valor ?? string.Empty);

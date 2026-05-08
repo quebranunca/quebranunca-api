@@ -18,6 +18,17 @@ public class GruposAtletasController(IGrupoAtletaServico grupoAtletaServico) : C
         return Ok(atletas);
     }
 
+    [HttpGet("busca")]
+    [ProducesResponseType(typeof(IReadOnlyList<GrupoAtletaBuscaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Buscar(
+        Guid grupoId,
+        [FromQuery] string? termo,
+        CancellationToken cancellationToken)
+    {
+        var atletas = await grupoAtletaServico.BuscarPorGrupoAsync(grupoId, termo, cancellationToken);
+        return Ok(atletas);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(GrupoAtletaDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar(
