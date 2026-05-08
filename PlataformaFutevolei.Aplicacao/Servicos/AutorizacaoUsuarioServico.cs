@@ -132,12 +132,12 @@ public class AutorizacaoUsuarioServico(
         {
             if (grupo.UsuarioOrganizadorId != usuario.Id)
             {
-                throw new RegraNegocioException("Você só pode alterar grupos vinculados ao próprio usuário.");
+                throw new AcessoNegadoException("Você só pode alterar grupos vinculados ao próprio usuário.");
             }
 
             return;
         }
 
-        throw new RegraNegocioException("Apenas administradores, organizadores ou o atleta dono do grupo podem gerenciar grupos.");
+        throw new AcessoNegadoException("Apenas administradores, organizadores ou o atleta dono do grupo podem gerenciar grupos.");
     }
 }

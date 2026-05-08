@@ -16,6 +16,7 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
         {
             var (statusCode, mensagem) = ex switch
             {
+                AcessoNegadoException => (HttpStatusCode.Forbidden, ex.Message),
                 RegraNegocioException => (HttpStatusCode.BadRequest, ex.Message),
                 EntidadeNaoEncontradaException => (HttpStatusCode.NotFound, ex.Message),
                 _ => (HttpStatusCode.InternalServerError, "Ocorreu um erro inesperado.")

@@ -66,7 +66,6 @@ public class GrupoAtletaServico(
         {
             atleta.Email = emailNormalizado;
             atleta.AtualizarDataModificacao();
-            atletaRepositorio.Atualizar(atleta);
         }
 
         var grupoAtletaExistente = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(grupoId, atleta.Id, cancellationToken);
@@ -78,9 +77,7 @@ public class GrupoAtletaServico(
         var grupoAtleta = new GrupoAtleta
         {
             GrupoId = grupoId,
-            AtletaId = atleta.Id,
-            Grupo = grupo,
-            Atleta = atleta
+            AtletaId = atleta.Id
         };
 
         await grupoAtletaRepositorio.AdicionarAsync(grupoAtleta, cancellationToken);
@@ -335,8 +332,7 @@ public class GrupoAtletaServico(
             AtletaId = atleta.Id,
             PartidaId = null,
             Status = StatusPendenciaUsuario.Pendente,
-            Observacao = ObservacaoPendenciaEmailGrupo,
-            Atleta = atleta
+            Observacao = ObservacaoPendenciaEmailGrupo
         }, cancellationToken);
     }
 
