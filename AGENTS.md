@@ -32,7 +32,7 @@
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável
 - Ao persistir código de convite para reenvio, manter também o hash usado na validação e limpar o código em claro quando o convite for utilizado
 - Para testar `POST /api/partidas` sem competição prévia, o caminho mais simples é partida de `Grupo`: informar `grupoId` ou `nomeGrupo`; se ambos ficarem vazios, a API usa/cria automaticamente o grupo global `Geral`. Informar quatro atletas por `Id` ou `Nome`, `status` `1` para agendada ou `2` para encerrada, e placar válido quando encerrada
-- Regra importante da partida de grupo: o usuário autenticado pode ser apenas responsável pelo cadastro e não precisa estar entre os atletas da partida. Em grupo específico, os atletas informados precisam pertencer ao grupo; no Grupo Geral, manter o fluxo livre/manual.
+- Regra importante da partida de grupo: o usuário autenticado pode ser apenas responsável pelo cadastro e não precisa estar entre os atletas da partida. Em grupo específico, usuário comum só pode registrar com atletas que já pertencem ao grupo; organizador/dono do grupo ou administrador pode registrar com atletas fora do grupo, e o backend deve adicioná-los automaticamente ao grupo ao salvar. No Grupo Geral, manter o fluxo livre/manual.
 - Se a API retornar erro de coluna/tabela inexistente apesar de dizer que migrations estão atualizadas, conferir `__EFMigrationsHistory` contra os arquivos em `PlataformaFutevolei.Infraestrutura/Persistencia/Migracoes`; corrigir o banco local alinhando com migrations existentes, nunca adicionando SQL estrutural ao startup ou aos serviços
 
 ## Contexto Railway/produção
