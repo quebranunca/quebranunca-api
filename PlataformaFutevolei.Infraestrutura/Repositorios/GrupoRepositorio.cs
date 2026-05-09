@@ -47,6 +47,29 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Grupo>> ListarResumosUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        int limite,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = AplicarFiltroParticipacaoUsuario(
+                dbContext.Grupos
+                    .AsNoTracking()
+                    .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
+                usuarioId,
+                atletaId);
+
+        return await consulta
+            .OrderByDescending(x => x.UsuarioOrganizadorId == usuarioId)
+            .ThenByDescending(x => x.Partidas.Max(partida => (DateTime?)(partida.DataPartida ?? partida.DataCriacao)))
+            .ThenByDescending(x => x.DataAtualizacao)
+            .ThenByDescending(x => x.DataInicio)
+            .ThenBy(x => x.Nome)
+            .Take(limite)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
         Guid usuarioId,
         Guid? atletaId,
@@ -136,6 +159,29 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         return query.Where(x =>
             x.UsuarioOrganizadorId == usuarioId ||
             x.Nome.Trim().ToLower() == GruposPadrao.NomeGeral.ToLower() ||
+            x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
+            x.Partidas.Any(partida =>
+                partida.DuplaA != null &&
+                partida.DuplaB != null &&
+                (partida.DuplaA.Atleta1Id == atletaIdValor ||
+                 partida.DuplaA.Atleta2Id == atletaIdValor ||
+                 partida.DuplaB.Atleta1Id == atletaIdValor ||
+                partida.DuplaB.Atleta2Id == atletaIdValor)));
+    }
+
+    private static IQueryable<Grupo> AplicarFiltroParticipacaoUsuario(
+        IQueryable<Grupo> query,
+        Guid usuarioId,
+        Guid? atletaId)
+    {
+        if (!atletaId.HasValue)
+        {
+            return query.Where(x => x.UsuarioOrganizadorId == usuarioId);
+        }
+
+        var atletaIdValor = atletaId.Value;
+        return query.Where(x =>
+            x.UsuarioOrganizadorId == usuarioId ||
             x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Partidas.Any(partida =>
                 partida.DuplaA != null &&

@@ -78,14 +78,25 @@ public record GrupoResumoUsuarioDto(
 
 public record GrupoResumoUltimoJogoDto(
     DateTime Data,
-    IReadOnlyList<string> Dupla1,
-    IReadOnlyList<string> Dupla2,
-    string Placar
+    IReadOnlyList<GrupoResumoAtletaDto> Dupla1,
+    IReadOnlyList<GrupoResumoAtletaDto> Dupla2,
+    int PlacarDupla1,
+    int PlacarDupla2,
+    int Status,
+    int StatusAprovacao
+);
+
+public record GrupoResumoAtletaDto(
+    Guid Id,
+    string Nome,
+    string? Apelido
 );
 
 public record GrupoResumoRankingAtletaDto(
     int Posicao,
     Guid AtletaId,
     string NomeAtleta,
-    decimal Pontuacao
+    string? ApelidoAtleta,
+    decimal Pontuacao,
+    bool UsuarioLogado
 );

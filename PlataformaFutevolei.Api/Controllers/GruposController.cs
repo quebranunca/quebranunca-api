@@ -36,6 +36,14 @@ public class GruposController(
         return Ok(resumo);
     }
 
+    [HttpGet("resumos-usuario")]
+    [ProducesResponseType(typeof(IReadOnlyList<GrupoResumoUsuarioDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarResumosUsuario(CancellationToken cancellationToken)
+    {
+        var resumos = await grupoResumoUsuarioServico.ListarMeusResumosAsync(cancellationToken);
+        return Ok(resumos);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarGrupoDto dto, CancellationToken cancellationToken)

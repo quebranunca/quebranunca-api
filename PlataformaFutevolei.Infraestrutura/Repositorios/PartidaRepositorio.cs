@@ -79,6 +79,26 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<Partida?> ObterUltimaDoAtletaNoGrupoAsync(
+        Guid grupoId,
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return CriarConsultaDetalhadaPartidas()
+            .Where(x => x.GrupoId == grupoId)
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .Where(x => x.DuplaA != null && x.DuplaB != null)
+            .Where(x =>
+                x.DuplaA!.Atleta1Id == atletaId ||
+                x.DuplaA.Atleta2Id == atletaId ||
+                x.DuplaB!.Atleta1Id == atletaId ||
+                x.DuplaB.Atleta2Id == atletaId)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(
         Guid usuarioId,
         CancellationToken cancellationToken = default)

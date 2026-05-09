@@ -114,6 +114,11 @@ public interface IGrupoRepositorio
         Guid usuarioId,
         Guid? atletaId,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Grupo>> ListarResumosUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        int limite,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
         Guid usuarioId,
         Guid? atletaId,
@@ -180,6 +185,7 @@ public interface IPartidaRepositorio
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterUltimaDoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<Partida?> ObterUltimaDoAtletaNoGrupoAsync(Guid grupoId, Guid atletaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComPendenteDeVinculoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(

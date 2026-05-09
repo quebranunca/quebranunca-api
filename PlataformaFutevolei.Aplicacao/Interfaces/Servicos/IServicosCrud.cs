@@ -66,6 +66,7 @@ public interface ICompeticaoServico
 public interface IGrupoResumoUsuarioServico
 {
     Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoResumoUsuarioDto>> ListarMeusResumosAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IGrupoServico
