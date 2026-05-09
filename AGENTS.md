@@ -25,8 +25,8 @@
 ## Contexto local recorrente
 
 - Banco local de desenvolvimento costuma usar Postgres em `localhost:55432`, database `quebranunca`, conforme `PlataformaFutevolei.Api/appsettings.Development.json`
-- Para teste manual da API, usar `ASPNETCORE_URLS=http://localhost:5080 ASPNETCORE_ENVIRONMENT=Development dotnet run --project PlataformaFutevolei.Api --no-build --no-launch-profile`
-- Validar disponibilidade com `GET http://localhost:5080/health`
+- Para teste manual da API, usar `ASPNETCORE_URLS=http://localhost:5000 ASPNETCORE_ENVIRONMENT=Development dotnet run --project PlataformaFutevolei.Api --no-build --no-launch-profile`
+- Validar disponibilidade com `GET http://localhost:5000/health`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável

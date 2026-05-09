@@ -84,7 +84,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
     {
         policy
-            .SetIsOriginAllowed(origem => ConfiguracaoCorsFrontend.EhOrigemPermitida(origem, origensFrontend))
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
