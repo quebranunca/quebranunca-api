@@ -13,6 +13,7 @@ public interface IUsuarioRepositorio
     Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorAtletaIdAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<Usuario?> ObterPorAtletaIdParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Usuario usuario, CancellationToken cancellationToken = default);
     void Atualizar(Usuario usuario);
 }
@@ -56,6 +57,7 @@ public interface IDuplaRepositorio
     Task<IReadOnlyList<Dupla>> ListarInscritasPorOrganizadorAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<bool> PertenceAoOrganizadorAsync(Guid duplaId, Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Dupla>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Dupla>> ListarPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Dupla?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Dupla?> ObterPorAtletasAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Dupla dupla, CancellationToken cancellationToken = default);
@@ -130,6 +132,7 @@ public interface IGrupoRepositorio
         CancellationToken cancellationToken = default);
     Task<Grupo?> ObterPorNomeEOrganizadorAsync(string nome, Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default);
     Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default);
     void Atualizar(Grupo grupo);
@@ -139,6 +142,7 @@ public interface IGrupoRepositorio
 public interface IGrupoAtletaRepositorio
 {
     Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoParaAtualizacaoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrupoAtleta>> BuscarPorGrupoAsync(Guid grupoId, string termo, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
@@ -184,6 +188,10 @@ public interface IPartidaRepositorio
     Task<IReadOnlyList<Partida>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarPorAtletaParaRemocaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Partida>> ListarReferenciandoPartidasAsync(
+        IReadOnlyCollection<Guid> partidaIds,
+        CancellationToken cancellationToken = default);
     Task<Partida?> ObterUltimaDoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterUltimaDoAtletaNoGrupoAsync(Guid grupoId, Guid atletaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default);
@@ -215,6 +223,7 @@ public interface IPartidaRepositorio
 public interface IPartidaAprovacaoRepositorio
 {
     Task<IReadOnlyList<PartidaAprovacao>> ListarPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaAprovacao>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<PartidaAprovacao?> ObterPorPartidaEAtletaAsync(
         Guid partidaId,
         Guid atletaId,
@@ -264,6 +273,9 @@ public interface IInscricaoCampeonatoRepositorio
     Task<InscricaoCampeonato?> ObterDuplicadaAsync(
         Guid categoriaId,
         Guid duplaId,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<InscricaoCampeonato>> ListarPorDuplasParaAtualizacaoAsync(
+        IReadOnlyCollection<Guid> duplaIds,
         CancellationToken cancellationToken = default);
     Task AdicionarAsync(InscricaoCampeonato inscricao, CancellationToken cancellationToken = default);
     void Atualizar(InscricaoCampeonato inscricao);

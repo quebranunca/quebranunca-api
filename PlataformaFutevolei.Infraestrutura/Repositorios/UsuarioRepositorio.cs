@@ -83,6 +83,13 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
             .FirstOrDefaultAsync(x => x.AtletaId == atletaId, cancellationToken);
     }
 
+    public Task<Usuario?> ObterPorAtletaIdParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Usuarios
+            .Include(x => x.Atleta)
+            .FirstOrDefaultAsync(x => x.AtletaId == atletaId, cancellationToken);
+    }
+
     public async Task AdicionarAsync(Usuario usuario, CancellationToken cancellationToken = default)
     {
         await dbContext.Usuarios.AddAsync(usuario, cancellationToken);

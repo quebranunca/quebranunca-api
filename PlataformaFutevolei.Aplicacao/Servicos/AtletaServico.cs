@@ -13,6 +13,11 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class AtletaServico(
     IAtletaRepositorio atletaRepositorio,
     IPartidaRepositorio partidaRepositorio,
+    IPartidaAprovacaoRepositorio partidaAprovacaoRepositorio,
+    IDuplaRepositorio duplaRepositorio,
+    IInscricaoCampeonatoRepositorio inscricaoCampeonatoRepositorio,
+    IGrupoRepositorio grupoRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
@@ -373,14 +378,244 @@ public class AtletaServico(
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
-        var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (atleta is null)
+
+        await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
         {
-            throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+            var atleta = await atletaRepositorio.ObterPorIdAsync(id, ct);
+            if (atleta is null)
+            {
+                throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+            }
+
+            var usuarioVinculado = await usuarioRepositorio.ObterPorAtletaIdParaAtualizacaoAsync(id, ct);
+            var partidas = await partidaRepositorio.ListarPorAtletaParaRemocaoAsync(id, ct);
+            var partidaIdsRemovidas = partidas.Select(x => x.Id).ToHashSet();
+            await RemoverPartidasDoAtletaAsync(partidas, ct);
+            await RemoverDuplasDoAtletaAsync(id, ct);
+            await TratarGruposDoAtletaAsync(id, usuarioVinculado, partidaIdsRemovidas, ct);
+            await RemoverAprovacoesRemanescentesDoAtletaAsync(id, ct);
+
+            if (usuarioVinculado is not null)
+            {
+                usuarioVinculado.AtletaId = null;
+                usuarioVinculado.Atleta = null;
+                usuarioVinculado.AtualizarDataModificacao();
+                usuarioRepositorio.Atualizar(usuarioVinculado);
+            }
+
+            atletaRepositorio.Remover(atleta);
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+        }, cancellationToken);
+    }
+
+    private async Task RemoverPartidasDoAtletaAsync(
+        IReadOnlyList<Partida> partidas,
+        CancellationToken cancellationToken)
+    {
+        var partidaIds = partidas.Select(x => x.Id).ToHashSet();
+        var partidasReferenciandoRemovidas = await partidaRepositorio.ListarReferenciandoPartidasAsync(partidaIds, cancellationToken);
+        foreach (var partida in partidasReferenciandoRemovidas.Where(x => !partidaIds.Contains(x.Id)))
+        {
+            LimparReferenciasPartidasRemovidas(partida, partidaIds);
+            partida.AtualizarDataModificacao();
+            partidaRepositorio.Atualizar(partida);
         }
 
-        atletaRepositorio.Remover(atleta);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        foreach (var partida in partidas)
+        {
+            partidaRepositorio.Remover(partida);
+        }
+    }
+
+    private async Task RemoverDuplasDoAtletaAsync(Guid atletaId, CancellationToken cancellationToken)
+    {
+        var duplas = await duplaRepositorio.ListarPorAtletaParaAtualizacaoAsync(atletaId, cancellationToken);
+        var duplaIds = duplas.Select(x => x.Id).ToHashSet();
+        var inscricoes = await inscricaoCampeonatoRepositorio.ListarPorDuplasParaAtualizacaoAsync(duplaIds, cancellationToken);
+        foreach (var inscricao in inscricoes)
+        {
+            inscricaoCampeonatoRepositorio.Remover(inscricao);
+        }
+
+        foreach (var dupla in duplas)
+        {
+            duplaRepositorio.Remover(dupla);
+        }
+    }
+
+    private async Task TratarGruposDoAtletaAsync(
+        Guid atletaId,
+        Usuario? usuarioVinculado,
+        IReadOnlySet<Guid> partidaIdsRemovidas,
+        CancellationToken cancellationToken)
+    {
+        var vinculosDoAtleta = await grupoAtletaRepositorio.ListarPorAtletaParaAtualizacaoAsync(atletaId, cancellationToken);
+        var gruposRemovidos = new HashSet<Guid>();
+
+        if (usuarioVinculado is not null)
+        {
+            var gruposCriados = await grupoRepositorio.ListarPorUsuarioOrganizadorParaAtualizacaoAsync(
+                usuarioVinculado.Id,
+                cancellationToken);
+            foreach (var grupo in gruposCriados)
+            {
+                var vinculosGrupo = await grupoAtletaRepositorio.ListarPorGrupoParaAtualizacaoAsync(grupo.Id, cancellationToken);
+                var outrosVinculos = vinculosGrupo
+                    .Where(x => x.AtletaId != atletaId)
+                    .ToList();
+
+                var partidasRestantes = await ListarPartidasRestantesGrupoAsync(
+                    grupo.Id,
+                    partidaIdsRemovidas,
+                    cancellationToken);
+
+                if (outrosVinculos.Count == 0 && partidasRestantes.Count == 0)
+                {
+                    grupoRepositorio.Remover(grupo);
+                    gruposRemovidos.Add(grupo.Id);
+                    continue;
+                }
+
+                var novoProprietario = EscolherNovoProprietarioGrupo(outrosVinculos)
+                    ?? await VincularEEscolherProprietarioPorPartidasRestantesAsync(
+                        grupo.Id,
+                        atletaId,
+                        outrosVinculos,
+                        partidasRestantes,
+                        cancellationToken);
+                if (novoProprietario is null)
+                {
+                    throw new RegraNegocioException("Não é possível excluir o atleta porque um grupo criado por ele ficaria sem proprietário.");
+                }
+
+                grupo.UsuarioOrganizadorId = novoProprietario.Id;
+                grupo.UsuarioOrganizador = novoProprietario;
+                grupo.AtualizarDataModificacao();
+                grupoRepositorio.Atualizar(grupo);
+            }
+        }
+
+        foreach (var vinculo in vinculosDoAtleta.Where(x => !gruposRemovidos.Contains(x.GrupoId)))
+        {
+            grupoAtletaRepositorio.Remover(vinculo);
+        }
+    }
+
+    private async Task<IReadOnlyList<Partida>> ListarPartidasRestantesGrupoAsync(
+        Guid grupoId,
+        IReadOnlySet<Guid> partidaIdsRemovidas,
+        CancellationToken cancellationToken)
+    {
+        var partidasGrupo = await partidaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
+        return partidasGrupo
+            .Where(x => !partidaIdsRemovidas.Contains(x.Id))
+            .ToList();
+    }
+
+    private async Task<Usuario?> VincularEEscolherProprietarioPorPartidasRestantesAsync(
+        Guid grupoId,
+        Guid atletaIdRemovido,
+        IReadOnlyList<GrupoAtleta> vinculosExistentes,
+        IReadOnlyList<Partida> partidasRestantes,
+        CancellationToken cancellationToken)
+    {
+        var vinculosExistentesIds = vinculosExistentes
+            .Select(x => x.AtletaId)
+            .ToHashSet();
+        var candidato = EnumerarAtletasPartidas(partidasRestantes)
+            .Where(x => x.Id != atletaIdRemovido)
+            .Where(x => x.Usuario is not null && x.Usuario.Ativo && !x.Usuario.DadosAnonimizados)
+            .DistinctBy(x => x.Id)
+            .OrderBy(x => PrioridadeProprietarioGrupo(x.Usuario!.Perfil))
+            .ThenBy(x => x.DataCriacao)
+            .FirstOrDefault();
+
+        if (candidato is null)
+        {
+            return null;
+        }
+
+        if (!vinculosExistentesIds.Contains(candidato.Id))
+        {
+            await grupoAtletaRepositorio.AdicionarAsync(new GrupoAtleta
+            {
+                GrupoId = grupoId,
+                AtletaId = candidato.Id
+            }, cancellationToken);
+        }
+
+        return candidato.Usuario;
+    }
+
+    private async Task RemoverAprovacoesRemanescentesDoAtletaAsync(Guid atletaId, CancellationToken cancellationToken)
+    {
+        var aprovacoes = await partidaAprovacaoRepositorio.ListarPorAtletaAsync(atletaId, cancellationToken);
+        if (aprovacoes.Count > 0)
+        {
+            partidaAprovacaoRepositorio.RemoverIntervalo(aprovacoes);
+        }
+    }
+
+    private static Usuario? EscolherNovoProprietarioGrupo(IReadOnlyList<GrupoAtleta> vinculos)
+    {
+        return vinculos
+            .Where(x => x.Atleta.Usuario is not null && x.Atleta.Usuario.Ativo && !x.Atleta.Usuario.DadosAnonimizados)
+            .OrderBy(x => PrioridadeProprietarioGrupo(x.Atleta.Usuario!.Perfil))
+            .ThenBy(x => x.DataCriacao)
+            .Select(x => x.Atleta.Usuario)
+            .FirstOrDefault();
+    }
+
+    private static int PrioridadeProprietarioGrupo(PerfilUsuario perfil)
+    {
+        return perfil switch
+        {
+            PerfilUsuario.Administrador => 0,
+            PerfilUsuario.Organizador => 1,
+            _ => 2
+        };
+    }
+
+    private static IEnumerable<Atleta> EnumerarAtletasPartidas(IEnumerable<Partida> partidas)
+    {
+        return partidas.SelectMany(partida => new[]
+        {
+            partida.DuplaA?.Atleta1,
+            partida.DuplaA?.Atleta2,
+            partida.DuplaB?.Atleta1,
+            partida.DuplaB?.Atleta2
+        }).OfType<Atleta>();
+    }
+
+    private static void LimparReferenciasPartidasRemovidas(Partida partida, IReadOnlySet<Guid> partidaIds)
+    {
+        if (partida.PartidaOrigemParticipanteAId.HasValue && partidaIds.Contains(partida.PartidaOrigemParticipanteAId.Value))
+        {
+            partida.PartidaOrigemParticipanteAId = null;
+            partida.OrigemParticipanteATipo = null;
+            partida.DuplaAId = null;
+            partida.DuplaA = null;
+        }
+
+        if (partida.PartidaOrigemParticipanteBId.HasValue && partidaIds.Contains(partida.PartidaOrigemParticipanteBId.Value))
+        {
+            partida.PartidaOrigemParticipanteBId = null;
+            partida.OrigemParticipanteBTipo = null;
+            partida.DuplaBId = null;
+            partida.DuplaB = null;
+        }
+
+        if (partida.ProximaPartidaVencedorId.HasValue && partidaIds.Contains(partida.ProximaPartidaVencedorId.Value))
+        {
+            partida.ProximaPartidaVencedorId = null;
+            partida.SlotDestinoVencedor = null;
+        }
+
+        if (partida.ProximaPartidaPerdedorId.HasValue && partidaIds.Contains(partida.ProximaPartidaPerdedorId.Value))
+        {
+            partida.ProximaPartidaPerdedorId = null;
+            partida.SlotDestinoPerdedor = null;
+        }
     }
 
     private async Task GarantirAcessoOrganizadorAsync(

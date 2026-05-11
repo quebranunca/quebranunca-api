@@ -67,6 +67,39 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarPorAtletaParaRemocaoAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas(usarNoTracking: false)
+            .Where(x =>
+                (x.DuplaA != null &&
+                 (x.DuplaA.Atleta1Id == atletaId || x.DuplaA.Atleta2Id == atletaId)) ||
+                (x.DuplaB != null &&
+                 (x.DuplaB.Atleta1Id == atletaId || x.DuplaB.Atleta2Id == atletaId)))
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Partida>> ListarReferenciandoPartidasAsync(
+        IReadOnlyCollection<Guid> partidaIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (partidaIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Partidas
+            .Where(x =>
+                (x.PartidaOrigemParticipanteAId.HasValue && partidaIds.Contains(x.PartidaOrigemParticipanteAId.Value)) ||
+                (x.PartidaOrigemParticipanteBId.HasValue && partidaIds.Contains(x.PartidaOrigemParticipanteBId.Value)) ||
+                (x.ProximaPartidaVencedorId.HasValue && partidaIds.Contains(x.ProximaPartidaVencedorId.Value)) ||
+                (x.ProximaPartidaPerdedorId.HasValue && partidaIds.Contains(x.ProximaPartidaPerdedorId.Value)))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Partida?> ObterUltimaDoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
         return CriarConsultaDetalhadaPartidas()

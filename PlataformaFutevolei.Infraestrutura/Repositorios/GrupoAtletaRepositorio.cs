@@ -19,6 +19,18 @@ public class GrupoAtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IG
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoParaAtualizacaoAsync(
+        Guid grupoId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.GruposAtletas
+            .Include(x => x.Atleta)
+            .ThenInclude(x => x.Usuario)
+            .Where(x => x.GrupoId == grupoId)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<GrupoAtleta>> BuscarPorGrupoAsync(Guid grupoId, string termo, CancellationToken cancellationToken = default)
     {
         var termoNormalizado = termo.Trim().ToLowerInvariant();

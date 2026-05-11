@@ -15,6 +15,16 @@ public class PartidaAprovacaoRepositorio(PlataformaFutevoleiDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PartidaAprovacao>> ListarPorAtletaAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PartidasAprovacoes
+            .Where(x => x.AtletaId == atletaId)
+            .OrderBy(x => x.DataSolicitacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<PartidaAprovacao?> ObterPorPartidaEAtletaAsync(
         Guid partidaId,
         Guid atletaId,

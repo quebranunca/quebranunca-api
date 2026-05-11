@@ -130,6 +130,16 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .FirstOrDefaultAsync(x => x.Nome.Trim().ToLower() == nomeNormalizado, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(
+        Guid usuarioOrganizadorId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Grupos
+            .Where(x => x.UsuarioOrganizadorId == usuarioOrganizadorId)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default)
     {
         await dbContext.Grupos.AddAsync(grupo, cancellationToken);

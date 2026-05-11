@@ -75,6 +75,21 @@ public class InscricaoCampeonatoRepositorio(PlataformaFutevoleiDbContext dbConte
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<InscricaoCampeonato>> ListarPorDuplasParaAtualizacaoAsync(
+        IReadOnlyCollection<Guid> duplaIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (duplaIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.InscricoesCampeonato
+            .Where(x => duplaIds.Contains(x.DuplaId))
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AdicionarAsync(InscricaoCampeonato inscricao, CancellationToken cancellationToken = default)
     {
         await dbContext.InscricoesCampeonato.AddAsync(inscricao, cancellationToken);

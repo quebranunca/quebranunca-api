@@ -71,6 +71,16 @@ public class DuplaRepositorio(PlataformaFutevoleiDbContext dbContext) : IDuplaRe
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Dupla>> ListarPorAtletaParaAtualizacaoAsync(
+        Guid atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Duplas
+            .Where(x => x.Atleta1Id == atletaId || x.Atleta2Id == atletaId)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Dupla?> ObterPorAtletasAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken = default)
     {
         return dbContext.Duplas
