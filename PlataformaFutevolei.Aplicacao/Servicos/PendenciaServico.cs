@@ -21,6 +21,8 @@ public class PendenciaServico(
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
 ) : IPendenciaServico
 {
+    private const string MarcadorMetadadosLados = "[[lados:";
+
     public async Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -445,6 +447,10 @@ public class PendenciaServico(
             await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(partida.GrupoId.Value, atletaDestino, cancellationToken);
         }
 
+        partida.Observacoes = AtualizarMetadadosLadosAposVinculo(
+            partida.Observacoes,
+            atletaPendenteId,
+            atletaDestino.Id);
         partida.AtualizarDataModificacao();
         partidaRepositorio.Atualizar(partida);
     }
@@ -840,6 +846,55 @@ public class PendenciaServico(
                 (partida.DuplaA.Atleta1Id == atletaId || partida.DuplaA.Atleta2Id == atletaId)) ||
                (partida.DuplaB is not null &&
                 (partida.DuplaB.Atleta1Id == atletaId || partida.DuplaB.Atleta2Id == atletaId));
+    }
+
+    private static string? AtualizarMetadadosLadosAposVinculo(
+        string? observacoes,
+        Guid atletaPendenteId,
+        Guid atletaDestinoId)
+    {
+        if (string.IsNullOrWhiteSpace(observacoes))
+        {
+            return observacoes;
+        }
+
+        var linhas = observacoes
+            .Split('\n', StringSplitOptions.None)
+            .ToList();
+        var indiceMetadados = linhas.FindLastIndex(x =>
+            x.Trim().StartsWith(MarcadorMetadadosLados, StringComparison.Ordinal));
+        if (indiceMetadados < 0)
+        {
+            return observacoes;
+        }
+
+        var linhaMetadados = linhas[indiceMetadados].Trim();
+        var conteudo = linhaMetadados
+            .Replace(MarcadorMetadadosLados, string.Empty, StringComparison.Ordinal)
+            .Replace("]]", string.Empty, StringComparison.Ordinal);
+        var partes = conteudo.Split(';');
+        if (partes.Length < 4)
+        {
+            return observacoes;
+        }
+
+        var alterou = false;
+        for (var indice = 0; indice < 4; indice++)
+        {
+            if (Guid.TryParse(partes[indice], out var atletaId) && atletaId == atletaPendenteId)
+            {
+                partes[indice] = atletaDestinoId.ToString();
+                alterou = true;
+            }
+        }
+
+        if (!alterou)
+        {
+            return observacoes;
+        }
+
+        linhas[indiceMetadados] = $"{MarcadorMetadadosLados}{string.Join(';', partes.Take(4))}]]";
+        return string.Join('\n', linhas);
     }
 
     private static bool PendenciaAindaAcionavel(PendenciaUsuario pendencia)

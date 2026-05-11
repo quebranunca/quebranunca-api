@@ -279,10 +279,10 @@ internal static class MapeadorEntidades
     public static PartidaDto ParaDto(this Partida partida)
     {
         var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
-        var duplaAAtleta1Id = metadadosLados?.DuplaADireitaId ?? partida.DuplaA?.Atleta1Id;
-        var duplaAAtleta2Id = metadadosLados?.DuplaAEsquerdaId ?? partida.DuplaA?.Atleta2Id;
-        var duplaBAtleta1Id = metadadosLados?.DuplaBDireitaId ?? partida.DuplaB?.Atleta1Id;
-        var duplaBAtleta2Id = metadadosLados?.DuplaBEsquerdaId ?? partida.DuplaB?.Atleta2Id;
+        var duplaAAtleta1Id = ResolverAtletaIdExibicao(partida.DuplaA, metadadosLados?.DuplaADireitaId, partida.DuplaA?.Atleta1Id);
+        var duplaAAtleta2Id = ResolverAtletaIdExibicao(partida.DuplaA, metadadosLados?.DuplaAEsquerdaId, partida.DuplaA?.Atleta2Id);
+        var duplaBAtleta1Id = ResolverAtletaIdExibicao(partida.DuplaB, metadadosLados?.DuplaBDireitaId, partida.DuplaB?.Atleta1Id);
+        var duplaBAtleta2Id = ResolverAtletaIdExibicao(partida.DuplaB, metadadosLados?.DuplaBEsquerdaId, partida.DuplaB?.Atleta2Id);
         var atletasPendentes = ObterAtletasPendentesPartida(partida);
 
         return new PartidaDto(
@@ -457,6 +457,22 @@ internal static class MapeadorEntidades
 
         var nome = ObterNomeAtletaDupla(dupla, atletaId.Value);
         return string.IsNullOrWhiteSpace(nome) ? null : nome;
+    }
+
+    private static Guid? ResolverAtletaIdExibicao(Dupla? dupla, Guid? atletaPreferidoId, Guid? atletaFallbackId)
+    {
+        if (dupla is null)
+        {
+            return atletaFallbackId;
+        }
+
+        if (atletaPreferidoId.HasValue &&
+            (dupla.Atleta1Id == atletaPreferidoId.Value || dupla.Atleta2Id == atletaPreferidoId.Value))
+        {
+            return atletaPreferidoId;
+        }
+
+        return atletaFallbackId;
     }
 
     private static string MascararEmail(string email)
