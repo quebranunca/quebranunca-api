@@ -43,13 +43,24 @@ public class PendenciasController(IPendenciaServico pendenciaServico) : Controll
     }
 
     [HttpPut("{id:guid}/contato")]
-    [ProducesResponseType(typeof(PendenciaUsuarioDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AtualizarContatoPendenciaResultadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> AtualizarContato(
         Guid id,
         [FromBody] AtualizarContatoPendenciaDto dto,
         CancellationToken cancellationToken)
     {
-        var pendencia = await pendenciaServico.CompletarContatoAsync(id, dto, cancellationToken);
+        var resultado = await pendenciaServico.CompletarContatoAsync(id, dto, cancellationToken);
+        return Ok(resultado);
+    }
+
+    [HttpPost("{id:guid}/vincular-atleta-cadastrado")]
+    [ProducesResponseType(typeof(PendenciaUsuarioDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ConfirmarVinculoAtletaCadastrado(
+        Guid id,
+        [FromBody] ConfirmarVinculoAtletaPendenciaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var pendencia = await pendenciaServico.ConfirmarVinculoAtletaCadastradoAsync(id, dto, cancellationToken);
         return Ok(pendencia);
     }
 }

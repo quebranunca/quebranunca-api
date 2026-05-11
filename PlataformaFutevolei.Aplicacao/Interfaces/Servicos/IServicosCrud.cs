@@ -158,9 +158,13 @@ public interface IPendenciaServico
         Guid pendenciaId,
         ResponderPendenciaPartidaDto dto,
         CancellationToken cancellationToken = default);
-    Task<PendenciaUsuarioDto> CompletarContatoAsync(
+    Task<AtualizarContatoPendenciaResultadoDto> CompletarContatoAsync(
         Guid pendenciaId,
         AtualizarContatoPendenciaDto dto,
+        CancellationToken cancellationToken = default);
+    Task<PendenciaUsuarioDto> ConfirmarVinculoAtletaCadastradoAsync(
+        Guid pendenciaId,
+        ConfirmarVinculoAtletaPendenciaDto dto,
         CancellationToken cancellationToken = default);
     Task InicializarFluxoPartidaAsync(
         Partida partida,

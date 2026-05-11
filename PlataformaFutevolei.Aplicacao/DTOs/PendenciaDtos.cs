@@ -37,3 +37,20 @@ public record ResponderPendenciaPartidaDto(
 public record AtualizarContatoPendenciaDto(
     string Email
 );
+
+public record UsuarioAtletaPendenciaDto(
+    Guid UsuarioId,
+    Guid AtletaId,
+    string Nome,
+    string? Apelido
+);
+
+public record AtualizarContatoPendenciaResultadoDto(
+    bool UsuarioJaCadastrado,
+    PendenciaUsuarioDto Pendencia,
+    UsuarioAtletaPendenciaDto? UsuarioEncontrado
+);
+
+public record ConfirmarVinculoAtletaPendenciaDto(
+    Guid UsuarioId
+);
