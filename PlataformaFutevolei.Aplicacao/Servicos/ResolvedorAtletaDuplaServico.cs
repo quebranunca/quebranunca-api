@@ -1,5 +1,6 @@
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
@@ -10,7 +11,8 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class ResolvedorAtletaDuplaServico(
     IAtletaRepositorio atletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
-    IGrupoAtletaRepositorio grupoAtletaRepositorio
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
+    IUsuarioContexto usuarioContexto
 ) : IResolvedorAtletaDuplaServico
 {
     public async Task<Atleta> ObterAtletaExistenteAsync(
@@ -93,7 +95,8 @@ public class ResolvedorAtletaDuplaServico(
             Nome = nomeFinal,
             Apelido = apelidoFinal,
             CadastroPendente = cadastroPendente,
-            Lado = LadoAtleta.Ambos
+            Lado = LadoAtleta.Ambos,
+            UsuarioCriadorId = usuarioContexto.UsuarioId
         };
 
         await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
@@ -138,7 +141,8 @@ public class ResolvedorAtletaDuplaServico(
             Apelido = apelidoFinal,
             Email = emailNormalizado,
             CadastroPendente = false,
-            Lado = LadoAtleta.Ambos
+            Lado = LadoAtleta.Ambos,
+            UsuarioCriadorId = usuarioContexto.UsuarioId
         };
 
         await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);

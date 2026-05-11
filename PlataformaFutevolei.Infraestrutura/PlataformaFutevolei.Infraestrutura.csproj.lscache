@@ -133,6 +133,7 @@ Persistencia/
   20260503120000_SepararGruposDeCompeticoes.cs
   20260506120000_GarantirGrupoGeralUnico.cs
   20260507120000_AdicionarExclusaoAnonimizacaoUsuario.cs
+  20260511150000_AdicionarUsuarioCriadorAtleta.cs
   PlataformaFutevoleiDbContextModelSnapshot.cs
  PlataformaFutevoleiDbContext.cs
  PlataformaFutevoleiDbContextFactory.cs

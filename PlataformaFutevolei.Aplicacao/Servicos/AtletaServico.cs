@@ -199,6 +199,7 @@ public class AtletaServico(
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
+        atleta.UsuarioCriadorId ??= usuario.Id;
         atleta.AtualizarDataModificacao();
 
         if (usuarioComum || criandoMeuProprioAtleta)
@@ -256,6 +257,7 @@ public class AtletaServico(
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
+        atleta.UsuarioCriadorId ??= usuario.Id;
         atleta.AtualizarDataModificacao();
 
         if (!atletaExistente)

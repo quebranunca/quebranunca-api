@@ -104,6 +104,8 @@ internal static class MapeadorEntidades
             atleta.Nivel,
             atleta.Lado,
             atleta.DataNascimento,
+            atleta.UsuarioCriadorId,
+            atleta.UsuarioCriador?.Nome,
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );

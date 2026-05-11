@@ -103,11 +103,17 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(30)")
                         .HasColumnName("telefone");
 
+                    b.Property<Guid?>("UsuarioCriadorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_criador_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Cpf");
 
                     b.HasIndex("Nome");
+
+                    b.HasIndex("UsuarioCriadorId");
 
                     b.ToTable("atletas", (string)null);
                 });
@@ -1422,6 +1428,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Navigation("Atleta");
 
                     b.Navigation("ExcluidoPorUsuario");
+                });
+
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Atleta", b =>
+                {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "UsuarioCriador")
+                        .WithMany()
+                        .HasForeignKey("UsuarioCriadorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("UsuarioCriador");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Atleta", b =>

@@ -17,8 +17,10 @@ public class Atleta : EntidadeBase
     public NivelAtleta? Nivel { get; set; }
     public LadoAtleta Lado { get; set; } = LadoAtleta.Ambos;
     public DateTime? DataNascimento { get; set; }
+    public Guid? UsuarioCriadorId { get; set; }
 
     public Usuario? Usuario { get; set; }
+    public Usuario? UsuarioCriador { get; set; }
     public ICollection<Dupla> DuplasComoAtleta1 { get; set; } = new List<Dupla>();
     public ICollection<Dupla> DuplasComoAtleta2 { get; set; } = new List<Dupla>();
     public ICollection<GrupoAtleta> Grupos { get; set; } = new List<GrupoAtleta>();

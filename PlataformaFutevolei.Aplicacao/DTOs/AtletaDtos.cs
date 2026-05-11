@@ -57,6 +57,8 @@ public record AtletaDto(
     NivelAtleta? Nivel,
     LadoAtleta Lado,
     DateTime? DataNascimento,
+    Guid? UsuarioCriadorId,
+    string? NomeUsuarioCriador,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

@@ -26,10 +26,17 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
         builder.Property(x => x.Nivel).HasColumnName("nivel").HasConversion<int>();
         builder.Property(x => x.Lado).HasColumnName("lado").HasConversion<int>().HasDefaultValue(LadoAtleta.Ambos).IsRequired();
         builder.Property(x => x.DataNascimento).HasColumnName("data_nascimento").HasColumnType("date");
+        builder.Property(x => x.UsuarioCriadorId).HasColumnName("usuario_criador_id");
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
+        builder.HasOne(x => x.UsuarioCriador)
+            .WithMany()
+            .HasForeignKey(x => x.UsuarioCriadorId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.Cpf);
         builder.HasIndex(x => x.Nome);
+        builder.HasIndex(x => x.UsuarioCriadorId);
     }
 }
