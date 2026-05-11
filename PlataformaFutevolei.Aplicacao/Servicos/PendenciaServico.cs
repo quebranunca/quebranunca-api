@@ -307,11 +307,16 @@ public class PendenciaServico(
             return;
         }
 
-        foreach (var atleta in ObterAtletasDuplaValidante(partida))
+        foreach (var atleta in ObterAtletasDaPartida(partida))
         {
             if (atleta.Usuario is null)
             {
                 await CriarPendenciaContatoAsync(usuarioRegistradorId, partida, atleta, cancellationToken);
+                continue;
+            }
+
+            if (!AtletaPertenceADuplaValidante(partida, atleta.Id))
+            {
                 continue;
             }
 
@@ -345,29 +350,32 @@ public class PendenciaServico(
 
         foreach (var partida in partidas)
         {
-            var atleta = ObterAtletasDuplaValidante(partida).FirstOrDefault(x => x.Id == atletaId);
+            var atleta = ObterAtletasDaPartida(partida).FirstOrDefault(x => x.Id == atletaId);
             if (atleta?.Usuario is null)
             {
                 continue;
             }
 
-            var aprovacaoExistente = await partidaAprovacaoRepositorio.ObterPorPartidaEAtletaAsync(partida.Id, atletaId, cancellationToken);
-            if (aprovacaoExistente is null)
+            if (AtletaPertenceADuplaValidante(partida, atletaId))
             {
-                var aprovacao = new PartidaAprovacao
+                var aprovacaoExistente = await partidaAprovacaoRepositorio.ObterPorPartidaEAtletaAsync(partida.Id, atletaId, cancellationToken);
+                if (aprovacaoExistente is null)
                 {
-                    PartidaId = partida.Id,
-                    AtletaId = atleta.Id,
-                    UsuarioId = atleta.Usuario.Id,
-                    Status = StatusPartidaAprovacao.Pendente,
-                    DataSolicitacao = DateTime.UtcNow,
-                    Partida = partida,
-                    Atleta = atleta,
-                    Usuario = atleta.Usuario
-                };
+                    var aprovacao = new PartidaAprovacao
+                    {
+                        PartidaId = partida.Id,
+                        AtletaId = atleta.Id,
+                        UsuarioId = atleta.Usuario.Id,
+                        Status = StatusPartidaAprovacao.Pendente,
+                        DataSolicitacao = DateTime.UtcNow,
+                        Partida = partida,
+                        Atleta = atleta,
+                        Usuario = atleta.Usuario
+                    };
 
-                await partidaAprovacaoRepositorio.AdicionarAsync(aprovacao, cancellationToken);
-                await CriarPendenciaAprovacaoAsync(atleta.Usuario.Id, partida, atleta, cancellationToken);
+                    await partidaAprovacaoRepositorio.AdicionarAsync(aprovacao, cancellationToken);
+                    await CriarPendenciaAprovacaoAsync(atleta.Usuario.Id, partida, atleta, cancellationToken);
+                }
             }
 
             var pendenciasContato = await pendenciaUsuarioRepositorio.ListarPendentesPorPartidaAsync(partida.Id, cancellationToken);
@@ -736,7 +744,7 @@ public class PendenciaServico(
             return;
         }
 
-        var atletas = ObterAtletasDuplaValidante(partidaDetalhada);
+        var atletas = ObterAtletasDaPartida(partidaDetalhada);
         var aprovacoes = await partidaAprovacaoRepositorio.ListarPorPartidaAsync(partidaDetalhada.Id, cancellationToken);
 
         if (aprovacoes.Any(x =>
@@ -786,6 +794,20 @@ public class PendenciaServico(
     {
         return new[]
         {
+            partida.DuplaB?.Atleta1,
+            partida.DuplaB?.Atleta2
+        }
+        .OfType<Atleta>()
+        .DistinctBy(x => x.Id)
+        .ToList();
+    }
+
+    private static IReadOnlyList<Atleta> ObterAtletasDaPartida(Partida partida)
+    {
+        return new[]
+        {
+            partida.DuplaA?.Atleta1,
+            partida.DuplaA?.Atleta2,
             partida.DuplaB?.Atleta1,
             partida.DuplaB?.Atleta2
         }
