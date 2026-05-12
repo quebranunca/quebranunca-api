@@ -81,6 +81,21 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public Task<Competicao?> ObterPorIdComCategoriasAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Competicoes
+            .Include(x => x.Liga)
+            .Include(x => x.Local)
+            .Include(x => x.FormatoCampeonato)
+            .Include(x => x.RegraCompeticao)
+            .Include(x => x.UsuarioOrganizador)
+            .Include(x => x.Categorias)
+                .ThenInclude(x => x.Inscricoes)
+            .Include(x => x.Categorias)
+                .ThenInclude(x => x.Partidas)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
     public Task<Competicao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default)
     {
         var nomeNormalizado = nome.Trim().ToLowerInvariant();

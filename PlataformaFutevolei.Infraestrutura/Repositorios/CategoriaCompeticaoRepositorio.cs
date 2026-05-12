@@ -22,6 +22,17 @@ public class CategoriaCompeticaoRepositorio(PlataformaFutevoleiDbContext dbConte
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CategoriaCompeticao>> ListarDisponiveisParaVinculoAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.CategoriasCompeticao
+            .AsNoTracking()
+            .Where(x => x.Ativo)
+            .OrderBy(x => x.Nome)
+            .ThenBy(x => x.Genero)
+            .ThenBy(x => x.Nivel)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<CategoriaCompeticao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.CategoriasCompeticao

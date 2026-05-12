@@ -11,6 +11,15 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/categorias")]
 public class CategoriasController(ICategoriaCompeticaoServico categoriaServico, IPartidaServico partidaServico) : ControllerBase
 {
+    [HttpGet("disponiveis-vinculo")]
+    [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
+    [ProducesResponseType(typeof(IReadOnlyList<CategoriaDisponivelVinculoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarDisponiveisParaVinculo(CancellationToken cancellationToken)
+    {
+        var categorias = await categoriaServico.ListarDisponiveisParaVinculoAsync(cancellationToken);
+        return Ok(categorias);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CategoriaCompeticaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)

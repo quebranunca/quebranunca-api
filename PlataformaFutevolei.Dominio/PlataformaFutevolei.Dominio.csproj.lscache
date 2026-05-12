@@ -82,6 +82,7 @@ Enums/
  SlotDestinoPartida.cs
  StatusAprovacaoPartida.cs
  StatusInscricaoCampeonato.cs
+ StatusInscricoesCategoriaCampeonato.cs
  StatusPartida.cs
  StatusPartidaAprovacao.cs
  StatusPendenciaUsuario.cs

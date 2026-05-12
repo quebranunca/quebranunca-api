@@ -129,13 +129,27 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("competicao_id");
 
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_atualizacao");
 
+                    b.Property<DateTime?>("DataAberturaInscricao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_abertura_inscricao");
+
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
+
+                    b.Property<DateTime?>("DataEncerramentoInscricao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_encerramento_inscricao");
 
                     b.Property<Guid?>("FormatoCampeonatoId")
                         .HasColumnType("uuid")
@@ -161,6 +175,17 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(150)")
                         .HasColumnName("nome");
 
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("observacao");
+
+                    b.Property<bool>("PermiteListaEspera")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("permite_lista_espera");
+
                     b.Property<decimal>("PesoRanking")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(10, 2)
@@ -172,6 +197,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("integer")
                         .HasColumnName("quantidade_maxima_duplas");
 
+                    b.Property<int>("StatusInscricao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status_inscricao");
+
                     b.Property<DateTime?>("TabelaJogosAprovadaEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("tabela_jogos_aprovada_em_utc");
@@ -179,6 +210,13 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<Guid?>("TabelaJogosAprovadaPorUsuarioId")
                         .HasColumnType("uuid")
                         .HasColumnName("tabela_jogos_aprovada_por_usuario_id");
+
+                    b.Property<decimal>("ValorInscricao")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("valor_inscricao");
 
                     b.HasKey("Id");
 
@@ -234,6 +272,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("inscricoes_abertas");
+
+                    b.Property<string>("StatusCampeonato")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status_campeonato");
 
                     b.Property<Guid?>("LigaId")
                         .HasColumnType("uuid")

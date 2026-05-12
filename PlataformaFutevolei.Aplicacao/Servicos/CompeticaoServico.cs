@@ -122,6 +122,30 @@ public class CompeticaoServico(
         return competicao.ParaDto();
     }
 
+    public async Task<CampeonatoDetalheDto> ObterCampeonatoPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var competicao = await competicaoRepositorio.ObterPorIdComCategoriasAsync(id, cancellationToken);
+        if (competicao is null || competicao.Tipo != TipoCompeticao.Campeonato)
+        {
+            throw new EntidadeNaoEncontradaException("Campeonato não encontrado.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Organizador && competicao.UsuarioOrganizadorId != usuario.Id)
+        {
+            throw new RegraNegocioException("O organizador só pode acessar campeonatos vinculados ao próprio usuário.");
+        }
+
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            throw new RegraNegocioException("Atletas não podem gerenciar campeonatos.");
+        }
+
+        return new CampeonatoDetalheDto(
+            competicao.ParaDto(),
+            competicao.Categorias.OrderBy(x => x.Nome).Select(x => x.ParaDto()).ToList());
+    }
+
     public async Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -170,6 +194,9 @@ public class CompeticaoServico(
                 : null,
             ContaRankingLiga = dto.LigaId.HasValue,
             InscricoesAbertas = ObterInscricoesAbertasParaCriacao(dto.Tipo, dto.InscricoesAbertas),
+            StatusCampeonato = dto.Tipo == TipoCompeticao.Campeonato
+                ? (dto.InscricoesAbertas is true ? "Inscrições abertas" : "Rascunho")
+                : null,
             PossuiFinalReset = possuiFinalReset
         };
 
@@ -178,6 +205,48 @@ public class CompeticaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         var competicaoCriada = await competicaoRepositorio.ObterPorIdAsync(competicao.Id, cancellationToken);
         return competicaoCriada!.ParaDto();
+    }
+
+    public async Task<CampeonatoDetalheDto> CriarCampeonatoAsync(CriarCampeonatoDto dto, CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirAdminOuOrganizadorAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+
+        var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
+        var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
+        ValidarCampeonato(dto.Nome, dto.LocalId, dataInicioUtc, dataFimUtc, dto.Categorias);
+
+        var nome = dto.Nome.Trim();
+        await ValidarNomeUnicoAsync(nome, null, cancellationToken);
+        await ValidarLigaAsync(dto.LigaId, cancellationToken);
+        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(TipoCompeticao.Campeonato, dto.FormatoCampeonatoId, cancellationToken);
+        var possuiFinalReset = await ResolverPossuiFinalResetAsync(TipoCompeticao.Campeonato, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
+        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
+
+        var competicao = new Competicao
+        {
+            Nome = nome,
+            Tipo = TipoCompeticao.Campeonato,
+            Descricao = dto.Descricao?.Trim(),
+            DataInicio = dataInicioUtc,
+            DataFim = dataFimUtc,
+            LigaId = dto.LigaId,
+            LocalId = dto.LocalId,
+            FormatoCampeonatoId = formatoCampeonatoId,
+            RegraCompeticaoId = dto.RegraCompeticaoId,
+            UsuarioOrganizadorId = usuario.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
+            ContaRankingLiga = dto.LigaId.HasValue,
+            InscricoesAbertas = StatusCampeonatoPermiteInscricoesAbertas(dto.Status),
+            StatusCampeonato = NormalizarStatusCampeonato(dto.Status),
+            PossuiFinalReset = possuiFinalReset
+        };
+
+        await AplicarCategoriasCampeonatoAsync(competicao, dto.Categorias, dataInicioUtc, cancellationToken);
+        await competicaoRepositorio.AdicionarAsync(competicao, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return await ObterCampeonatoPorIdAsync(competicao.Id, cancellationToken);
     }
 
     public async Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default)
@@ -231,6 +300,9 @@ public class CompeticaoServico(
             dto.Tipo,
             dto.InscricoesAbertas,
             competicao.InscricoesAbertas);
+        competicao.StatusCampeonato = dto.Tipo == TipoCompeticao.Campeonato
+            ? (competicao.InscricoesAbertas ? "Inscrições abertas" : competicao.StatusCampeonato ?? "Rascunho")
+            : null;
         competicao.PossuiFinalReset = possuiFinalReset;
         competicao.AtualizarDataModificacao();
 
@@ -238,6 +310,54 @@ public class CompeticaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         var competicaoAtualizada = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         return competicaoAtualizada!.ParaDto();
+    }
+
+    public async Task<CampeonatoDetalheDto> AtualizarCampeonatoAsync(Guid id, AtualizarCampeonatoDto dto, CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(id, cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            throw new RegraNegocioException("Atletas não podem gerenciar campeonatos.");
+        }
+
+        var competicao = await competicaoRepositorio.ObterPorIdComCategoriasAsync(id, cancellationToken);
+        if (competicao is null || competicao.Tipo != TipoCompeticao.Campeonato)
+        {
+            throw new EntidadeNaoEncontradaException("Campeonato não encontrado.");
+        }
+
+        var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
+        var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
+        ValidarCampeonato(dto.Nome, dto.LocalId, dataInicioUtc, dataFimUtc, dto.Categorias);
+
+        var nome = dto.Nome.Trim();
+        await ValidarNomeUnicoAsync(nome, id, cancellationToken);
+        await ValidarLigaAsync(dto.LigaId, cancellationToken);
+        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(TipoCompeticao.Campeonato, dto.FormatoCampeonatoId, cancellationToken);
+        var possuiFinalReset = await ResolverPossuiFinalResetAsync(TipoCompeticao.Campeonato, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
+        await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
+
+        competicao.Nome = nome;
+        competicao.Descricao = dto.Descricao?.Trim();
+        competicao.DataInicio = dataInicioUtc;
+        competicao.DataFim = dataFimUtc;
+        competicao.LigaId = dto.LigaId;
+        competicao.LocalId = dto.LocalId;
+        competicao.FormatoCampeonatoId = formatoCampeonatoId;
+        competicao.RegraCompeticaoId = dto.RegraCompeticaoId;
+        competicao.ContaRankingLiga = dto.LigaId.HasValue;
+        competicao.InscricoesAbertas = StatusCampeonatoPermiteInscricoesAbertas(dto.Status);
+        competicao.StatusCampeonato = NormalizarStatusCampeonato(dto.Status);
+        competicao.PossuiFinalReset = possuiFinalReset;
+        competicao.AtualizarDataModificacao();
+
+        await AplicarCategoriasCampeonatoAsync(competicao, dto.Categorias, dataInicioUtc, cancellationToken);
+        competicaoRepositorio.Atualizar(competicao);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return await ObterCampeonatoPorIdAsync(id, cancellationToken);
     }
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
@@ -557,6 +677,172 @@ public class CompeticaoServico(
         {
             throw new RegraNegocioException("Competições do tipo grupo só podem usar formato de pontos corridos.");
         }
+    }
+
+    private async Task AplicarCategoriasCampeonatoAsync(
+        Competicao competicao,
+        IReadOnlyList<SalvarCampeonatoCategoriaDto>? categoriasDto,
+        DateTime dataInicioCampeonato,
+        CancellationToken cancellationToken)
+    {
+        var categorias = categoriasDto ?? Array.Empty<SalvarCampeonatoCategoriaDto>();
+        var idsCategoriasInformadas = new HashSet<Guid>();
+        var categoriasDisponiveis = await categoriaRepositorio.ListarDisponiveisParaVinculoAsync(cancellationToken);
+        var categoriasDisponiveisPorId = categoriasDisponiveis.ToDictionary(x => x.Id);
+        var categoriasMantidas = new HashSet<Guid>();
+
+        foreach (var categoriaDto in categorias)
+        {
+            ValidarCategoriaCampeonato(categoriaDto, dataInicioCampeonato);
+
+            if (!idsCategoriasInformadas.Add(categoriaDto.CategoriaId))
+            {
+                throw new RegraNegocioException("Não é permitido vincular a mesma categoria mais de uma vez no campeonato.");
+            }
+
+            if (!categoriasDisponiveisPorId.TryGetValue(categoriaDto.CategoriaId, out var categoriaBase))
+            {
+                throw new RegraNegocioException("Categoria informada não foi encontrada ou está inativa.");
+            }
+
+            CategoriaCompeticao categoria;
+            if (categoriaDto.Id.HasValue)
+            {
+                categoria = competicao.Categorias.FirstOrDefault(x => x.Id == categoriaDto.Id.Value)
+                    ?? throw new RegraNegocioException("Categoria vinculada ao campeonato não encontrada.");
+
+                categoriasMantidas.Add(categoria.Id);
+            }
+            else
+            {
+                categoria = new CategoriaCompeticao
+                {
+                    CompeticaoId = competicao.Id
+                };
+                competicao.Categorias.Add(categoria);
+            }
+
+            categoria.FormatoCampeonatoId = null;
+            categoria.Nome = categoriaBase.Nome;
+            categoria.Genero = categoriaBase.Genero;
+            categoria.Nivel = categoriaBase.Nivel;
+            categoria.PesoRanking = categoriaBase.PesoRanking;
+            categoria.QuantidadeMaximaDuplas = categoriaDto.LimiteDuplas;
+            categoria.StatusInscricao = categoriaDto.StatusInscricao;
+            categoria.InscricoesEncerradas = categoriaDto.StatusInscricao is
+                StatusInscricoesCategoriaCampeonato.Fechada or
+                StatusInscricoesCategoriaCampeonato.Encerrada;
+            categoria.ValorInscricao = categoriaDto.ValorInscricao ?? 0m;
+            categoria.DataAberturaInscricao = categoriaDto.DataAberturaInscricao.HasValue
+                ? NormalizarParaUtc(categoriaDto.DataAberturaInscricao.Value)
+                : null;
+            categoria.DataEncerramentoInscricao = categoriaDto.DataEncerramentoInscricao.HasValue
+                ? NormalizarParaUtc(categoriaDto.DataEncerramentoInscricao.Value)
+                : null;
+            categoria.PermiteListaEspera = categoriaDto.PermiteListaEspera ?? false;
+            categoria.Observacao = string.IsNullOrWhiteSpace(categoriaDto.Observacao)
+                ? null
+                : categoriaDto.Observacao.Trim();
+            categoria.Ativo = true;
+            categoria.AtualizarDataModificacao();
+        }
+
+        var categoriasParaRemover = competicao.Categorias
+            .Where(x => x.Id != Guid.Empty && !categoriasMantidas.Contains(x.Id))
+            .ToList();
+
+        foreach (var categoria in categoriasParaRemover)
+        {
+            if (categoria.Inscricoes.Count > 0 || categoria.Partidas.Count > 0)
+            {
+                throw new RegraNegocioException("Não é possível remover categoria com inscrições ou partidas vinculadas.");
+            }
+
+            competicao.Categorias.Remove(categoria);
+            categoriaRepositorio.Remover(categoria);
+        }
+    }
+
+    private static void ValidarCampeonato(
+        string nome,
+        Guid localId,
+        DateTime dataInicio,
+        DateTime? dataFim,
+        IReadOnlyList<SalvarCampeonatoCategoriaDto>? categorias)
+    {
+        Validar(nome, dataInicio, dataFim, null);
+
+        if (localId == Guid.Empty)
+        {
+            throw new RegraNegocioException("Local do campeonato é obrigatório.");
+        }
+
+        if (categorias is null || categorias.Count == 0)
+        {
+            throw new RegraNegocioException("Campeonato deve ter pelo menos uma categoria vinculada.");
+        }
+    }
+
+    private static void ValidarCategoriaCampeonato(
+        SalvarCampeonatoCategoriaDto categoria,
+        DateTime dataInicioCampeonato)
+    {
+        if (categoria.CategoriaId == Guid.Empty)
+        {
+            throw new RegraNegocioException("Categoria é obrigatória.");
+        }
+
+        if (categoria.ValorInscricao.HasValue && categoria.ValorInscricao.Value < 0)
+        {
+            throw new RegraNegocioException("Valor de inscrição não pode ser negativo.");
+        }
+
+        if (categoria.LimiteDuplas.HasValue && categoria.LimiteDuplas.Value <= 0)
+        {
+            throw new RegraNegocioException("Limite de duplas deve ser maior que zero.");
+        }
+
+        if (categoria.DataAberturaInscricao.HasValue &&
+            categoria.DataEncerramentoInscricao.HasValue &&
+            categoria.DataEncerramentoInscricao.Value < categoria.DataAberturaInscricao.Value)
+        {
+            throw new RegraNegocioException("Data de encerramento das inscrições não pode ser anterior à abertura.");
+        }
+
+        if (categoria.DataEncerramentoInscricao.HasValue &&
+            NormalizarParaUtc(categoria.DataEncerramentoInscricao.Value) > dataInicioCampeonato)
+        {
+            throw new RegraNegocioException("Data de encerramento das inscrições não pode ser posterior ao início do campeonato.");
+        }
+    }
+
+    private static bool StatusCampeonatoPermiteInscricoesAbertas(string? status)
+    {
+        var statusNormalizado = RemoverAcentos(status ?? string.Empty).Trim().ToLowerInvariant();
+
+        return statusNormalizado is "inscricoes abertas" or "aberta" or "aberto";
+    }
+
+    private static string NormalizarStatusCampeonato(string? status)
+    {
+        var statusNormalizado = RemoverAcentos(status ?? string.Empty).Trim().ToLowerInvariant();
+
+        return statusNormalizado switch
+        {
+            "inscricoes abertas" or "aberta" or "aberto" => "Inscrições abertas",
+            "em andamento" => "Em andamento",
+            "finalizado" => "Finalizado",
+            _ => "Rascunho"
+        };
+    }
+
+    private static string RemoverAcentos(string valor)
+    {
+        var normalizado = valor.Normalize(System.Text.NormalizationForm.FormD);
+        var caracteres = normalizado.Where(c =>
+            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark);
+
+        return new string(caracteres.ToArray()).Normalize(System.Text.NormalizationForm.FormC);
     }
 
     private static void Validar(

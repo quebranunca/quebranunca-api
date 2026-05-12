@@ -14,6 +14,13 @@ public class CategoriaCompeticao : EntidadeBase
     public decimal PesoRanking { get; set; } = 1m;
     public int? QuantidadeMaximaDuplas { get; set; }
     public bool InscricoesEncerradas { get; set; }
+    public StatusInscricoesCategoriaCampeonato StatusInscricao { get; set; } = StatusInscricoesCategoriaCampeonato.NaoIniciada;
+    public decimal ValorInscricao { get; set; }
+    public DateTime? DataAberturaInscricao { get; set; }
+    public DateTime? DataEncerramentoInscricao { get; set; }
+    public bool PermiteListaEspera { get; set; }
+    public string? Observacao { get; set; }
+    public bool Ativo { get; set; } = true;
 
     public Competicao Competicao { get; set; } = default!;
     public FormatoCampeonato? FormatoCampeonato { get; set; }

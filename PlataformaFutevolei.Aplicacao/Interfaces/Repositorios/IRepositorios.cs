@@ -103,6 +103,7 @@ public interface ICompeticaoRepositorio
         CancellationToken cancellationToken = default);
     Task<Competicao?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<Competicao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Competicao?> ObterPorIdComCategoriasAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Competicao competicao, CancellationToken cancellationToken = default);
     void Atualizar(Competicao competicao);
     void Remover(Competicao competicao);
@@ -175,6 +176,7 @@ public interface IRegraCompeticaoRepositorio
 public interface ICategoriaCompeticaoRepositorio
 {
     Task<IReadOnlyList<CategoriaCompeticao>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CategoriaCompeticao>> ListarDisponiveisParaVinculoAsync(CancellationToken cancellationToken = default);
     Task<CategoriaCompeticao?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(CategoriaCompeticao categoria, CancellationToken cancellationToken = default);
     void Atualizar(CategoriaCompeticao categoria);

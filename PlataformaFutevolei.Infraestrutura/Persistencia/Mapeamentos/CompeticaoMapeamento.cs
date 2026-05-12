@@ -25,6 +25,7 @@ public class CompeticaoMapeamento : IEntityTypeConfiguration<Competicao>
         builder.Property(x => x.UsuarioOrganizadorId).HasColumnName("usuario_organizador_id");
         builder.Property(x => x.ContaRankingLiga).HasColumnName("conta_ranking_liga").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.InscricoesAbertas).HasColumnName("inscricoes_abertas").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.StatusCampeonato).HasColumnName("status_campeonato").HasMaxLength(50);
         builder.Property(x => x.PossuiFinalReset).HasColumnName("possui_final_reset").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();

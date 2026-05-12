@@ -59,6 +59,7 @@ Configuracao/
 Controllers/
  AtletasController.cs
  AutenticacaoController.cs
+ CampeonatosController.cs
  CategoriasController.cs
  CompeticoesController.cs
  ConvitesCadastroController.cs

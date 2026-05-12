@@ -32,6 +32,46 @@ public record AtualizarCompeticaoDto(
     bool? PossuiFinalReset
 );
 
+public record SalvarCampeonatoCategoriaDto(
+    Guid? Id,
+    Guid CategoriaId,
+    decimal? ValorInscricao,
+    int? LimiteDuplas,
+    StatusInscricoesCategoriaCampeonato StatusInscricao,
+    DateTime? DataAberturaInscricao,
+    DateTime? DataEncerramentoInscricao,
+    bool? PermiteListaEspera,
+    string? Observacao
+);
+
+public record CriarCampeonatoDto(
+    string Nome,
+    Guid LocalId,
+    DateTime DataInicio,
+    DateTime? DataFim,
+    string? Descricao,
+    string? Status,
+    Guid? LigaId,
+    Guid? FormatoCampeonatoId,
+    Guid? RegraCompeticaoId,
+    bool? PossuiFinalReset,
+    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias
+);
+
+public record AtualizarCampeonatoDto(
+    string Nome,
+    Guid LocalId,
+    DateTime DataInicio,
+    DateTime? DataFim,
+    string? Descricao,
+    string? Status,
+    Guid? LigaId,
+    Guid? FormatoCampeonatoId,
+    Guid? RegraCompeticaoId,
+    bool? PossuiFinalReset,
+    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias
+);
+
 public record CompeticaoDto(
     Guid Id,
     string Nome,
@@ -52,6 +92,7 @@ public record CompeticaoDto(
     string? NomeUsuarioOrganizador,
     bool ContaRankingLiga,
     bool InscricoesAbertas,
+    string? StatusCampeonato,
     bool PossuiFinalReset,
     int PontosMinimosPartidaEfetivo,
     int DiferencaMinimaPartidaEfetiva,
@@ -61,6 +102,11 @@ public record CompeticaoDto(
     decimal PontosParticipacaoEfetivo,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record CampeonatoDetalheDto(
+    CompeticaoDto Campeonato,
+    IReadOnlyList<CategoriaCompeticaoDto> Categorias
 );
 
 public record ResumoCompeticoesPublicoDto(

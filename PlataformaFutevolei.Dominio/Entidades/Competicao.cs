@@ -27,6 +27,7 @@ public class Competicao : EntidadeBase
     public Guid? UsuarioOrganizadorId { get; set; }
     public bool ContaRankingLiga { get; set; }
     public bool InscricoesAbertas { get; set; }
+    public string? StatusCampeonato { get; set; }
     public bool PossuiFinalReset { get; set; }
 
     public Liga? Liga { get; set; }

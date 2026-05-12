@@ -58,8 +58,11 @@ public interface ICompeticaoServico
         CancellationToken cancellationToken = default);
     Task<ResumoCompeticoesPublicoDto> ObterResumoPublicoAsync(CancellationToken cancellationToken = default);
     Task<CompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<CampeonatoDetalheDto> ObterCampeonatoPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default);
+    Task<CampeonatoDetalheDto> CriarCampeonatoAsync(CriarCampeonatoDto dto, CancellationToken cancellationToken = default);
     Task<CompeticaoDto> AtualizarAsync(Guid id, AtualizarCompeticaoDto dto, CancellationToken cancellationToken = default);
+    Task<CampeonatoDetalheDto> AtualizarCampeonatoAsync(Guid id, AtualizarCampeonatoDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -117,6 +120,7 @@ public interface IRegraCompeticaoServico
 public interface ICategoriaCompeticaoServico
 {
     Task<IReadOnlyList<CategoriaCompeticaoDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CategoriaDisponivelVinculoDto>> ListarDisponiveisParaVinculoAsync(CancellationToken cancellationToken = default);
     Task<CategoriaCompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CategoriaCompeticaoDto> CriarAsync(CriarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default);
     Task<CategoriaCompeticaoDto> AtualizarAsync(Guid id, AtualizarCategoriaCompeticaoDto dto, CancellationToken cancellationToken = default);

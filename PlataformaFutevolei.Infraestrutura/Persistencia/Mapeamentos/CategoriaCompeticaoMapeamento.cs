@@ -22,6 +22,13 @@ public class CategoriaCompeticaoMapeamento : IEntityTypeConfiguration<CategoriaC
         builder.Property(x => x.PesoRanking).HasColumnName("peso_ranking").HasPrecision(10, 2).HasDefaultValue(1m).IsRequired();
         builder.Property(x => x.QuantidadeMaximaDuplas).HasColumnName("quantidade_maxima_duplas");
         builder.Property(x => x.InscricoesEncerradas).HasColumnName("inscricoes_encerradas").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.StatusInscricao).HasColumnName("status_inscricao").HasDefaultValue(1).IsRequired();
+        builder.Property(x => x.ValorInscricao).HasColumnName("valor_inscricao").HasPrecision(10, 2).HasDefaultValue(0m).IsRequired();
+        builder.Property(x => x.DataAberturaInscricao).HasColumnName("data_abertura_inscricao");
+        builder.Property(x => x.DataEncerramentoInscricao).HasColumnName("data_encerramento_inscricao");
+        builder.Property(x => x.PermiteListaEspera).HasColumnName("permite_lista_espera").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.Observacao).HasColumnName("observacao").HasMaxLength(1000);
+        builder.Property(x => x.Ativo).HasColumnName("ativo").HasDefaultValue(true).IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 

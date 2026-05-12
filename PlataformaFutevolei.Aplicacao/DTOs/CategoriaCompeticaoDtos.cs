@@ -25,6 +25,7 @@ public record AtualizarCategoriaCompeticaoDto(
 
 public record CategoriaCompeticaoDto(
     Guid Id,
+    Guid CategoriaId,
     Guid CompeticaoId,
     Guid? FormatoCampeonatoId,
     Guid? FormatoCampeonatoEfetivoId,
@@ -41,7 +42,21 @@ public record CategoriaCompeticaoDto(
     decimal PesoRanking,
     int? QuantidadeMaximaDuplas,
     bool InscricoesEncerradas,
+    StatusInscricoesCategoriaCampeonato StatusInscricao,
+    decimal ValorInscricao,
+    DateTime? DataAberturaInscricao,
+    DateTime? DataEncerramentoInscricao,
+    bool PermiteListaEspera,
+    string? Observacao,
+    bool Ativo,
     int QuantidadeDuplasInscritas,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record CategoriaDisponivelVinculoDto(
+    Guid Id,
+    string Nome,
+    GeneroCategoria Genero,
+    NivelCategoria Nivel
 );

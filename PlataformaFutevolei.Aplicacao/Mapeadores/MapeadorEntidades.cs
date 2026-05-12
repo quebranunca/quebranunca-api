@@ -184,6 +184,7 @@ internal static class MapeadorEntidades
             competicao.UsuarioOrganizador?.Nome,
             competicao.LigaId.HasValue,
             competicao.InscricoesAbertas,
+            competicao.StatusCampeonato,
             competicao.PossuiFinalReset,
             competicao.ObterPontosMinimosPartida(),
             competicao.ObterDiferencaMinimaPartida(),
@@ -254,6 +255,7 @@ internal static class MapeadorEntidades
 
         return new CategoriaCompeticaoDto(
             categoria.Id,
+            categoria.Id,
             categoria.CompeticaoId,
             categoria.FormatoCampeonatoId,
             formatoEfetivo?.Id,
@@ -270,6 +272,13 @@ internal static class MapeadorEntidades
             categoria.PesoRanking,
             categoria.QuantidadeMaximaDuplas,
             categoria.InscricoesEncerradas,
+            categoria.StatusInscricao,
+            categoria.ValorInscricao,
+            categoria.DataAberturaInscricao,
+            categoria.DataEncerramentoInscricao,
+            categoria.PermiteListaEspera,
+            categoria.Observacao,
+            categoria.Ativo,
             categoria.Inscricoes?.Count ?? 0,
             categoria.DataCriacao,
             categoria.DataAtualizacao

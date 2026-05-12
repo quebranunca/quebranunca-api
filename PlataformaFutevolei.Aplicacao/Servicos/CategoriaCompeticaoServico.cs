@@ -62,6 +62,26 @@ public class CategoriaCompeticaoServico(
         return categorias.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<IReadOnlyList<CategoriaDisponivelVinculoDto>> ListarDisponiveisParaVinculoAsync(CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirAdminOuOrganizadorAsync(cancellationToken);
+        var categorias = await categoriaRepositorio.ListarDisponiveisParaVinculoAsync(cancellationToken);
+
+        return categorias
+            .GroupBy(x => new { Nome = x.Nome.Trim().ToLowerInvariant(), x.Genero, x.Nivel })
+            .Select(x =>
+            {
+                var categoria = x.OrderBy(item => item.Nome).First();
+                return new CategoriaDisponivelVinculoDto(
+                    categoria.Id,
+                    categoria.Nome,
+                    categoria.Genero,
+                    categoria.Nivel);
+            })
+            .OrderBy(x => x.Nome)
+            .ToList();
+    }
+
     public async Task<CategoriaCompeticaoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -120,7 +140,10 @@ public class CategoriaCompeticaoServico(
             Nivel = dto.Nivel,
             PesoRanking = dto.PesoRanking ?? 1m,
             QuantidadeMaximaDuplas = dto.QuantidadeMaximaDuplas,
-            InscricoesEncerradas = dto.InscricoesEncerradas
+            InscricoesEncerradas = dto.InscricoesEncerradas,
+            StatusInscricao = dto.InscricoesEncerradas
+                ? StatusInscricoesCategoriaCampeonato.Encerrada
+                : StatusInscricoesCategoriaCampeonato.Aberta
         };
 
         await categoriaRepositorio.AdicionarAsync(categoria, cancellationToken);
@@ -156,6 +179,9 @@ public class CategoriaCompeticaoServico(
         categoria.Nivel = dto.Nivel;
         categoria.PesoRanking = dto.PesoRanking ?? 1m;
         categoria.QuantidadeMaximaDuplas = dto.QuantidadeMaximaDuplas;
+        categoria.StatusInscricao = dto.InscricoesEncerradas
+            ? StatusInscricoesCategoriaCampeonato.Encerrada
+            : StatusInscricoesCategoriaCampeonato.Aberta;
 
         if (dto.InscricoesEncerradas)
         {
