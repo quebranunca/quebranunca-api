@@ -200,7 +200,7 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<int>("StatusInscricao")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(1)
+                        .HasDefaultValue(PlataformaFutevolei.Dominio.Enums.StatusInscricoesCategoriaCampeonato.NaoIniciada)
                         .HasColumnName("status_inscricao");
 
                     b.Property<DateTime?>("TabelaJogosAprovadaEmUtc")
