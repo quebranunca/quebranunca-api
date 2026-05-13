@@ -434,11 +434,14 @@ public class RankingServico(
         foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
         {
             var categoria = partida.CategoriaCompeticao;
-            var competicao = categoria.Competicao;
+            var competicao = categoria?.Competicao;
             var dataPartida = partida.DataPartida ?? partida.DataCriacao;
             var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
-            var peso = categoria.PesoRanking;
-            var pontosParticipacao = competicao.ObterPontosParticipacao() * peso;
+            var peso = categoria?.PesoRanking ?? 1m;
+            var referenciaParticipacaoId = competicao?.Id ?? partida.GrupoId ?? Guid.Empty;
+            var nomeCompeticaoPartida = competicao?.Nome ?? partida.Grupo?.Nome ?? "Jogos sem liga";
+            var nomeCategoriaPartida = categoria?.Nome ?? "Partidas sem competição/categoria";
+            var pontosParticipacao = competicao is null ? 0m : competicao.ObterPontosParticipacao() * peso;
             var pontosVitoria = ObterPontosVitoriaRanking(partida);
             var pontosBonusAprovacaoPendente = ObterBonusAprovacaoPendenteRanking(partida);
             var pontosDerrota = Partida.PontosDerrotaRanking;
@@ -454,7 +457,7 @@ public class RankingServico(
                 participacoesPendentesAplicadas,
                 duplaA.Atleta1,
                 AtletaElegivel,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaA.Id,
@@ -465,15 +468,15 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             AcumularSeAtletaElegivel(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaA.Atleta2,
                 AtletaElegivel,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaA.Id,
@@ -484,15 +487,15 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             AcumularSeAtletaElegivel(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaB.Atleta1,
                 AtletaElegivel,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaB.Id,
@@ -503,15 +506,15 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
             AcumularSeAtletaElegivel(
                 atletas,
                 participacoesOficiaisAplicadas,
                 participacoesPendentesAplicadas,
                 duplaB.Atleta2,
                 AtletaElegivel,
-                competicao.Id,
+                referenciaParticipacaoId,
                 pontosParticipacao,
                 empate,
                 vencedoraId == duplaB.Id,
@@ -522,8 +525,8 @@ public class RankingServico(
                 partida.Id,
                 confronto,
                 dataPartida,
-                competicao.Nome,
-                categoria.Nome);
+                nomeCompeticaoPartida,
+                nomeCategoriaPartida);
         }
 
         foreach (var partidasCategoria in partidas.GroupBy(x => x.CategoriaCompeticaoId))
