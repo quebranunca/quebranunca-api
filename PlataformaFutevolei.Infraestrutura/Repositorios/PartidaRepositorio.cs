@@ -312,6 +312,14 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
             .Where(x => x.DuplaVencedoraId.HasValue);
 
+        var nome = await dbContext.Atletas
+            .AsNoTracking()
+            .Where(x => x.Id == atletaId)
+            .Select(x => x.Usuario != null && !string.IsNullOrWhiteSpace(x.Usuario.Nome)
+                ? x.Usuario.Nome
+                : x.Nome)
+            .FirstOrDefaultAsync(cancellationToken) ?? "Atleta";
+
         var totalPartidas = await partidasRegistradas.CountAsync(cancellationToken);
         var totalVitorias = await partidasRegistradas
             .CountAsync(
@@ -339,6 +347,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         var pontosPendentes = pontuacao.Sum(x => CalcularPontosPendentesResumo(x.StatusAprovacao, x.PesoRanking));
 
         return new UsuarioResumoDto(
+            nome,
             totalPartidas,
             totalVitorias,
             totalDerrotas,

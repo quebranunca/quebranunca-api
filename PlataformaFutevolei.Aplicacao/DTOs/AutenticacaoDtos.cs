@@ -79,6 +79,7 @@ public record UsuarioDto(
 );
 
 public record UsuarioResumoDto(
+    string Nome,
     int TotalPartidas,
     int TotalVitorias,
     int TotalDerrotas,

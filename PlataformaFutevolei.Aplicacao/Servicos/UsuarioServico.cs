@@ -33,7 +33,7 @@ public class UsuarioServico(
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (!usuario.AtletaId.HasValue)
         {
-            return new UsuarioResumoDto(0, 0, 0, 0, 0, 0, 0);
+            return new UsuarioResumoDto(string.Empty,0, 0, 0, 0, 0, 0, 0);
         }
 
         return await partidaRepositorio.ObterResumoUsuarioPorAtletaAsync(usuario.AtletaId.Value, cancellationToken);
