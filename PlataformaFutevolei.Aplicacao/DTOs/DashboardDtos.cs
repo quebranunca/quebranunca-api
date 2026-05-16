@@ -76,3 +76,91 @@ public record DashboardAtletaHeatmapDiaDto(
     DateOnly Data,
     int Quantidade
 );
+
+public record DashboardPublicoDto(
+    DashboardPublicoResumoDto Resumo,
+    IReadOnlyList<DashboardPublicoMetricaDto> Metricas,
+    IReadOnlyList<DashboardPublicoPartidaDto> UltimasPartidas,
+    IReadOnlyList<DashboardPublicoRankingAtletaDto> Ranking,
+    IReadOnlyList<DashboardPublicoAtletaDestaqueDto> AtletasDestaque,
+    IReadOnlyList<DashboardPublicoGrupoDto> Grupos,
+    IReadOnlyList<DashboardPublicoCampeonatoDto> Campeonatos,
+    IReadOnlyList<DashboardPublicoRegiaoDto> Regioes,
+    IReadOnlyList<string> Insights
+);
+
+public record DashboardPublicoResumoDto(
+    int TotalPartidas,
+    int TotalAtletas,
+    int TotalGrupos,
+    int TotalCampeonatos,
+    int PartidasHoje,
+    int AtletasOnline,
+    int CidadesAtivas
+);
+
+public record DashboardPublicoMetricaDto(
+    string Id,
+    string Rotulo,
+    string Valor,
+    string? Complemento,
+    string Icone
+);
+
+public record DashboardPublicoPartidaDto(
+    Guid Id,
+    DateTime Data,
+    string? Grupo,
+    string? Campeonato,
+    string Dupla1,
+    string Dupla2,
+    int PontosDupla1,
+    int PontosDupla2,
+    string Vencedor,
+    int MinutosAtras
+);
+
+public record DashboardPublicoRankingAtletaDto(
+    int Posicao,
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    int Jogos,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento,
+    decimal Pontos,
+    int SequenciaAtual
+);
+
+public record DashboardPublicoAtletaDestaqueDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string Destaque,
+    string Valor,
+    string Complemento
+);
+
+public record DashboardPublicoGrupoDto(
+    Guid GrupoId,
+    string Nome,
+    int Partidas,
+    int Atletas,
+    DateTime? UltimaAtividade
+);
+
+public record DashboardPublicoCampeonatoDto(
+    Guid CampeonatoId,
+    string Nome,
+    string Status,
+    int Partidas,
+    DateTime? ProximaPartida,
+    string? Local
+);
+
+public record DashboardPublicoRegiaoDto(
+    string Cidade,
+    string? Estado,
+    int Partidas
+);

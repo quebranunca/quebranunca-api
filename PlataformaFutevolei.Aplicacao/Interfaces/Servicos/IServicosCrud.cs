@@ -31,6 +31,11 @@ public interface IDashboardAtletaServico
     Task<DashboardAtletaDto> ObterDashboardAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IDashboardPublicoServico
+{
+    Task<DashboardPublicoDto> ObterDashboardAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IConviteCadastroServico
 {
     Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default);
