@@ -110,6 +110,24 @@ internal static class MapeadorEntidades
             atleta.DataAtualizacao
         );
 
+    public static AtletaPublicoDto ParaPublicoDto(this Atleta atleta)
+        => new(
+            atleta.Id,
+            atleta.Nome,
+            atleta.Apelido,
+            atleta.Instagram,
+            atleta.CadastroPendente,
+            atleta.Bairro,
+            atleta.Cidade,
+            atleta.Estado,
+            atleta.Nivel,
+            atleta.Lado,
+            atleta.UsuarioCriadorId,
+            atleta.UsuarioCriador?.Nome,
+            atleta.DataCriacao,
+            atleta.DataAtualizacao
+        );
+
     public static DuplaDto ParaDto(this Dupla dupla)
         => new(
             dupla.Id,
@@ -220,6 +238,20 @@ internal static class MapeadorEntidades
             grupoAtleta.Atleta?.Nome ?? string.Empty,
             grupoAtleta.Atleta?.Apelido,
             grupoAtleta.Atleta?.Email,
+            grupoAtleta.Atleta?.CadastroPendente ?? false,
+            grupoAtleta.Atleta?.Usuario is not null,
+            grupoAtleta.DataCriacao,
+            grupoAtleta.DataAtualizacao
+        );
+
+    public static GrupoAtletaDto ParaPublicoDto(this GrupoAtleta grupoAtleta)
+        => new(
+            grupoAtleta.Id,
+            grupoAtleta.GrupoId,
+            grupoAtleta.AtletaId,
+            grupoAtleta.Atleta?.Nome ?? string.Empty,
+            grupoAtleta.Atleta?.Apelido,
+            null,
             grupoAtleta.Atleta?.CadastroPendente ?? false,
             grupoAtleta.Atleta?.Usuario is not null,
             grupoAtleta.DataCriacao,
@@ -431,7 +463,7 @@ internal static class MapeadorEntidades
         .Select(atleta => new PartidaAtletaPendenteDto(
             atleta.Id,
             atleta.Nome,
-            atleta.Email,
+            null,
             StatusCadastroAtletaUtil.TemEmail(atleta),
             StatusCadastroAtletaUtil.ObterStatusPendencia(atleta)))
         .ToList();

@@ -26,7 +26,13 @@ public class AtletaServico(
     IPendenciaServico pendenciaServico
 ) : IAtletaServico
 {
-    public async Task<IReadOnlyList<AtletaDto>> ListarAsync(
+    public async Task<IReadOnlyList<AtletaPublicoDto>> ListarPublicoAsync(CancellationToken cancellationToken = default)
+    {
+        var atletas = await atletaRepositorio.ListarAsync(cancellationToken);
+        return atletas.Select(x => x.ParaPublicoDto()).ToList();
+    }
+
+    public async Task<IReadOnlyList<AtletaDto>> ListarGerencialAsync(
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +51,6 @@ public class AtletaServico(
 
     public async Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default)
     {
-        await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var atletas = await atletaRepositorio.BuscarAsync(termo, cancellationToken);
         return atletas.Select(x => x.ParaResumoDto()).ToList();
     }
@@ -114,7 +119,18 @@ public class AtletaServico(
             .ToList();
     }
 
-    public async Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<AtletaPublicoDto> ObterPublicoPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (atleta is null)
+        {
+            throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+        }
+
+        return atleta.ParaPublicoDto();
+    }
+
+    public async Task<AtletaDto> ObterGerencialPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (usuario.Perfil == PerfilUsuario.Atleta)
@@ -287,24 +303,25 @@ public class AtletaServico(
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var usuarioComum = usuario.Perfil == PerfilUsuario.Atleta;
-        if (usuarioComum)
+        var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (atleta is null)
         {
-            await autorizacaoUsuarioServico.GarantirAcessoAtletaAsync(id, cancellationToken);
+            throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
         }
-        else if (usuario.Perfil == PerfilUsuario.Organizador)
+
+        var podeEditar = usuario.Perfil == PerfilUsuario.Administrador ||
+            usuario.AtletaId == atleta.Id ||
+            atleta.UsuarioCriadorId == usuario.Id;
+
+        if (!podeEditar)
         {
-            await GarantirAcessoOrganizadorAsync(id, usuario.Id, cancellationToken);
+            throw new AcessoNegadoException("Você só pode editar o próprio atleta ou atletas cadastrados por você.");
         }
 
         var dados = usuarioComum
             ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado)
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
-        var atleta = await atletaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (atleta is null)
-        {
-            throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
-        }
 
         atleta.Nome = dados.Nome;
         atleta.Apelido = dados.Apelido;

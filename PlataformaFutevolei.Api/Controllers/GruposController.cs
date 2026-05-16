@@ -13,6 +13,7 @@ public class GruposController(
     IGrupoResumoUsuarioServico grupoResumoUsuarioServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<GrupoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(CancellationToken cancellationToken)
     {
@@ -21,6 +22,7 @@ public class GruposController(
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {

@@ -69,6 +69,7 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
     }
 
     [HttpGet("grupos/{grupoId:guid}/atletas")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<RankingCategoriaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarAtletasPorGrupo(Guid grupoId, CancellationToken cancellationToken)
     {

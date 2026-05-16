@@ -12,17 +12,28 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class AtletasController(IAtletaServico atletaServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<AtletaPublicoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Listar(
+        CancellationToken cancellationToken = default)
+    {
+        var atletas = await atletaServico.ListarPublicoAsync(cancellationToken);
+        return Ok(atletas);
+    }
+
+    [HttpGet("gerencial")]
     [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(IReadOnlyList<AtletaDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(
+    public async Task<IActionResult> ListarGerencial(
         [FromQuery] bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default)
     {
-        var atletas = await atletaServico.ListarAsync(somenteInscritosMinhasCompeticoes, cancellationToken);
+        var atletas = await atletaServico.ListarGerencialAsync(somenteInscritosMinhasCompeticoes, cancellationToken);
         return Ok(atletas);
     }
 
     [HttpGet("busca")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<AtletaResumoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Buscar([FromQuery] string? termo, CancellationToken cancellationToken)
     {
@@ -39,10 +50,11 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AtletaPublicoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {
-        var atleta = await atletaServico.ObterPorIdAsync(id, cancellationToken);
+        var atleta = await atletaServico.ObterPublicoPorIdAsync(id, cancellationToken);
         return Ok(atleta);
     }
 

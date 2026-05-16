@@ -20,49 +20,14 @@ public class GrupoServico(
 {
     public async Task<IReadOnlyList<GrupoDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
-
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            var idsComAcesso = (await grupoRepositorio.ListarIdsComAcessoAtletaAsync(
-                    usuario.Id,
-                    usuario.AtletaId,
-                    cancellationToken))
-                .ToHashSet();
-            grupos = grupos.Where(x => idsComAcesso.Contains(x.Id)).ToList();
-        }
-        else if (usuario.Perfil == PerfilUsuario.Organizador)
-        {
-            grupos = grupos.Where(x => x.UsuarioOrganizadorId == usuario.Id).ToList();
-        }
-
         return grupos.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<GrupoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
-
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            var possuiAcesso = await grupoRepositorio.AtletaPossuiAcessoAsync(
-                grupo.Id,
-                usuario.Id,
-                usuario.AtletaId,
-                cancellationToken);
-            if (!possuiAcesso)
-            {
-                throw new RegraNegocioException("Você só pode visualizar grupos em que participa.");
-            }
-        }
-        else if (usuario.Perfil == PerfilUsuario.Organizador && grupo.UsuarioOrganizadorId != usuario.Id)
-        {
-            throw new RegraNegocioException("O organizador só pode acessar grupos vinculados ao próprio usuário.");
-        }
-
         return grupo.ParaDto();
     }
 

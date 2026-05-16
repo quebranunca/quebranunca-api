@@ -11,6 +11,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class PartidasController(IPartidaServico partidaServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(
         [FromQuery] Guid? competicaoId,
@@ -63,6 +64,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpGet("estrutura")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<RodadaEstruturaCompeticaoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarEstrutura(
         [FromQuery] Guid? competicaoId,
@@ -92,6 +94,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {

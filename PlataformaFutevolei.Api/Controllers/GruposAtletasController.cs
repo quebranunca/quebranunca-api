@@ -11,6 +11,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 public class GruposAtletasController(IGrupoAtletaServico grupoAtletaServico) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<GrupoAtletaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(Guid grupoId, CancellationToken cancellationToken)
     {

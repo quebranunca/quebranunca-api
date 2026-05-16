@@ -1,6 +1,8 @@
 # Regras específicas da API
 
 - Controller cuida de HTTP, autorização, binding e status code
+- GET de leitura pública pode usar `[AllowAnonymous]`; POST, PUT, PATCH e DELETE continuam autenticados e validam dono/criador ou administrador na aplicação
+- Respostas públicas não devem expor dados sensíveis como e-mail, telefone, tokens, permissões ou dados administrativos privados
 - Regra de negócio fica na aplicação e no domínio
 - Não expor entidades diretamente; seguir DTOs e mapeadores já existentes
 - Reutilizar rotas, padrões de request/response e mensagens já adotados

@@ -29,16 +29,15 @@ public class GrupoAtletaServico(
 
     public async Task<IReadOnlyList<GrupoAtletaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var grupo = await ObterGrupoValidoAsync(grupoId, cancellationToken);
-
-        if (usuario.Perfil is PerfilUsuario.Administrador or PerfilUsuario.Organizador)
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
-        }
-
         var atletas = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupo.Id, cancellationToken);
-        return atletas.Select(x => x.ParaDto()).ToList();
+        var podeVerDadosGerenciais = usuario?.Perfil == PerfilUsuario.Administrador ||
+            (usuario is not null && grupo.UsuarioOrganizadorId == usuario.Id);
+
+        return atletas
+            .Select(x => podeVerDadosGerenciais ? x.ParaDto() : x.ParaPublicoDto())
+            .ToList();
     }
 
     public async Task<IReadOnlyList<GrupoAtletaBuscaDto>> BuscarPorGrupoAsync(

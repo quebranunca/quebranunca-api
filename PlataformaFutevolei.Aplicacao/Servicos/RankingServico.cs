@@ -19,8 +19,6 @@ public class RankingServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
 {
-    private const string NomeCompeticaoPartidasAvulsas = "Partidas avulsas";
-
     public async Task<RankingFiltroInicialDto> ObterFiltroInicialAsync(
         CancellationToken cancellationToken = default)
     {
@@ -76,12 +74,6 @@ public class RankingServico(
         Guid ligaId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
-        if (usuario?.Perfil == PerfilUsuario.Atleta)
-        {
-            throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
-        }
-
         var liga = await ligaRepositorio.ObterPorIdAsync(ligaId, cancellationToken);
         if (liga is null)
         {
@@ -90,7 +82,7 @@ public class RankingServico(
 
         var partidas = await partidaRepositorio.ListarParaRankingPorLigaAsync(ligaId, cancellationToken);
         var partidasSemCompeticaoOuCategoria = await partidaRepositorio.ListarParaRankingSemCompeticaoOuCategoriaAsync(
-            usuario?.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
+            null,
             cancellationToken);
         return MontarRankingLiga(ligaId, liga.Nome, partidas, partidasSemCompeticaoOuCategoria);
     }
@@ -156,42 +148,10 @@ public class RankingServico(
         Guid competicaoId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var competicao = await competicaoRepositorio.ObterPorIdAsync(competicaoId, cancellationToken);
         if (competicao is null)
         {
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
-        }
-
-        if (usuario?.Perfil == PerfilUsuario.Atleta)
-        {
-            var competicaoPartidasAvulsas = EhCompeticaoPartidasAvulsas(competicao);
-
-            if (competicao.Tipo != TipoCompeticao.Grupo)
-            {
-                throw new RegraNegocioException("Usuários com perfil atleta só podem visualizar o ranking dos grupos em que participam.");
-            }
-
-            var usuarioEhDonoDoGrupo = competicao.UsuarioOrganizadorId == usuario.Id;
-
-            if (!competicaoPartidasAvulsas && !usuarioEhDonoDoGrupo && !usuario.AtletaId.HasValue)
-            {
-                throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
-            }
-
-            if (!competicaoPartidasAvulsas && !usuarioEhDonoDoGrupo)
-            {
-                var possuiAcessoAoGrupo = await competicaoRepositorio.AtletaPossuiAcessoAsync(
-                    competicaoId,
-                    usuario.Id,
-                    usuario.AtletaId!.Value,
-                    cancellationToken);
-
-                if (!possuiAcessoAoGrupo)
-                {
-                    throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
-                }
-            }
         }
 
         var partidas = await partidaRepositorio.ListarParaRankingPorCompeticaoAsync(competicaoId, cancellationToken);
@@ -202,34 +162,10 @@ public class RankingServico(
         Guid grupoId,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
         if (grupo is null)
         {
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
-        }
-
-        if (usuario?.Perfil == PerfilUsuario.Atleta)
-        {
-            var usuarioEhDonoDoGrupo = grupo.UsuarioOrganizadorId == usuario.Id;
-            if (!usuarioEhDonoDoGrupo && !usuario.AtletaId.HasValue)
-            {
-                throw new RegraNegocioException("Seu usuário não possui atleta vinculado para consultar o ranking do grupo.");
-            }
-
-            if (!usuarioEhDonoDoGrupo)
-            {
-                var possuiAcessoAoGrupo = await grupoRepositorio.AtletaPossuiAcessoAsync(
-                    grupoId,
-                    usuario.Id,
-                    usuario.AtletaId!.Value,
-                    cancellationToken);
-
-                if (!possuiAcessoAoGrupo)
-                {
-                    throw new RegraNegocioException("Você só pode visualizar o ranking dos grupos em que participa.");
-                }
-            }
         }
 
         var partidas = await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId, cancellationToken);
@@ -241,13 +177,6 @@ public class RankingServico(
             partidas);
         return ranking is null ? [] : [ranking];
     }
-
-    private static bool EhCompeticaoPartidasAvulsas(Competicao competicao)
-        => competicao.Tipo == TipoCompeticao.Grupo &&
-           string.Equals(
-               competicao.Nome?.Trim(),
-               NomeCompeticaoPartidasAvulsas,
-               StringComparison.OrdinalIgnoreCase);
 
     private static decimal ObterPontosVitoriaRanking(Partida partida)
     {

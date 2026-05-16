@@ -5,7 +5,8 @@ namespace PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 
 public interface IAtletaServico
 {
-    Task<IReadOnlyList<AtletaDto>> ListarAsync(
+    Task<IReadOnlyList<AtletaPublicoDto>> ListarPublicoAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AtletaDto>> ListarGerencialAsync(
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default);
@@ -14,7 +15,8 @@ public interface IAtletaServico
         string? termo,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
-    Task<AtletaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<AtletaPublicoDto> ObterPublicoPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<AtletaDto> ObterGerencialPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AtletaDto?> ObterMeuAsync(CancellationToken cancellationToken = default);
     Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaDto> SalvarMeuAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken = default);

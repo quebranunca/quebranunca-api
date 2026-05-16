@@ -63,6 +63,23 @@ public record AtletaDto(
     DateTime DataAtualizacao
 );
 
+public record AtletaPublicoDto(
+    Guid Id,
+    string Nome,
+    string? Apelido,
+    string? Instagram,
+    bool CadastroPendente,
+    string? Bairro,
+    string? Cidade,
+    string? Estado,
+    NivelAtleta? Nivel,
+    LadoAtleta Lado,
+    Guid? UsuarioCriadorId,
+    string? NomeUsuarioCriador,
+    DateTime DataCriacao,
+    DateTime DataAtualizacao
+);
+
 public record AtletaPendenciaDto(
     Guid AtletaId,
     string NomeAtleta,

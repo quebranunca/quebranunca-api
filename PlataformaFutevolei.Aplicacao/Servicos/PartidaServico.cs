@@ -51,14 +51,14 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
-        await ObterGrupoComAcessoParaConsultaAsync(grupoId, cancellationToken);
+        await ObterGrupoParaConsultaPublicaAsync(grupoId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
         return partidas.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
-        await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        await ObterCategoriaParaConsultaPublicaAsync(categoriaId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
         return partidas.Select(x => x.ParaDto()).ToList();
     }
@@ -84,21 +84,21 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        await ObterGrupoComAcessoParaConsultaAsync(competicaoId, cancellationToken);
+        await ObterGrupoParaConsultaPublicaAsync(competicaoId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorGrupoAsync(competicaoId, cancellationToken);
         return MontarEstruturaRodadasPadrao(partidas);
     }
 
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
-        var categoria = await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        var categoria = await ObterCategoriaParaConsultaPublicaAsync(categoriaId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
         return MontarEstruturaRodadasCategoria(categoria, partidas);
     }
 
     public async Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
-        var categoria = await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        var categoria = await ObterCategoriaParaConsultaPublicaAsync(categoriaId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
 
         return new ChaveamentoCategoriaDto(
@@ -110,7 +110,7 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
-        var categoria = await ObterCategoriaComAcessoParaConsultaAsync(categoriaId, cancellationToken);
+        var categoria = await ObterCategoriaParaConsultaPublicaAsync(categoriaId, cancellationToken);
         if (!EhCategoriaComChaveDuplaEliminacao(categoria))
         {
             throw new RegraNegocioException("A situação das duplas está disponível apenas para categorias com chave de dupla eliminação.");
@@ -127,35 +127,10 @@ public class PartidaServico(
 
     public async Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (partida is null)
         {
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
-        }
-
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            if (!partida.GrupoId.HasValue)
-            {
-                throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
-            }
-
-            await GarantirAcessoAtletaAoGrupoAsync(
-                usuario,
-                partida.GrupoId.Value,
-                cancellationToken);
-        }
-        else
-        {
-            if (partida.GrupoId.HasValue)
-            {
-                await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
-            }
-            else if (partida.CategoriaCompeticao is not null)
-            {
-                await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(partida.CategoriaCompeticao.CompeticaoId, cancellationToken);
-            }
         }
 
         return partida.ParaDto();
@@ -328,22 +303,14 @@ public class PartidaServico(
         return string.Join(' ', builder.ToString().Normalize(NormalizationForm.FormC).Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
-    private async Task<Grupo> ObterGrupoComAcessoParaConsultaAsync(Guid grupoId, CancellationToken cancellationToken)
+    private async Task<Grupo> ObterGrupoParaConsultaPublicaAsync(Guid grupoId, CancellationToken cancellationToken)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId, cancellationToken);
         if (grupo is null)
         {
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            await GarantirAcessoAtletaAoGrupoAsync(usuario, grupo.Id, cancellationToken);
-            return grupo;
-        }
-
-        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupo.Id, cancellationToken);
         return grupo;
     }
 
@@ -438,27 +405,12 @@ public class PartidaServico(
         return venceu ? "Vitoria" : "Derrota";
     }
 
-    private async Task<CategoriaCompeticao> ObterCategoriaComAcessoParaConsultaAsync(Guid categoriaId, CancellationToken cancellationToken)
+    private async Task<CategoriaCompeticao> ObterCategoriaParaConsultaPublicaAsync(Guid categoriaId, CancellationToken cancellationToken)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var categoria = await categoriaRepositorio.ObterPorIdAsync(categoriaId, cancellationToken);
         if (categoria is null)
         {
             throw new EntidadeNaoEncontradaException("Categoria não encontrada.");
-        }
-
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            if (categoria.Competicao.Tipo != TipoCompeticao.Grupo)
-            {
-                throw new RegraNegocioException("Atletas só podem visualizar partidas de grupos.");
-            }
-
-            await GarantirAcessoAtletaAoGrupoAsync(usuario, categoria.CompeticaoId, cancellationToken);
-        }
-        else
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoCompeticaoAsync(categoria.CompeticaoId, cancellationToken);
         }
 
         return categoria;
@@ -702,15 +654,7 @@ public class PartidaServico(
         var podeEditarComoCriador = partida.CriadoPorUsuarioId == usuarioAtual.Id;
         var podeEditarComoAdministrador = usuarioAtual.Perfil == PerfilUsuario.Administrador;
 
-        if (!podeEditarComoCriador && !podeEditarComoAdministrador && partida.GrupoId.HasValue)
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
-        }
-        else if (!podeEditarComoCriador && !podeEditarComoAdministrador && partida.CategoriaCompeticao is not null)
-        {
-            await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
-        }
-        else if (!podeEditarComoCriador && !podeEditarComoAdministrador && !partida.GrupoId.HasValue && partida.CategoriaCompeticao is null)
+        if (!podeEditarComoCriador && !podeEditarComoAdministrador)
         {
             throw new AcessoNegadoException("Você só pode editar partidas registradas por você.");
         }
@@ -816,15 +760,7 @@ public class PartidaServico(
         var podeRemoverComoCriador = partida.CriadoPorUsuarioId == usuarioAtual.Id;
         var podeRemoverComoAdministrador = usuarioAtual.Perfil == PerfilUsuario.Administrador;
 
-        if (!podeRemoverComoCriador && !podeRemoverComoAdministrador && partida.GrupoId.HasValue)
-        {
-            await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(partida.GrupoId.Value, cancellationToken);
-        }
-        else if (!podeRemoverComoCriador && !podeRemoverComoAdministrador && partida.CategoriaCompeticao is not null)
-        {
-            await GarantirEdicaoPartidasAsync(partida.CategoriaCompeticao.Competicao, cancellationToken);
-        }
-        else if (!podeRemoverComoCriador && !podeRemoverComoAdministrador && !partida.GrupoId.HasValue && partida.CategoriaCompeticao is null)
+        if (!podeRemoverComoCriador && !podeRemoverComoAdministrador)
         {
             throw new AcessoNegadoException("Você só pode excluir partidas registradas por você.");
         }
