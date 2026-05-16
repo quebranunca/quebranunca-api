@@ -135,6 +135,7 @@ Persistencia/
   20260507120000_AdicionarExclusaoAnonimizacaoUsuario.cs
   20260511150000_AdicionarUsuarioCriadorAtleta.cs
   20260512225200_AdicionarConfiguracaoInscricaoCategoriaCampeonato.cs
+  20260515120000_AdicionarLocalizacaoPartida.cs
   PlataformaFutevoleiDbContextModelSnapshot.cs
  PlataformaFutevoleiDbContext.cs
  PlataformaFutevoleiDbContextFactory.cs

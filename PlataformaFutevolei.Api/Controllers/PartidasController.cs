@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
-using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -55,6 +54,14 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return Ok(partidas);
     }
 
+    [HttpGet("registradas-por-mim")]
+    [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarRegistradasPorMim(CancellationToken cancellationToken)
+    {
+        var partidas = await partidaServico.ListarRegistradasPorMimAsync(cancellationToken);
+        return Ok(partidas);
+    }
+
     [HttpGet("estrutura")]
     [ProducesResponseType(typeof(IReadOnlyList<RodadaEstruturaCompeticaoDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarEstrutura(
@@ -100,6 +107,16 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return Ok(partida);
     }
 
+    [HttpPost("verificar-duplicidade")]
+    [ProducesResponseType(typeof(VerificarDuplicidadePartidaResultadoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> VerificarDuplicidade(
+        [FromBody] VerificarDuplicidadePartidaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resultado = await partidaServico.VerificarDuplicidadeAsync(dto, cancellationToken);
+        return Ok(resultado);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarPartidaDto dto, CancellationToken cancellationToken)
@@ -117,7 +134,6 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {

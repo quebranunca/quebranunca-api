@@ -824,6 +824,18 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("integer")
                         .HasColumnName("lado_da_chave");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<DateTime?>("LocalizacaoRegistradaEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("localizacao_registrada_em_utc");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
                     b.Property<string>("Observacoes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -856,6 +868,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<int?>("PosicaoNaChave")
                         .HasColumnType("integer")
                         .HasColumnName("posicao_na_chave");
+
+                    b.Property<double?>("PrecisaoLocalizacao")
+                        .HasColumnType("double precision")
+                        .HasColumnName("precisao_localizacao");
 
                     b.Property<Guid?>("ProximaPartidaPerdedorId")
                         .HasColumnType("uuid")

@@ -60,6 +60,7 @@ DTOs/
  CategoriaCompeticaoDtos.cs
  CompeticaoDtos.cs
  ConviteCadastroDtos.cs
+ DashboardDtos.cs
  DuplaDtos.cs
  FormatoCampeonatoDtos.cs
  GrupoAtletaDtos.cs
@@ -101,6 +102,7 @@ Servicos/
  CategoriaCompeticaoServico.cs
  CompeticaoServico.cs
  ConviteCadastroServico.cs
+ DashboardAtletaServico.cs
  DuplaServico.cs
  FormatoCampeonatoServico.cs
  GrupoAtletaServico.cs

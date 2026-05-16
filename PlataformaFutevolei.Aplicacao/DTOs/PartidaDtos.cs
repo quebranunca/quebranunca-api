@@ -22,7 +22,15 @@ public record CriarPartidaDto(
     int? PlacarDuplaA,
     int? PlacarDuplaB,
     DateTime? DataPartida,
-    string? Observacoes
+    string? Observacoes,
+    bool PermitirDuplicidade = false,
+    LocalizacaoPartidaDto? Localizacao = null
+);
+
+public record LocalizacaoPartidaDto(
+    double? Latitude,
+    double? Longitude,
+    double? Precisao
 );
 
 public record AtualizarPartidaDto(
@@ -46,6 +54,24 @@ public record AtualizarPartidaDto(
     int? PlacarDuplaB,
     DateTime? DataPartida,
     string? Observacoes
+);
+
+public record VerificarDuplicidadePartidaDuplaDto(
+    string? AtletaDireita,
+    string? AtletaEsquerda,
+    int? Pontos
+);
+
+public record VerificarDuplicidadePartidaDto(
+    VerificarDuplicidadePartidaDuplaDto? Dupla1,
+    VerificarDuplicidadePartidaDuplaDto? Dupla2,
+    DateTime? Data
+);
+
+public record VerificarDuplicidadePartidaResultadoDto(
+    bool ExisteDuplicidade,
+    Guid? PartidaId,
+    string Mensagem
 );
 
 public record GerarTabelaCategoriaDto(

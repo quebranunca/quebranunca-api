@@ -67,6 +67,30 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarPorUsuarioCriadorAsync(
+        Guid usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas()
+            .Where(x => x.CriadoPorUsuarioId == usuarioId)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Partida>> ListarPorDiaAsync(
+        DateTime inicioUtc,
+        DateTime fimUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas()
+            .Where(x => (x.DataPartida ?? x.DataCriacao) >= inicioUtc)
+            .Where(x => (x.DataPartida ?? x.DataCriacao) < fimUtc)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarPorAtletaParaRemocaoAsync(
         Guid atletaId,
         CancellationToken cancellationToken = default)

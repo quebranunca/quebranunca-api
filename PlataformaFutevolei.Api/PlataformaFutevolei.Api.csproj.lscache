@@ -63,6 +63,7 @@ Controllers/
  CategoriasController.cs
  CompeticoesController.cs
  ConvitesCadastroController.cs
+ DashboardController.cs
  DuplasController.cs
  FormatosCampeonatoController.cs
  GruposAtletasController.cs

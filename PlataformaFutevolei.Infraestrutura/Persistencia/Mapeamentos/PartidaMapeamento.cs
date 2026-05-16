@@ -57,6 +57,10 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.PlacarDuplaB).HasColumnName("placar_dupla_b").IsRequired();
         builder.Property(x => x.DuplaVencedoraId).HasColumnName("dupla_vencedora_id");
         builder.Property(x => x.DataPartida).HasColumnName("data_partida");
+        builder.Property(x => x.Latitude).HasColumnName("latitude");
+        builder.Property(x => x.Longitude).HasColumnName("longitude");
+        builder.Property(x => x.PrecisaoLocalizacao).HasColumnName("precisao_localizacao");
+        builder.Property(x => x.LocalizacaoRegistradaEmUtc).HasColumnName("localizacao_registrada_em_utc");
         builder.Property(x => x.Observacoes).HasColumnName("observacoes").HasMaxLength(1000);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();

@@ -26,6 +26,11 @@ public interface IAtletaServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IDashboardAtletaServico
+{
+    Task<DashboardAtletaDto> ObterDashboardAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IConviteCadastroServico
 {
     Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default);
@@ -134,12 +139,16 @@ public interface IPartidaServico
     Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaDto>> ListarRegistradasPorMimAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<VerificarDuplicidadePartidaResultadoDto> VerificarDuplicidadeAsync(
+        VerificarDuplicidadePartidaDto dto,
+        CancellationToken cancellationToken = default);
     Task<GeracaoTabelaCategoriaDto> GerarTabelaCategoriaAsync(
         Guid categoriaId,
         GerarTabelaCategoriaDto dto,

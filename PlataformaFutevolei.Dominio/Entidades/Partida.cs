@@ -35,6 +35,10 @@ public class Partida : EntidadeBase
     public int PlacarDuplaB { get; set; }
     public Guid? DuplaVencedoraId { get; set; }
     public DateTime? DataPartida { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? PrecisaoLocalizacao { get; set; }
+    public DateTime? LocalizacaoRegistradaEmUtc { get; set; }
     public string? Observacoes { get; set; }
 
     public CategoriaCompeticao? CategoriaCompeticao { get; set; }
