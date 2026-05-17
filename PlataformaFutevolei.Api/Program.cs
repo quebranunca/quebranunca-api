@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Api.Inicializacao;
 using PlataformaFutevolei.Api.Middlewares;
@@ -50,7 +50,7 @@ if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
@@ -152,9 +152,9 @@ builder.Services.AddSwaggerGen(options =>
     };
 
     options.AddSecurityDefinition("Bearer", esquemaJwt);
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
-        { esquemaJwt, Array.Empty<string>() }
+        { new OpenApiSecuritySchemeReference("Bearer", document, null), new List<string>() }
     });
 });
 
