@@ -1268,6 +1268,20 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.Property<DateTime?>("ExcluidoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("excluido_em_utc");
+
+                    b.Property<Guid?>("ExcluidoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("excluido_por_usuario_id");
+
+                    b.Property<bool>("DadosAnonimizados")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("dados_anonimizados");
+                        
                     b.HasIndex("ExcluidoPorUsuarioId");
 
                     b.ToTable("usuarios", (string)null);
