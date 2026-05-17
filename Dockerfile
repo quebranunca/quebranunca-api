@@ -10,10 +10,18 @@ RUN dotnet restore "PlataformaFutevolei.Api/PlataformaFutevolei.Api.csproj"
 
 COPY . .
 WORKDIR /src/PlataformaFutevolei.Api
-RUN dotnet publish "PlataformaFutevolei.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+RUN dotnet publish "PlataformaFutevolei.Api.csproj" \
+    -c Release \
+    -o /app/publish \
+    /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libkrb5-3 \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080
 
