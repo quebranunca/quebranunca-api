@@ -138,12 +138,6 @@ public class PartidaServico(
 
     public async Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (!usuario.AtletaId.HasValue)
-        {
-            throw new RegraNegocioException("Seu usuário não possui atleta vinculado para compartilhar a partida.");
-        }
-
         var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (partida is null)
         {
@@ -155,18 +149,17 @@ public class PartidaServico(
             throw new RegraNegocioException("A partida não possui as duas duplas definidas para compartilhamento.");
         }
 
-        var atletaLogadoId = usuario.AtletaId.Value;
-        var atletaNaDuplaA = DuplaContemAtleta(partida.DuplaA, atletaLogadoId);
-        var atletaNaDuplaB = DuplaContemAtleta(partida.DuplaB, atletaLogadoId);
-        if (!atletaNaDuplaA && !atletaNaDuplaB)
-        {
-            throw new RegraNegocioException("Você só pode compartilhar partidas em que participou.");
-        }
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        var atletaLogadoId = usuario?.AtletaId;
+        var atletaNaDuplaA = atletaLogadoId.HasValue && DuplaContemAtleta(partida.DuplaA, atletaLogadoId.Value);
+        var atletaNaDuplaB = atletaLogadoId.HasValue && DuplaContemAtleta(partida.DuplaB, atletaLogadoId.Value);
 
-        var rankingGrupo = await TentarMontarRankingCompartilhamentoAsync(
-            partida.GrupoId,
-            atletaLogadoId,
-            cancellationToken);
+        var rankingGrupo = atletaLogadoId.HasValue && (atletaNaDuplaA || atletaNaDuplaB)
+            ? await TentarMontarRankingCompartilhamentoAsync(
+                partida.GrupoId,
+                atletaLogadoId.Value,
+                cancellationToken)
+            : null;
 
         return new PartidaCompartilhamentoDto(
             partida.Id,
@@ -395,6 +388,11 @@ public class PartidaServico(
     private static string ObterResultadoAtletaLogado(Partida partida, bool atletaNaDuplaA, bool atletaNaDuplaB)
     {
         if (partida.DuplaVencedoraId is null)
+        {
+            return "Indefinido";
+        }
+
+        if (!atletaNaDuplaA && !atletaNaDuplaB)
         {
             return "Indefinido";
         }

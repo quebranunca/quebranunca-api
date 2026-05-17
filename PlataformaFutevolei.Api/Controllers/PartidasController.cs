@@ -103,6 +103,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpGet("{id:guid}/compartilhamento")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PartidaCompartilhamentoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterCompartilhamento(Guid id, CancellationToken cancellationToken)
     {
