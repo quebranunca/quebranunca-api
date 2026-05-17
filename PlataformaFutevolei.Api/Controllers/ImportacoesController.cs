@@ -16,10 +16,10 @@ public class ImportacoesController(IImportacaoServico importacaoServico) : Contr
     [ProducesResponseType(typeof(ImportacaoResultadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Importar(
         string tipo,
-        [FromForm] IFormFile? arquivo,
-        [FromForm] Guid? campeonatoId,
+        [FromForm] ImportacaoArquivoRequest request,
         CancellationToken cancellationToken)
     {
+        var arquivo = request.Arquivo;
         if (arquivo is null || arquivo.Length == 0)
         {
             throw new RegraNegocioException("Selecione um arquivo para importar.");
@@ -30,8 +30,17 @@ public class ImportacoesController(IImportacaoServico importacaoServico) : Contr
             tipo,
             stream,
             arquivo.FileName,
-            campeonatoId,
+            request.CampeonatoId,
             cancellationToken);
         return Ok(resultado);
+    }
+
+    public sealed class ImportacaoArquivoRequest
+    {
+        [FromForm(Name = "arquivo")]
+        public IFormFile? Arquivo { get; init; }
+
+        [FromForm(Name = "campeonatoId")]
+        public Guid? CampeonatoId { get; init; }
     }
 }

@@ -227,8 +227,12 @@ app.UseMiddleware<MiddlewareTratamentoErros>();
 
 if (habilitarSwagger)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.RoutePrefix = "swagger";
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Plataforma QuebraNunca Futevôlei API v1");
+    });
 }
 
 if (habilitarHttpsRedirection)
