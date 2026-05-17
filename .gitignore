@@ -47,7 +47,7 @@ coverage/
 .env
 .env.*
 secrets.json
-
+appsettings.Production.json
 appsettings.Development.json
 appsettings.Local.json
 appsettings.Staging.Local.json

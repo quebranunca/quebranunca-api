@@ -153,8 +153,13 @@ public class DashboardAtletaServico(
 
         return new DashboardAtletaPartidaDto(
             partida.Id,
-            AtletaVenceu(atletaId, partida) ? "W" : "L",
+            AtletaVenceu(atletaId, partida) ? "Vitória" : "Derrota",
             partida.DataPartida,
+            partida.Grupo?.Nome,
+            partida.CategoriaCompeticao?.Nome,
+            partida.CategoriaCompeticao?.Competicao?.Nome,
+            partida.Status.ToString(),
+            (int)partida.StatusAprovacao,
             parceiro,
             adversarios,
             ObterPontosAtleta(atletaId, partida),
