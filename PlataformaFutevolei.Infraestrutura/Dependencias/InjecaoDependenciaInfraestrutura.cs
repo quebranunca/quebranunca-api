@@ -108,6 +108,7 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
         services.AddScoped<IConviteCadastroRepositorio, ConviteCadastroRepositorio>();
+        services.AddScoped<ISolicitacaoAcessoRepositorio, SolicitacaoAcessoRepositorio>();
         services.AddScoped<IAtletaRepositorio, AtletaRepositorio>();
         services.AddScoped<ILigaRepositorio, LigaRepositorio>();
         services.AddScoped<ILocalRepositorio, LocalRepositorio>();

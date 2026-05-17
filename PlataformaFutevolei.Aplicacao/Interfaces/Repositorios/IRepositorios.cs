@@ -33,6 +33,15 @@ public interface IConviteCadastroRepositorio
     void Atualizar(ConviteCadastro conviteCadastro);
 }
 
+public interface ISolicitacaoAcessoRepositorio
+{
+    Task<IReadOnlyList<SolicitacaoAcesso>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<SolicitacaoAcesso?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> ExistePendentePorEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(SolicitacaoAcesso solicitacaoAcesso, CancellationToken cancellationToken = default);
+    void Atualizar(SolicitacaoAcesso solicitacaoAcesso);
+}
+
 public interface IAtletaRepositorio
 {
     Task<IReadOnlyList<Atleta>> ListarAsync(CancellationToken cancellationToken = default);

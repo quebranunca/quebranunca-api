@@ -48,6 +48,24 @@ public record SolicitarRedefinicaoSenhaRespostaDto(
     string Mensagem
 );
 
+public record CriarSolicitacaoAcessoDto(
+    string Nome,
+    string Email
+);
+
+public record SolicitacaoAcessoRespostaDto(
+    string Mensagem
+);
+
+public record SolicitacaoAcessoAdminDto(
+    Guid Id,
+    string Nome,
+    string Email,
+    StatusSolicitacaoAcesso Status,
+    DateTime DataCriacao,
+    DateTime DataAtualizacao
+);
+
 public record ResultadoEnvioEmailCodigoLoginDto(
     bool TentativaRealizada,
     bool Enviado,

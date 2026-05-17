@@ -51,6 +51,17 @@ public interface IConviteCadastroServico
     Task DesativarAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface ISolicitacaoAcessoServico
+{
+    Task<SolicitacaoAcessoRespostaDto> CriarAsync(
+        CriarSolicitacaoAcessoDto dto,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SolicitacaoAcessoAdminDto>> ListarAdminAsync(CancellationToken cancellationToken = default);
+    Task<SolicitacaoAcessoAdminDto> AprovarAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<SolicitacaoAcessoAdminDto> RejeitarAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<SolicitacaoAcessoAdminDto> EnviarConviteAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
 public interface IDuplaServico
 {
     Task<IReadOnlyList<DuplaDto>> ListarAsync(
