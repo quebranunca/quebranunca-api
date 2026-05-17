@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
@@ -11,9 +12,11 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [DbContext(typeof(PlataformaFutevoleiDbContext))]
-    partial class PlataformaFutevoleiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260517132308_CorrigirMapeamentoExclusaoUsuario")]
+    partial class CorrigirMapeamentoExclusaoUsuario
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
