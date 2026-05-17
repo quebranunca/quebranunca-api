@@ -39,7 +39,11 @@ public record AtletaResumoDto(
     string Nome,
     string? Apelido,
     bool CadastroPendente,
-    LadoAtleta Lado
+    LadoAtleta Lado,
+    string? Cidade,
+    string? Estado,
+    int QuantidadeJogos,
+    string? AvatarUrl
 );
 
 public record AtletaDto(

@@ -52,7 +52,13 @@ public class AtletaServico(
     public async Task<IReadOnlyList<AtletaResumoDto>> BuscarAsync(string? termo, CancellationToken cancellationToken = default)
     {
         var atletas = await atletaRepositorio.BuscarAsync(termo, cancellationToken);
-        return atletas.Select(x => x.ParaResumoDto()).ToList();
+        var quantidadeJogos = await atletaRepositorio.ContarPartidasPorAtletasAsync(
+            atletas.Select(x => x.Id),
+            cancellationToken);
+
+        return atletas
+            .Select(x => x.ParaResumoDto(quantidadeJogos.TryGetValue(x.Id, out var totalJogos) ? totalJogos : 0))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<AtletaResumoDto>> BuscarSugestoesPorCompeticaoAsync(

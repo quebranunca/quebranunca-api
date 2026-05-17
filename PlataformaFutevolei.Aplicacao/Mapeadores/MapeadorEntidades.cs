@@ -79,13 +79,17 @@ internal static class MapeadorEntidades
         );
     }
 
-    public static AtletaResumoDto ParaResumoDto(this Atleta atleta)
+    public static AtletaResumoDto ParaResumoDto(this Atleta atleta, int quantidadeJogos = 0)
         => new(
             atleta.Id,
             atleta.Nome,
             atleta.Apelido,
             atleta.CadastroPendente,
-            atleta.Lado
+            atleta.Lado,
+            atleta.Cidade,
+            atleta.Estado,
+            quantidadeJogos,
+            null
         );
 
     public static AtletaDto ParaDto(this Atleta atleta)

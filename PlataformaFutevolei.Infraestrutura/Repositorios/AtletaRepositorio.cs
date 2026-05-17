@@ -106,6 +106,42 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IDictionary<Guid, int>> ContarPartidasPorAtletasAsync(
+        IEnumerable<Guid> atletaIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = atletaIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        var contagensAtleta1 = await dbContext.Duplas
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.Atleta1Id))
+            .Select(x => new
+            {
+                AtletaId = x.Atleta1Id,
+                Quantidade = x.PartidasComoDuplaA.Count + x.PartidasComoDuplaB.Count
+            })
+            .ToListAsync(cancellationToken);
+
+        var contagensAtleta2 = await dbContext.Duplas
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.Atleta2Id))
+            .Select(x => new
+            {
+                AtletaId = x.Atleta2Id,
+                Quantidade = x.PartidasComoDuplaA.Count + x.PartidasComoDuplaB.Count
+            })
+            .ToListAsync(cancellationToken);
+
+        return contagensAtleta1
+            .Concat(contagensAtleta2)
+            .GroupBy(x => x.AtletaId)
+            .ToDictionary(x => x.Key, x => x.Sum(item => item.Quantidade));
+    }
+
     public async Task<IReadOnlyList<Atleta>> BuscarSugestoesPorCompeticaoAsync(
         Guid competicaoId,
         string termo,
