@@ -174,6 +174,7 @@ public interface IPartidaServico
     Task<RemocaoTabelaCategoriaDto> RemoverTabelaCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default);
     Task<PartidaDto> AtualizarAsync(Guid id, AtualizarPartidaDto dto, CancellationToken cancellationToken = default);
+    Task<PartidaDto> AtualizarBasicaAsync(Guid id, AtualizarPartidaBasicaDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 

@@ -649,13 +649,7 @@ public class PartidaServico(
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        var podeEditarComoCriador = partida.CriadoPorUsuarioId == usuarioAtual.Id;
-        var podeEditarComoAdministrador = usuarioAtual.Perfil == PerfilUsuario.Administrador;
-
-        if (!podeEditarComoCriador && !podeEditarComoAdministrador)
-        {
-            throw new AcessoNegadoException("Você só pode editar partidas registradas por você.");
-        }
+        GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
         var categoriaOriginalId = partida.CategoriaCompeticaoId;
         var duplaOriginalAId = partida.DuplaAId;
         var duplaOriginalBId = partida.DuplaBId;
@@ -684,7 +678,7 @@ public class PartidaServico(
             dto.DuplaBAtleta2Id,
             dto.DuplaBAtleta2Nome,
             metadadosLados,
-            validarPermissaoCategoria: !podeEditarComoCriador && !podeEditarComoAdministrador,
+            validarPermissaoCategoria: !PodeEditarPartida(usuarioAtual, partida),
             cancellationToken
         );
 
@@ -746,6 +740,96 @@ public class PartidaServico(
         return partidaAtualizada!.ParaDto();
     }
 
+    public async Task<PartidaDto> AtualizarBasicaAsync(Guid id, AtualizarPartidaBasicaDto dto, CancellationToken cancellationToken = default)
+    {
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partida is null)
+        {
+            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+        }
+
+        GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+
+        var metadadosChave = ExtrairMetadadosChave(partida.Observacoes);
+        var metadadosRodada = ExtrairMetadadosRodada(partida.Observacoes);
+        var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
+        var categoriaOriginalId = partida.CategoriaCompeticaoId;
+        var duplaOriginalAId = partida.DuplaAId;
+        var duplaOriginalBId = partida.DuplaBId;
+        var faseOriginal = NormalizarFaseCampeonato(partida.FaseCampeonato);
+        var statusOriginal = partida.Status;
+        var placarOriginalA = partida.PlacarDuplaA;
+        var placarOriginalB = partida.PlacarDuplaB;
+        var vencedorOriginalId = partida.DuplaVencedoraId;
+
+        var (categoria, grupo, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
+            partida.CategoriaCompeticao?.CompeticaoId,
+            partida.GrupoId,
+            partida.Grupo?.Nome,
+            partida.CategoriaCompeticaoId,
+            null,
+            null,
+            dto.DuplaAAtleta1Id,
+            dto.DuplaAAtleta1Nome,
+            dto.DuplaAAtleta2Id,
+            dto.DuplaAAtleta2Nome,
+            dto.DuplaBAtleta1Id,
+            dto.DuplaBAtleta1Nome,
+            dto.DuplaBAtleta2Id,
+            dto.DuplaBAtleta2Nome,
+            metadadosLados,
+            validarPermissaoCategoria: false,
+            cancellationToken
+        );
+
+        if (categoria is not null)
+        {
+            await ValidarEdicaoPartidaGerenciadaPorChaveDuplaEliminacaoAsync(
+                partida,
+                categoria,
+                categoriaOriginalId!.Value,
+                duplaOriginalAId,
+                duplaOriginalBId,
+                faseOriginal,
+                statusOriginal,
+                placarOriginalA,
+                placarOriginalB,
+                vencedorOriginalId,
+                faseOriginal,
+                partida.Status,
+                dto.PlacarDuplaA,
+                dto.PlacarDuplaB,
+                duplaA,
+                duplaB,
+                metadadosChave,
+                cancellationToken);
+        }
+
+        partida.DuplaAId = duplaA.Id;
+        partida.DuplaBId = duplaB.Id;
+        AplicarStatusEResultado(partida, partida.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, partida.DataPartida ?? DateTime.UtcNow);
+        AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB);
+        ValidarPartida(partida, categoria?.Competicao, grupo);
+        partida.AtualizarDataModificacao();
+        partida.Observacoes = MontarObservacoesPartida(partida.Observacoes, metadadosChave, metadadosRodada, metadadosLadosAtualizados);
+
+        partidaRepositorio.Atualizar(partida);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        await pendenciaServico.InicializarFluxoPartidaAsync(
+            partida,
+            partida.CriadoPorUsuarioId ?? Guid.Empty,
+            cancellationToken);
+        if (categoria is not null)
+        {
+            await ProcessarAvancoChaveAsync(categoria, cancellationToken);
+            await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
+        }
+
+        var partidaAtualizada = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        return partidaAtualizada!.ParaDto();
+    }
+
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -765,6 +849,18 @@ public class PartidaServico(
 
         partidaRepositorio.Remover(partida);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    private static bool PodeEditarPartida(Usuario usuario, Partida partida)
+        => partida.CriadoPorUsuarioId == usuario.Id ||
+           usuario.Perfil == PerfilUsuario.Administrador;
+
+    private static void GarantirPermissaoEdicaoPartida(Usuario usuario, Partida partida)
+    {
+        if (!PodeEditarPartida(usuario, partida))
+        {
+            throw new AcessoNegadoException("Você só pode editar partidas registradas por você.");
+        }
     }
 
     private async Task RemoverPartidasCategoriaAsync(

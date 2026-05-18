@@ -137,6 +137,14 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return Ok(partida);
     }
 
+    [HttpPut("{id:guid}/edicao-basica")]
+    [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarBasica(Guid id, [FromBody] AtualizarPartidaBasicaDto dto, CancellationToken cancellationToken)
+    {
+        var partida = await partidaServico.AtualizarBasicaAsync(id, dto, cancellationToken);
+        return Ok(partida);
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)

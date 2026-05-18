@@ -56,6 +56,19 @@ public record AtualizarPartidaDto(
     string? Observacoes
 );
 
+public record AtualizarPartidaBasicaDto(
+    Guid? DuplaAAtleta1Id,
+    string? DuplaAAtleta1Nome,
+    Guid? DuplaAAtleta2Id,
+    string? DuplaAAtleta2Nome,
+    Guid? DuplaBAtleta1Id,
+    string? DuplaBAtleta1Nome,
+    Guid? DuplaBAtleta2Id,
+    string? DuplaBAtleta2Nome,
+    int? PlacarDuplaA,
+    int? PlacarDuplaB
+);
+
 public record VerificarDuplicidadePartidaDuplaDto(
     string? AtletaDireita,
     string? AtletaEsquerda,
