@@ -26,12 +26,12 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
 
             logger.LogError(
                 ex,
-                "Erro na requisição. Metodo: {Metodo}. Caminho: {Caminho}. StatusCode: {StatusCode}. CorrelationId: {CorrelationId}. Usuario: {Usuario}.",
+                "Erro na requisição. Metodo: {Metodo}. Caminho: {Caminho}. StatusCode: {StatusCode}. CorrelationId: {CorrelationId}. UsuarioId: {UsuarioId}.",
                 context.Request.Method,
                 context.Request.Path,
                 (int)statusCode,
                 correlationId,
-                context.User?.Identity?.Name ?? "anonimo");
+                context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonimo");
 
             context.Response.StatusCode = (int)statusCode;
             context.Response.ContentType = "application/json";

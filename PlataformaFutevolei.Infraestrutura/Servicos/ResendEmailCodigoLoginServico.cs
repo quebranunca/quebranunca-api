@@ -48,10 +48,8 @@ public class ResendEmailCodigoLoginServico(
         if (configuracao.DeveSobrescrever(usuario.Email))
         {
             logger.LogInformation(
-                "Sobrescrita de destinatário aplicada no código de login do usuário {UsuarioId}. E-mail de login: {EmailLogin}. Destino efetivo: {EmailDestino}.",
-                usuario.Id,
-                usuario.Email,
-                emailDestino);
+                "Sobrescrita de destinatário aplicada no código de login do usuário {UsuarioId}.",
+                usuario.Id);
         }
 
         try

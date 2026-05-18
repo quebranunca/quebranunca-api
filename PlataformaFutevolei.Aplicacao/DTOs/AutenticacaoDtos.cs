@@ -7,7 +7,13 @@ public record RegistrarUsuarioRequisicaoDto(
     string? CodigoConvite,
     string Nome,
     string Email,
-    string? Senha
+    string? Senha,
+    bool AceitouPoliticaPrivacidade = false,
+    bool AceitouTermosUso = false,
+    bool AceitouUsoLocalizacao = false,
+    bool AceitouUsoImagem = false,
+    string? IpAddress = null,
+    string? UserAgent = null
 );
 
 public record LoginRequisicaoDto(
@@ -81,7 +87,13 @@ public record UsuarioLogadoDto(
     PerfilUsuario Perfil,
     bool Ativo,
     Guid? AtletaId,
-    AtletaResumoDto? Atleta
+    AtletaResumoDto? Atleta,
+    bool PerfilPublico,
+    bool ExibirEmail,
+    bool PermitirUsoLocalizacao,
+    bool PermitirUsoImagem,
+    bool PoliticaPrivacidadePendente,
+    bool ExclusaoSolicitada
 );
 
 public record UsuarioDto(

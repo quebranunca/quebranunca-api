@@ -584,7 +584,10 @@ public class PartidaServico(
         {
             ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
         }
-        AplicarLocalizacaoRegistro(partida, dto.Localizacao);
+        if (usuarioAtual.PermitirUsoLocalizacao)
+        {
+            AplicarLocalizacaoRegistro(partida, dto.Localizacao);
+        }
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dataAtualPadraoUtc: DateTime.UtcNow);
         AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB, usuarioAtual);
         ValidarPartida(partida, categoria?.Competicao, grupo);

@@ -20,7 +20,8 @@ public class AutenticacaoServico(
     IUsuarioContexto usuarioContexto,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IPendenciaServico pendenciaServico,
-    IEnvioEmailCodigoLoginServico envioEmailCodigoLoginServico
+    IEnvioEmailCodigoLoginServico envioEmailCodigoLoginServico,
+    IPrivacidadeServico privacidadeServico
 ) : IAutenticacaoServico
 {
     private static readonly TimeSpan ValidadeCodigoLogin = TimeSpan.FromMinutes(15);
@@ -42,6 +43,7 @@ public class AutenticacaoServico(
         }
 
         ValidarConviteParaRegistro(conviteCadastro, emailNormalizado);
+        ValidarAceiteLgpd(dto);
 
         var usuario = new Usuario
         {
@@ -56,6 +58,14 @@ public class AutenticacaoServico(
         conviteCadastro.MarcarComoUtilizado(DateTime.UtcNow);
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
+        await privacidadeServico.RegistrarConsentimentoUsuarioAsync(usuario, new RegistrarConsentimentoLgpdDto(
+            dto.AceitouPoliticaPrivacidade,
+            dto.AceitouTermosUso,
+            dto.AceitouUsoLocalizacao,
+            dto.AceitouUsoImagem,
+            PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+            dto.IpAddress,
+            dto.UserAgent), cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         if (usuario.AtletaId.HasValue)
         {
@@ -298,6 +308,14 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("E-mail é obrigatório.");
         }
 
+    }
+
+    private static void ValidarAceiteLgpd(RegistrarUsuarioRequisicaoDto dto)
+    {
+        if (!dto.AceitouPoliticaPrivacidade || !dto.AceitouTermosUso)
+        {
+            throw new RegraNegocioException("É necessário aceitar a Política de Privacidade e os Termos de Uso para continuar.");
+        }
     }
 
     private static string GerarSenhaInicialInterna()

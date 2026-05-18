@@ -14,6 +14,10 @@
 - Templates de e-mail devem reutilizar o branding QNF e os assets públicos de `public/branding`, mantendo consistência visual com app e artes de compartilhamento
 - Conteúdo HTML de e-mail deve priorizar layout simples, responsivo e compatível com clientes de e-mail, com estilos inline e versão em texto equivalente
 - Templates de e-mail devem usar estrutura compatível com clientes mobile/desktop, com `body` e container externo com fundo explícito e estilos principais inline
+- Dados pessoais devem ser coletados e expostos apenas quando necessários ao fluxo; e-mail público, localização e imagem/foto precisam respeitar consentimentos e preferências de privacidade
+- Política de Privacidade e Termos de Uso são consentimentos obrigatórios; localização e imagem/foto são consentimentos separados e não devem bloquear uso básico quando recusados
+- Solicitação de exclusão deve preferir desativação/anonimização, preservando partidas, rankings, métricas e histórico compartilhado quando necessário
+- Logs devem sanitizar payloads e nunca registrar senha, token, refresh token, authorization, códigos operacionais ou dados pessoais sensíveis
 - Para `Staging` e `Production`, não confiar em fallback local para connection string, JWT, `Frontend:Url` ou URLs de convite
 - Não deixar segredos reais em `appsettings.*`, exemplos locais, chats ou arquivos de publish
 - O primeiro usuário `Administrador` é bootstrap operacional fora do fluxo normal: não criar endpoint público, seed automático em startup ou bypass no `Program.cs`

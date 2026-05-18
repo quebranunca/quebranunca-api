@@ -73,6 +73,29 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(x => x.PerfilPublico)
+            .HasColumnName("perfil_publico")
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(x => x.ExibirEmail)
+            .HasColumnName("exibir_email")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.PermitirUsoLocalizacao)
+            .HasColumnName("permitir_uso_localizacao")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.PermitirUsoImagem)
+            .HasColumnName("permitir_uso_imagem")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.ExclusaoSolicitadaEmUtc)
+            .HasColumnName("exclusao_solicitada_em_utc");
+
         builder.Property(x => x.DataCriacao)
             .HasColumnName("data_criacao")
             .IsRequired();

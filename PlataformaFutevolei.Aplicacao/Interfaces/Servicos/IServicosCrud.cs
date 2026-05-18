@@ -62,6 +62,24 @@ public interface ISolicitacaoAcessoServico
     Task<SolicitacaoAcessoAdminDto> EnviarConviteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IPrivacidadeServico
+{
+    Task<PoliticaPrivacidadeAtualDto> ObterPoliticaAtualAsync(CancellationToken cancellationToken = default);
+    Task<PreferenciasPrivacidadeDto> ObterMinhasPreferenciasAsync(CancellationToken cancellationToken = default);
+    Task<PreferenciasPrivacidadeDto> AtualizarMinhasPreferenciasAsync(
+        AtualizarPreferenciasPrivacidadeDto dto,
+        CancellationToken cancellationToken = default);
+    Task<PreferenciasPrivacidadeDto> RegistrarConsentimentoAsync(
+        RegistrarConsentimentoLgpdDto dto,
+        CancellationToken cancellationToken = default);
+    Task SolicitarExclusaoContaAsync(CancellationToken cancellationToken = default);
+    Task RegistrarConsentimentoUsuarioAsync(
+        Usuario usuario,
+        RegistrarConsentimentoLgpdDto dto,
+        CancellationToken cancellationToken = default);
+    Task<bool> UsuarioPrecisaAceitarPoliticaAsync(Guid usuarioId, CancellationToken cancellationToken = default);
+}
+
 public interface IDuplaServico
 {
     Task<IReadOnlyList<DuplaDto>> ListarAsync(

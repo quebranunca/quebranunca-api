@@ -378,6 +378,11 @@ public class UsuarioServico(
         usuario.RefreshTokenExpiraEmUtc = null;
         usuario.Ativo = false;
         usuario.DadosAnonimizados = true;
+        usuario.PerfilPublico = false;
+        usuario.ExibirEmail = false;
+        usuario.PermitirUsoLocalizacao = false;
+        usuario.PermitirUsoImagem = false;
+        usuario.ExclusaoSolicitadaEmUtc ??= agora;
         usuario.ExcluidoEm = agora;
         usuario.ExcluidoPorUsuarioId = usuarioExecutorId;
         usuario.AtletaId = null;

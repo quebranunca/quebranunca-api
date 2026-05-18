@@ -18,7 +18,13 @@ internal static class MapeadorEntidades
             usuario.Perfil,
             usuario.Ativo,
             usuario.AtletaId,
-            usuario.Atleta?.ParaResumoDto()
+            usuario.Atleta?.ParaResumoDto(),
+            usuario.PerfilPublico,
+            usuario.ExibirEmail,
+            usuario.PermitirUsoLocalizacao,
+            usuario.PermitirUsoImagem,
+            PoliticaPrivacidadePendente: false,
+            usuario.ExclusaoSolicitadaEmUtc.HasValue
         );
 
     public static UsuarioDto ParaAdminDto(this Usuario usuario)
@@ -115,22 +121,26 @@ internal static class MapeadorEntidades
         );
 
     public static AtletaPublicoDto ParaPublicoDto(this Atleta atleta)
-        => new(
+    {
+        var perfilPrivado = atleta.Usuario?.PerfilPublico == false;
+
+        return new(
             atleta.Id,
             atleta.Nome,
             atleta.Apelido,
-            atleta.Instagram,
+            perfilPrivado ? null : atleta.Instagram,
             atleta.CadastroPendente,
-            atleta.Bairro,
-            atleta.Cidade,
-            atleta.Estado,
-            atleta.Nivel,
+            perfilPrivado ? null : atleta.Bairro,
+            perfilPrivado ? null : atleta.Cidade,
+            perfilPrivado ? null : atleta.Estado,
+            perfilPrivado ? null : atleta.Nivel,
             atleta.Lado,
-            atleta.UsuarioCriadorId,
-            atleta.UsuarioCriador?.Nome,
+            perfilPrivado ? null : atleta.UsuarioCriadorId,
+            perfilPrivado ? null : atleta.UsuarioCriador?.Nome,
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
+    }
 
     public static DuplaDto ParaDto(this Dupla dupla)
         => new(

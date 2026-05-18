@@ -13,6 +13,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
     {
         return await dbContext.Atletas
             .AsNoTracking()
+            .Include(x => x.Usuario)
             .Include(x => x.UsuarioCriador)
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
@@ -181,6 +182,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
     public Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Atletas
+            .Include(x => x.Usuario)
             .Include(x => x.UsuarioCriador)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }

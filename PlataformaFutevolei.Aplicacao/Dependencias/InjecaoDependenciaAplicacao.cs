@@ -13,6 +13,7 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<IAutenticacaoServico, AutenticacaoServico>();
         services.AddScoped<IConviteCadastroServico, ConviteCadastroServico>();
         services.AddScoped<ISolicitacaoAcessoServico, SolicitacaoAcessoServico>();
+        services.AddScoped<IPrivacidadeServico, PrivacidadeServico>();
         services.AddScoped<IUsuarioServico, UsuarioServico>();
         services.AddScoped<IAtletaServico, AtletaServico>();
         services.AddScoped<IDashboardAtletaServico, DashboardAtletaServico>();

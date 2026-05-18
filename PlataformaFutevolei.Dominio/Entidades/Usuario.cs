@@ -19,7 +19,13 @@ public class Usuario : EntidadeBase
     public DateTime? ExcluidoEm { get; set; }
     public Guid? ExcluidoPorUsuarioId { get; set; }
     public bool DadosAnonimizados { get; set; }
+    public bool PerfilPublico { get; set; } = true;
+    public bool ExibirEmail { get; set; }
+    public bool PermitirUsoLocalizacao { get; set; }
+    public bool PermitirUsoImagem { get; set; }
+    public DateTime? ExclusaoSolicitadaEmUtc { get; set; }
 
     public Atleta? Atleta { get; set; }
     public Usuario? ExcluidoPorUsuario { get; set; }
+    public ICollection<UsuarioConsentimentoLgpd> ConsentimentosLgpd { get; set; } = new List<UsuarioConsentimentoLgpd>();
 }

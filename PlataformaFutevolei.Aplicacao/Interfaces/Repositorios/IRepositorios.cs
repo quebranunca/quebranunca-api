@@ -18,6 +18,14 @@ public interface IUsuarioRepositorio
     void Atualizar(Usuario usuario);
 }
 
+public interface IUsuarioConsentimentoLgpdRepositorio
+{
+    Task<UsuarioConsentimentoLgpd?> ObterUltimoPorUsuarioAsync(
+        Guid usuarioId,
+        CancellationToken cancellationToken = default);
+    Task AdicionarAsync(UsuarioConsentimentoLgpd consentimento, CancellationToken cancellationToken = default);
+}
+
 public interface IConviteCadastroRepositorio
 {
     Task<IReadOnlyList<ConviteCadastro>> ListarAsync(CancellationToken cancellationToken = default);

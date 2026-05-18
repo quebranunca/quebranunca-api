@@ -189,10 +189,10 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
         diagnosticContext.Set("Host", httpContext.Request.Host.Value);
         diagnosticContext.Set("Scheme", httpContext.Request.Scheme);
-        diagnosticContext.Set("QueryString", httpContext.Request.QueryString.Value);
+        diagnosticContext.Set("QueryString", SanitizarQueryString(httpContext.Request.QueryString));
         diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
         diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString());
-        diagnosticContext.Set("UserName", httpContext.User?.Identity?.Name);
+        diagnosticContext.Set("UsuarioId", httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier));
     };
 });
 
@@ -303,3 +303,8 @@ if (habilitarDbTestEndpoint)
 app.MapControllers();
 
 app.Run();
+
+static string? SanitizarQueryString(QueryString queryString)
+{
+    return queryString.HasValue ? "[omitida]" : null;
+}

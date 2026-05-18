@@ -15,7 +15,12 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RegistrarPorConvite([FromBody] RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken)
     {
-        var resposta = await autenticacaoServico.RegistrarAsync(dto, cancellationToken);
+        var dtoComAuditoria = dto with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        };
+        var resposta = await autenticacaoServico.RegistrarAsync(dtoComAuditoria, cancellationToken);
         return Ok(resposta);
     }
 
