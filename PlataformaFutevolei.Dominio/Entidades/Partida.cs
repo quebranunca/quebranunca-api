@@ -39,6 +39,9 @@ public class Partida : EntidadeBase
     public double? Longitude { get; set; }
     public double? PrecisaoLocalizacao { get; set; }
     public DateTime? LocalizacaoRegistradaEmUtc { get; set; }
+    public string? MidiaUrl { get; set; }
+    public string? MidiaPublicId { get; set; }
+    public MidiaPartidaTipo? MidiaTipo { get; set; }
     public string? Observacoes { get; set; }
 
     public CategoriaCompeticao? CategoriaCompeticao { get; set; }
@@ -100,5 +103,21 @@ public class Partida : EntidadeBase
 
         var peso = GrupoId.HasValue ? 1m : pesoRanking ?? CategoriaCompeticao?.PesoRanking ?? 1m;
         return PontosBonusAprovacaoVitoriaRanking * peso;
+    }
+
+    public void AtualizarMidia(string url, string publicId, MidiaPartidaTipo tipo)
+    {
+        MidiaUrl = url;
+        MidiaPublicId = publicId;
+        MidiaTipo = tipo;
+        AtualizarDataModificacao();
+    }
+
+    public void RemoverMidia()
+    {
+        MidiaUrl = null;
+        MidiaPublicId = null;
+        MidiaTipo = null;
+        AtualizarDataModificacao();
     }
 }

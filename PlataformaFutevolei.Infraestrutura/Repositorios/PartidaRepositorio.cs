@@ -78,6 +78,20 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarFeedAsync(
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas()
+            .Where(x => x.Status != StatusPartida.Agendada || x.DuplaAId.HasValue || x.DuplaBId.HasValue)
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarPorDiaAsync(
         DateTime inicioUtc,
         DateTime fimUtc,
@@ -475,6 +489,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.CategoriaCompeticao)
                 .ThenInclude(x => x.Competicao)
             .Include(x => x.Grupo)
+            .Include(x => x.CriadoPorUsuario)
             .Include(x => x.DuplaA)
                 .ThenInclude(x => x.Atleta1)
                     .ThenInclude(x => x.Usuario)

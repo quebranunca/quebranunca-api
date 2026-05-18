@@ -1,5 +1,6 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 
@@ -190,6 +191,12 @@ public interface IPartidaServico
     Task<IReadOnlyList<SituacaoDuplaCompeticaoDto>> ListarSituacaoDuplasPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<FeedPartidasRespostaDto> ListarFeedAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<MidiaPartidaRespostaDto> AtualizarMidiaAsync(
+        Guid id,
+        ArquivoMidiaPartidaDto arquivo,
+        CancellationToken cancellationToken = default);
+    Task<MidiaPartidaRespostaDto> RemoverMidiaAsync(Guid id, CancellationToken cancellationToken = default);
     Task<VerificarDuplicidadePartidaResultadoDto> VerificarDuplicidadeAsync(
         VerificarDuplicidadePartidaDto dto,
         CancellationToken cancellationToken = default);
@@ -353,4 +360,10 @@ public interface IFotoPerfilService
 {
     Task<FotoPerfilUploadDto> EnviarAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
     Task RemoverAsync(string publicId, CancellationToken cancellationToken = default);
+}
+
+public interface IMidiaPartidaService
+{
+    Task<MidiaPartidaUploadDto> EnviarAsync(ArquivoMidiaPartidaDto arquivo, CancellationToken cancellationToken = default);
+    Task RemoverAsync(string publicId, MidiaPartidaTipo? tipo, CancellationToken cancellationToken = default);
 }

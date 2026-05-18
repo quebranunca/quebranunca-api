@@ -882,6 +882,20 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
 
+                    b.Property<string>("MidiaPublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("midia_public_id");
+
+                    b.Property<int?>("MidiaTipo")
+                        .HasColumnType("integer")
+                        .HasColumnName("midia_tipo");
+
+                    b.Property<string>("MidiaUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("midia_url");
+
                     b.Property<string>("Observacoes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")

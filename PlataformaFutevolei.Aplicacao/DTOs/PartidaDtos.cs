@@ -196,6 +196,51 @@ public record PartidaCompartilhamentoDto(
     PartidaCompartilhamentoRankingDto? RankingGrupo
 );
 
+public record ArquivoMidiaPartidaDto(
+    Stream Conteudo,
+    string NomeArquivo,
+    string? ContentType,
+    long TamanhoBytes
+);
+
+public record MidiaPartidaUploadDto(
+    string Url,
+    string PublicId,
+    MidiaPartidaTipo Tipo
+);
+
+public record MidiaPartidaRespostaDto(
+    Guid PartidaId,
+    string? MidiaUrl,
+    string? MidiaTipo
+);
+
+public record FeedPartidaDuplaDto(
+    string? Atleta1Nome,
+    string? Atleta2Nome
+);
+
+public record FeedPartidaItemDto(
+    Guid PartidaId,
+    DateTime? Data,
+    int PlacarDupla1,
+    int PlacarDupla2,
+    FeedPartidaDuplaDto Dupla1,
+    FeedPartidaDuplaDto Dupla2,
+    string? CriadoPorNome,
+    string? MidiaUrl,
+    string? MidiaTipo,
+    string? CategoriaNome,
+    string? CompeticaoNome,
+    string? GrupoNome
+);
+
+public record FeedPartidasRespostaDto(
+    int Page,
+    int PageSize,
+    IReadOnlyList<FeedPartidaItemDto> Itens
+);
+
 public record PartidaDto(
     Guid Id,
     Guid? CategoriaCompeticaoId,
@@ -241,6 +286,8 @@ public record PartidaDto(
     decimal PesoRankingCategoria,
     decimal PontosRankingVitoria,
     DateTime? DataPartida,
+    string? MidiaUrl,
+    string? MidiaTipo,
     string? Observacoes,
     DateTime DataCriacao,
     DateTime DataAtualizacao,

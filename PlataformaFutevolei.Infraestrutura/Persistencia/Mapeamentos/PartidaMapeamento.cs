@@ -61,6 +61,9 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.Longitude).HasColumnName("longitude");
         builder.Property(x => x.PrecisaoLocalizacao).HasColumnName("precisao_localizacao");
         builder.Property(x => x.LocalizacaoRegistradaEmUtc).HasColumnName("localizacao_registrada_em_utc");
+        builder.Property(x => x.MidiaUrl).HasColumnName("midia_url").HasMaxLength(500);
+        builder.Property(x => x.MidiaPublicId).HasColumnName("midia_public_id").HasMaxLength(255);
+        builder.Property(x => x.MidiaTipo).HasColumnName("midia_tipo").HasConversion<int>();
         builder.Property(x => x.Observacoes).HasColumnName("observacoes").HasMaxLength(1000);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();

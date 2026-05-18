@@ -23,7 +23,8 @@ public class PartidaServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IPendenciaServico pendenciaServico,
-    IRankingServico rankingServico
+    IRankingServico rankingServico,
+    IMidiaPartidaService midiaPartidaService
 ) : IPartidaServico
 {
     private const string MarcadorMetadadosChave = "[[chave:";
@@ -172,6 +173,77 @@ public class PartidaServico(
             partida.PlacarDuplaB,
             ObterResultadoAtletaLogado(partida, atletaNaDuplaA, atletaNaDuplaB),
             rankingGrupo);
+    }
+
+    public async Task<FeedPartidasRespostaDto> ListarFeedAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var pagina = Math.Max(1, page);
+        var tamanhoPagina = Math.Clamp(pageSize, 1, 30);
+        var partidas = await partidaRepositorio.ListarFeedAsync(
+            (pagina - 1) * tamanhoPagina,
+            tamanhoPagina,
+            cancellationToken);
+
+        return new FeedPartidasRespostaDto(
+            pagina,
+            tamanhoPagina,
+            partidas.Select(MontarItemFeed).ToList());
+    }
+
+    public async Task<MidiaPartidaRespostaDto> AtualizarMidiaAsync(
+        Guid id,
+        ArquivoMidiaPartidaDto arquivo,
+        CancellationToken cancellationToken = default)
+    {
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partida is null)
+        {
+            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+        }
+
+        GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+
+        var publicIdAnterior = partida.MidiaPublicId;
+        var tipoAnterior = partida.MidiaTipo;
+        var midia = await midiaPartidaService.EnviarAsync(arquivo, cancellationToken);
+
+        partida.AtualizarMidia(midia.Url, midia.PublicId, midia.Tipo);
+        partidaRepositorio.Atualizar(partida);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(publicIdAnterior))
+        {
+            await midiaPartidaService.RemoverAsync(publicIdAnterior, tipoAnterior, cancellationToken);
+        }
+
+        return new MidiaPartidaRespostaDto(partida.Id, partida.MidiaUrl, partida.MidiaTipo?.ToString());
+    }
+
+    public async Task<MidiaPartidaRespostaDto> RemoverMidiaAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partida is null)
+        {
+            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+        }
+
+        GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+
+        if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
+        {
+            await midiaPartidaService.RemoverAsync(partida.MidiaPublicId, partida.MidiaTipo, cancellationToken);
+        }
+
+        partida.RemoverMidia();
+        partidaRepositorio.Atualizar(partida);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return new MidiaPartidaRespostaDto(partida.Id, null, null);
     }
 
     public async Task<VerificarDuplicidadePartidaResultadoDto> VerificarDuplicidadeAsync(
@@ -381,6 +453,36 @@ public class PartidaServico(
 
     private static PartidaCompartilhamentoAtletaDto MontarAtletaCompartilhamento(Atleta atleta)
         => new(atleta.Id, atleta.Nome, atleta.Apelido, null);
+
+    private static FeedPartidaItemDto MontarItemFeed(Partida partida)
+        => new(
+            partida.Id,
+            partida.DataPartida ?? partida.DataCriacao,
+            partida.PlacarDuplaA,
+            partida.PlacarDuplaB,
+            MontarDuplaFeed(partida.DuplaA),
+            MontarDuplaFeed(partida.DuplaB),
+            partida.CriadoPorUsuario?.Nome,
+            partida.MidiaUrl,
+            partida.MidiaTipo?.ToString(),
+            partida.CategoriaCompeticao?.Nome,
+            partida.CategoriaCompeticao?.Competicao?.Nome,
+            partida.Grupo?.Nome);
+
+    private static FeedPartidaDuplaDto MontarDuplaFeed(Dupla? dupla)
+        => new(
+            ObterNomeFeedAtleta(dupla?.Atleta1),
+            ObterNomeFeedAtleta(dupla?.Atleta2));
+
+    private static string? ObterNomeFeedAtleta(Atleta? atleta)
+    {
+        if (atleta is null)
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(atleta.Apelido) ? atleta.Nome : atleta.Apelido;
+    }
 
     private static bool DuplaContemAtleta(Dupla dupla, Guid atletaId)
         => dupla.Atleta1Id == atletaId || dupla.Atleta2Id == atletaId;
@@ -850,6 +952,11 @@ public class PartidaServico(
         if (!podeRemoverComoCriador && !podeRemoverComoAdministrador)
         {
             throw new AcessoNegadoException("Você só pode excluir partidas registradas por você.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
+        {
+            await midiaPartidaService.RemoverAsync(partida.MidiaPublicId, partida.MidiaTipo, cancellationToken);
         }
 
         partidaRepositorio.Remover(partida);

@@ -387,6 +387,8 @@ internal static class MapeadorEntidades
             partida.CategoriaCompeticao?.PesoRanking ?? 1m,
             partida.CalcularPontosRankingVitoria(),
             partida.DataPartida,
+            partida.MidiaUrl,
+            partida.MidiaTipo?.ToString(),
             LimparObservacoesSistema(partida.Observacoes),
             partida.DataCriacao,
             partida.DataAtualizacao,

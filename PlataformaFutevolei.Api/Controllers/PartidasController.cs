@@ -129,6 +129,32 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return CreatedAtAction(nameof(ObterPorId), new { id = partida.Id }, partida);
     }
 
+    [HttpPost("{id:guid}/midia")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(MidiaPartidaRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarMidia(Guid id, [FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    {
+        await using var stream = arquivo is null ? Stream.Null : arquivo.OpenReadStream();
+        var resposta = await partidaServico.AtualizarMidiaAsync(
+            id,
+            new ArquivoMidiaPartidaDto(
+                stream,
+                arquivo?.FileName ?? string.Empty,
+                arquivo?.ContentType,
+                arquivo?.Length ?? 0),
+            cancellationToken);
+
+        return Ok(resposta);
+    }
+
+    [HttpDelete("{id:guid}/midia")]
+    [ProducesResponseType(typeof(MidiaPartidaRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoverMidia(Guid id, CancellationToken cancellationToken)
+    {
+        var resposta = await partidaServico.RemoverMidiaAsync(id, cancellationToken);
+        return Ok(resposta);
+    }
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarPartidaDto dto, CancellationToken cancellationToken)
