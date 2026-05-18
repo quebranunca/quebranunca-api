@@ -93,6 +93,14 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(x => x.FotoPerfilUrl)
+            .HasColumnName("foto_perfil_url")
+            .HasMaxLength(500);
+
+        builder.Property(x => x.FotoPerfilPublicId)
+            .HasColumnName("foto_perfil_public_id")
+            .HasMaxLength(255);
+
         builder.Property(x => x.ExclusaoSolicitadaEmUtc)
             .HasColumnName("exclusao_solicitada_em_utc");
 

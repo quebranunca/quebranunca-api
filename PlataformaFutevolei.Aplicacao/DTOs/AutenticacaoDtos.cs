@@ -92,6 +92,7 @@ public record UsuarioLogadoDto(
     bool ExibirEmail,
     bool PermitirUsoLocalizacao,
     bool PermitirUsoImagem,
+    string? FotoPerfilUrl,
     bool PoliticaPrivacidadePendente,
     bool ExclusaoSolicitada
 );
@@ -104,8 +105,25 @@ public record UsuarioDto(
     bool Ativo,
     Guid? AtletaId,
     AtletaResumoDto? Atleta,
+    string? FotoPerfilUrl,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record ArquivoFotoPerfilDto(
+    Stream Conteudo,
+    string NomeArquivo,
+    string? ContentType,
+    long TamanhoBytes
+);
+
+public record FotoPerfilUploadDto(
+    string Url,
+    string PublicId
+);
+
+public record FotoPerfilRespostaDto(
+    string FotoPerfilUrl
 );
 
 public record UsuarioResumoDto(

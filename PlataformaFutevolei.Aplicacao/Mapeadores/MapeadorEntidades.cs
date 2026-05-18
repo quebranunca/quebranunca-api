@@ -23,6 +23,7 @@ internal static class MapeadorEntidades
             usuario.ExibirEmail,
             usuario.PermitirUsoLocalizacao,
             usuario.PermitirUsoImagem,
+            usuario.FotoPerfilUrl,
             PoliticaPrivacidadePendente: false,
             usuario.ExclusaoSolicitadaEmUtc.HasValue
         );
@@ -36,6 +37,7 @@ internal static class MapeadorEntidades
             usuario.Ativo,
             usuario.AtletaId,
             usuario.Atleta?.ParaResumoDto(),
+            usuario.FotoPerfilUrl,
             usuario.DataCriacao,
             usuario.DataAtualizacao
         );

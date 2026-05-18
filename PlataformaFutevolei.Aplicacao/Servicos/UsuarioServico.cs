@@ -19,7 +19,8 @@ public class UsuarioServico(
     IPartidaRepositorio partidaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IPendenciaServico pendenciaServico
+    IPendenciaServico pendenciaServico,
+    IFotoPerfilService fotoPerfilService
 ) : IUsuarioServico
 {
     public async Task<UsuarioLogadoDto> ObterMeuUsuarioAsync(CancellationToken cancellationToken = default)
@@ -37,6 +38,29 @@ public class UsuarioServico(
         }
 
         return await partidaRepositorio.ObterResumoUsuarioPorAtletaAsync(usuario.AtletaId.Value, cancellationToken);
+    }
+
+    public async Task<FotoPerfilRespostaDto> AtualizarMinhaFotoPerfilAsync(
+        ArquivoFotoPerfilDto arquivo,
+        CancellationToken cancellationToken = default)
+    {
+        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioAtual.Id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
+
+        var publicIdAnterior = usuario.FotoPerfilPublicId;
+        var foto = await fotoPerfilService.EnviarAsync(arquivo, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(publicIdAnterior))
+        {
+            await fotoPerfilService.RemoverAsync(publicIdAnterior, cancellationToken);
+        }
+
+        usuario.AtualizarFotoPerfil(foto.Url, foto.PublicId);
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return new FotoPerfilRespostaDto(foto.Url);
     }
 
     public async Task<UsuarioLogadoDto> AtualizarMeuUsuarioAsync(
@@ -382,6 +406,7 @@ public class UsuarioServico(
         usuario.ExibirEmail = false;
         usuario.PermitirUsoLocalizacao = false;
         usuario.PermitirUsoImagem = false;
+        usuario.LimparFotoPerfil();
         usuario.ExclusaoSolicitadaEmUtc ??= agora;
         usuario.ExcluidoEm = agora;
         usuario.ExcluidoPorUsuarioId = usuarioExecutorId;

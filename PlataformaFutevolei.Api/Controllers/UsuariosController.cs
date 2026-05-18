@@ -35,6 +35,23 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
         return Ok(usuario);
     }
 
+    [HttpPost("foto-perfil")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(FotoPerfilRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarMinhaFotoPerfil([FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    {
+        await using var stream = arquivo?.OpenReadStream();
+        var resposta = await usuarioServico.AtualizarMinhaFotoPerfilAsync(
+            new ArquivoFotoPerfilDto(
+                stream!,
+                arquivo?.FileName ?? string.Empty,
+                arquivo?.ContentType,
+                arquivo?.Length ?? 0),
+            cancellationToken);
+
+        return Ok(resposta);
+    }
+
     [HttpPost("me/vincular-atleta")]
     [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> VincularMeuAtleta([FromBody] VincularAtletaUsuarioDto dto, CancellationToken cancellationToken)

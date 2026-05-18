@@ -23,9 +23,25 @@ public class Usuario : EntidadeBase
     public bool ExibirEmail { get; set; }
     public bool PermitirUsoLocalizacao { get; set; }
     public bool PermitirUsoImagem { get; set; }
+    public string? FotoPerfilUrl { get; private set; }
+    public string? FotoPerfilPublicId { get; private set; }
     public DateTime? ExclusaoSolicitadaEmUtc { get; set; }
 
     public Atleta? Atleta { get; set; }
     public Usuario? ExcluidoPorUsuario { get; set; }
     public ICollection<UsuarioConsentimentoLgpd> ConsentimentosLgpd { get; set; } = new List<UsuarioConsentimentoLgpd>();
+
+    public void AtualizarFotoPerfil(string fotoPerfilUrl, string fotoPerfilPublicId)
+    {
+        FotoPerfilUrl = fotoPerfilUrl;
+        FotoPerfilPublicId = fotoPerfilPublicId;
+        AtualizarDataModificacao();
+    }
+
+    public void LimparFotoPerfil()
+    {
+        FotoPerfilUrl = null;
+        FotoPerfilPublicId = null;
+        AtualizarDataModificacao();
+    }
 }

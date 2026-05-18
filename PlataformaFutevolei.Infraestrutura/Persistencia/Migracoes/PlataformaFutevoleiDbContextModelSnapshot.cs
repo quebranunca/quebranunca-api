@@ -1309,6 +1309,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasDefaultValue(false)
                         .HasColumnName("exibir_email");
 
+                    b.Property<string>("FotoPerfilPublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("foto_perfil_public_id");
+
+                    b.Property<string>("FotoPerfilUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("foto_perfil_url");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(150)

@@ -105,6 +105,9 @@ public static class InjecaoDependenciaInfraestrutura
             options.UrlApp = secaoWhatsappConvites["UrlApp"] ?? frontendUrlPadrao;
         });
 
+        services.Configure<CloudinaryConfiguracao>(
+            configuration.GetSection(CloudinaryConfiguracao.Secao));
+
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
         services.AddScoped<IUsuarioConsentimentoLgpdRepositorio, UsuarioConsentimentoLgpdRepositorio>();
@@ -128,6 +131,7 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<ISenhaServico, SenhaServicoBcrypt>();
         services.AddScoped<ITokenJwtServico, TokenJwtServico>();
         services.AddScoped<IGeracaoLinkConviteCadastroServico, GeracaoLinkConviteCadastroServico>();
+        services.AddScoped<IFotoPerfilService, FotoPerfilService>();
         services.AddHttpClient<IEnvioEmailCodigoLoginServico, ResendEmailCodigoLoginServico>((serviceProvider, client) =>
         {
             var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailCodigoLogin>>().Value;

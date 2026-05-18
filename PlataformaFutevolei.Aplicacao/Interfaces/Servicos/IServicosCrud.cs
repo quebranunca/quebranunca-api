@@ -340,10 +340,17 @@ public interface IUsuarioServico
 {
     Task<UsuarioLogadoDto> ObterMeuUsuarioAsync(CancellationToken cancellationToken = default);
     Task<UsuarioResumoDto> ObterMeuResumoAsync(CancellationToken cancellationToken = default);
+    Task<FotoPerfilRespostaDto> AtualizarMinhaFotoPerfilAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> AtualizarMeuUsuarioAsync(AtualizarMeuUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<UsuarioLogadoDto> VincularMeuAtletaAsync(VincularAtletaUsuarioDto dto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UsuarioDto>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);
     Task<UsuarioDto> AtualizarAsync(Guid id, AtualizarUsuarioDto dto, CancellationToken cancellationToken = default);
     Task ExcluirPorAdministradorAsync(Guid id, CancellationToken cancellationToken = default);
     Task ExcluirMeuPerfilAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IFotoPerfilService
+{
+    Task<FotoPerfilUploadDto> EnviarAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
+    Task RemoverAsync(string publicId, CancellationToken cancellationToken = default);
 }
