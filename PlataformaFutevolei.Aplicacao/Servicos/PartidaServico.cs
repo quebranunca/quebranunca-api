@@ -763,6 +763,8 @@ public class PartidaServico(
         var placarOriginalB = partida.PlacarDuplaB;
         var vencedorOriginalId = partida.DuplaVencedoraId;
 
+        ValidarPlacarEdicaoBasica(dto.PlacarDuplaA, dto.PlacarDuplaB);
+
         var (categoria, grupo, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
             partida.CategoriaCompeticao?.CompeticaoId,
             partida.GrupoId,
@@ -860,6 +862,16 @@ public class PartidaServico(
         if (!PodeEditarPartida(usuario, partida))
         {
             throw new AcessoNegadoException("Você só pode editar partidas registradas por você.");
+        }
+    }
+
+    private static void ValidarPlacarEdicaoBasica(int? placarDuplaA, int? placarDuplaB)
+    {
+        if (placarDuplaA.HasValue &&
+            placarDuplaB.HasValue &&
+            placarDuplaA.Value == placarDuplaB.Value)
+        {
+            throw new RegraNegocioException("A partida não pode terminar empatada.");
         }
     }
 
