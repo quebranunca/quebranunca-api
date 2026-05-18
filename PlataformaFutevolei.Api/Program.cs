@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using PlataformaFutevolei.Api.Configuracao;
@@ -199,6 +200,13 @@ app.UseSerilogRequestLogging(options =>
 app.Logger.LogInformation("Inicializando API no ambiente {Ambiente}.", app.Environment.EnvironmentName);
 app.Logger.LogInformation("Porta configurada: {Porta}.", port);
 app.Logger.LogInformation("Origens CORS configuradas: {Origens}.", string.Join(", ", origensFrontend));
+
+var cloudinaryConfiguracao = app.Services.GetRequiredService<IOptions<CloudinaryConfiguracao>>().Value;
+app.Logger.LogInformation(
+    "Cloudinary CloudName configurado: {CloudNameConfigurado}; Cloudinary ApiKey configurado: {ApiKeyConfigurado}; Cloudinary ApiSecret configurado: {ApiSecretConfigurado}",
+    !string.IsNullOrWhiteSpace(cloudinaryConfiguracao.CloudName),
+    !string.IsNullOrWhiteSpace(cloudinaryConfiguracao.ApiKey),
+    !string.IsNullOrWhiteSpace(cloudinaryConfiguracao.ApiSecret));
 
 app.Logger.LogInformation(
     !string.IsNullOrWhiteSpace(applicationInsightsConnectionString)

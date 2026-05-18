@@ -109,17 +109,23 @@ public class FotoPerfilService(
     private Cloudinary CriarClienteConfigurado()
     {
         var configuracao = configuracaoAccessor.Value;
-        if (string.IsNullOrWhiteSpace(configuracao.CloudName) ||
-            string.IsNullOrWhiteSpace(configuracao.ApiKey) ||
-            string.IsNullOrWhiteSpace(configuracao.ApiSecret))
+        if (!configuracao.EstaConfigurado())
         {
+            logger.LogWarning(
+                "Configuração Cloudinary incompleta. CloudName configurado: {CloudNameConfigurado}; ApiKey configurado: {ApiKeyConfigurado}; ApiSecret configurado: {ApiSecretConfigurado}",
+                !string.IsNullOrWhiteSpace(configuracao.CloudName),
+                !string.IsNullOrWhiteSpace(configuracao.ApiKey),
+                !string.IsNullOrWhiteSpace(configuracao.ApiSecret));
+
             throw new RegraNegocioException("Cloudinary não configurado para envio de foto de perfil.");
         }
 
-        return new Cloudinary(new Account(
+        var account = new Account(
             configuracao.CloudName,
             configuracao.ApiKey,
-            configuracao.ApiSecret));
+            configuracao.ApiSecret);
+
+        return new Cloudinary(account);
     }
 
     private static Transformation CriarTransformacaoAvatar()

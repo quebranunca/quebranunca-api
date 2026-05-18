@@ -105,8 +105,28 @@ public static class InjecaoDependenciaInfraestrutura
             options.UrlApp = secaoWhatsappConvites["UrlApp"] ?? frontendUrlPadrao;
         });
 
-        services.Configure<CloudinaryConfiguracao>(
-            configuration.GetSection(CloudinaryConfiguracao.Secao));
+        var secaoCloudinary = configuration.GetSection(CloudinaryConfiguracao.Secao);
+        services.Configure<CloudinaryConfiguracao>(options =>
+        {
+            options.CloudName = ObterValorConfiguracaoOuAmbiente(
+                    secaoCloudinary["CloudName"],
+                    "Cloudinary__CloudName",
+                    "CLOUDINARY__CLOUDNAME",
+                    "CLOUDINARY_CLOUD_NAME")
+                ?? string.Empty;
+            options.ApiKey = ObterValorConfiguracaoOuAmbiente(
+                    secaoCloudinary["ApiKey"],
+                    "Cloudinary__ApiKey",
+                    "CLOUDINARY__APIKEY",
+                    "CLOUDINARY_API_KEY")
+                ?? string.Empty;
+            options.ApiSecret = ObterValorConfiguracaoOuAmbiente(
+                    secaoCloudinary["ApiSecret"],
+                    "Cloudinary__ApiSecret",
+                    "CLOUDINARY__APISECRET",
+                    "CLOUDINARY_API_SECRET")
+                ?? string.Empty;
+        });
 
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
@@ -149,17 +169,23 @@ public static class InjecaoDependenciaInfraestrutura
         return services;
     }
 
-    private static string? ObterValorConfiguracaoOuAmbiente(string? valorConfigurado, string variavelAmbiente)
+    private static string? ObterValorConfiguracaoOuAmbiente(string? valorConfigurado, params string[] variaveisAmbiente)
     {
         if (!string.IsNullOrWhiteSpace(valorConfigurado))
         {
             return valorConfigurado;
         }
 
-        var valorAmbiente = Environment.GetEnvironmentVariable(variavelAmbiente);
-        return string.IsNullOrWhiteSpace(valorAmbiente)
-            ? null
-            : valorAmbiente;
+        foreach (var variavelAmbiente in variaveisAmbiente)
+        {
+            var valorAmbiente = Environment.GetEnvironmentVariable(variavelAmbiente);
+            if (!string.IsNullOrWhiteSpace(valorAmbiente))
+            {
+                return valorAmbiente;
+            }
+        }
+
+        return null;
     }
 
     private static string? ObterValorComFallback(
