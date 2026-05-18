@@ -9,8 +9,22 @@ namespace PlataformaFutevolei.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/duplas")]
-public class DuplasController(IDuplaServico duplaServico) : ControllerBase
+public class DuplasController(
+    IDuplaServico duplaServico,
+    IDashboardDuplaServico dashboardDuplaServico) : ControllerBase
 {
+    [HttpGet("{atleta1Id:guid}/{atleta2Id:guid}/dashboard")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(DashboardDuplaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterDashboard(
+        Guid atleta1Id,
+        Guid atleta2Id,
+        CancellationToken cancellationToken)
+    {
+        var dashboard = await dashboardDuplaServico.ObterDashboardAsync(atleta1Id, atleta2Id, cancellationToken);
+        return Ok(dashboard);
+    }
+
     [HttpGet]
     [Authorize(Roles = $"{nameof(PerfilUsuario.Administrador)},{nameof(PerfilUsuario.Organizador)}")]
     [ProducesResponseType(typeof(IReadOnlyList<DuplaDto>), StatusCodes.Status200OK)]

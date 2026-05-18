@@ -95,6 +95,84 @@ public record DashboardAtletaHeatmapDiaDto(
     int Quantidade
 );
 
+public record DashboardDuplaDto(
+    DashboardDuplaDadosDto Dupla,
+    DashboardDuplaResumoDto Resumo,
+    IReadOnlyList<DashboardDuplaMetricaDto> Metricas,
+    IReadOnlyList<DashboardDuplaPartidaDto> UltimasPartidas,
+    IReadOnlyList<DashboardDuplaAdversarioDto> MelhoresAdversarios,
+    IReadOnlyList<DashboardDuplaEvolucaoDto> Evolucao,
+    IReadOnlyList<string> Insights
+);
+
+public record DashboardDuplaDadosDto(
+    DashboardDuplaAtletaDto Atleta1,
+    DashboardDuplaAtletaDto Atleta2,
+    string Nome,
+    string? CategoriaPrincipal
+);
+
+public record DashboardDuplaAtletaDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido
+);
+
+public record DashboardDuplaResumoDto(
+    int TotalPartidas,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento,
+    int PontosPro,
+    int PontosContra,
+    int SaldoPontos,
+    int MaiorSequenciaVitorias,
+    int SequenciaAtual
+);
+
+public record DashboardDuplaMetricaDto(
+    string Id,
+    string Rotulo,
+    string Valor,
+    string? Complemento,
+    string Icone,
+    bool Destaque = false
+);
+
+public record DashboardDuplaPartidaDto(
+    Guid Id,
+    string Resultado,
+    DateTime? DataPartida,
+    Guid? GrupoId,
+    Guid? CategoriaCompeticaoId,
+    string? Grupo,
+    string? Categoria,
+    string? Competicao,
+    string? Status,
+    int? StatusAprovacao,
+    int PlacarDupla,
+    int PlacarAdversarios,
+    IReadOnlyList<DashboardDuplaAtletaDto> Adversarios
+);
+
+public record DashboardDuplaAdversarioDto(
+    IReadOnlyList<DashboardDuplaAtletaDto> Atletas,
+    int Partidas,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento
+);
+
+public record DashboardDuplaEvolucaoDto(
+    string Mes,
+    int Ano,
+    int NumeroMes,
+    int Partidas,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento
+);
+
 public record DashboardPublicoDto(
     DashboardPublicoResumoDto Resumo,
     IReadOnlyList<DashboardPublicoMetricaDto> Metricas,
