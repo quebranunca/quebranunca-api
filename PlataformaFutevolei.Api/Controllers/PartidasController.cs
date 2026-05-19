@@ -10,6 +10,8 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/partidas")]
 public class PartidasController(IPartidaServico partidaServico) : ControllerBase
 {
+    private const long LimiteUploadMidiaPartidaBytes = 100L * 1024 * 1024;
+
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<PartidaDto>), StatusCodes.Status200OK)]
@@ -131,6 +133,8 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
 
     [HttpPost("{id:guid}/midia")]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(LimiteUploadMidiaPartidaBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = LimiteUploadMidiaPartidaBytes)]
     [ProducesResponseType(typeof(MidiaPartidaRespostaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> AtualizarMidia(Guid id, [FromForm] IFormFile arquivo, CancellationToken cancellationToken)
     {

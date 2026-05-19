@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
@@ -19,10 +20,17 @@ using Serilog.Events;
 using Serilog.Formatting.Compact;
 using System.Security.Claims;
 
+const long LimiteUploadMidiaPartidaBytes = 100L * 1024 * 1024;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+builder.WebHost
+    .UseUrls($"http://0.0.0.0:{port}")
+    .ConfigureKestrel(options =>
+    {
+        options.Limits.MaxRequestBodySize = LimiteUploadMidiaPartidaBytes;
+    });
 
 builder.Configuration.Sources.Clear();
 builder.Configuration
@@ -64,6 +72,10 @@ if (string.IsNullOrWhiteSpace(configuracaoJwt.Chave))
 }
 
 builder.Services.AddControllers();
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = LimiteUploadMidiaPartidaBytes;
+});
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();

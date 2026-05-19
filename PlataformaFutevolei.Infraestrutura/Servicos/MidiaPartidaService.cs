@@ -15,8 +15,8 @@ public class MidiaPartidaService(
     ILogger<MidiaPartidaService> logger
 ) : IMidiaPartidaService
 {
-    private const long TamanhoMaximoImagemBytes = 5 * 1024 * 1024;
-    private const long TamanhoMaximoVideoBytes = 50 * 1024 * 1024;
+    private const long TamanhoMaximoImagemBytes = 20 * 1024 * 1024;
+    private const long TamanhoMaximoVideoBytes = 100 * 1024 * 1024;
     private const string PastaPartidas = "quebranunca/partidas";
 
     private static readonly HashSet<string> ExtensoesImagemPermitidas = new(StringComparer.OrdinalIgnoreCase)
@@ -32,6 +32,20 @@ public class MidiaPartidaService(
         ".mp4",
         ".mov",
         ".webm"
+    };
+
+    private static readonly HashSet<string> ContentTypesImagemPermitidos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+    };
+
+    private static readonly HashSet<string> ContentTypesVideoPermitidos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "video/mp4",
+        "video/quicktime",
+        "video/webm"
     };
 
     public async Task<MidiaPartidaUploadDto> EnviarAsync(
@@ -150,21 +164,21 @@ public class MidiaPartidaService(
             throw new RegraNegocioException("Formato de mídia inválido.");
         }
 
-        if (ExtensoesImagemPermitidas.Contains(extensao))
+        if (EhImagemPermitida(extensao, arquivo.ContentType))
         {
             if (arquivo.TamanhoBytes > TamanhoMaximoImagemBytes)
             {
-                throw new RegraNegocioException("A imagem da partida deve ter no máximo 5MB.");
+                throw new RegraNegocioException("Imagens devem ter no máximo 20MB.");
             }
 
             return MidiaPartidaTipo.Imagem;
         }
 
-        if (ExtensoesVideoPermitidas.Contains(extensao))
+        if (EhVideoPermitido(extensao, arquivo.ContentType))
         {
             if (arquivo.TamanhoBytes > TamanhoMaximoVideoBytes)
             {
-                throw new RegraNegocioException("O vídeo da partida deve ter no máximo 50MB.");
+                throw new RegraNegocioException("Vídeos devem ter no máximo 100MB.");
             }
 
             return MidiaPartidaTipo.Video;
@@ -172,6 +186,14 @@ public class MidiaPartidaService(
 
         throw new RegraNegocioException("Formato de mídia inválido. Envie JPG, PNG, WEBP, MP4, MOV ou WEBM.");
     }
+
+    private static bool EhImagemPermitida(string extensao, string? contentType)
+        => ExtensoesImagemPermitidas.Contains(extensao) ||
+           (!string.IsNullOrWhiteSpace(contentType) && ContentTypesImagemPermitidos.Contains(contentType));
+
+    private static bool EhVideoPermitido(string extensao, string? contentType)
+        => ExtensoesVideoPermitidas.Contains(extensao) ||
+           (!string.IsNullOrWhiteSpace(contentType) && ContentTypesVideoPermitidos.Contains(contentType));
 
     private Cloudinary CriarClienteConfigurado()
     {
