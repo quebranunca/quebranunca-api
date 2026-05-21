@@ -17,16 +17,14 @@ public static class InjecaoDependenciaInfraestrutura
 {
     public static IServiceCollection AdicionarInfraestrutura(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? configuration.GetConnectionString("Padrao")
-            ?? configuration["DATABASE_URL"];
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
         var frontendUrlPadrao = ObterPrimeiraUrlConfigurada(configuration["Frontend:Url"]);
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
                 "Connection string não configurada. Defina ConnectionStrings:DefaultConnection " +
-                "(ou ConnectionStrings:Padrao / ConnectionStrings__DefaultConnection / DATABASE_URL).");
+                "(ou ConnectionStrings__DefaultConnection).");
         }
 
         services.AddDbContext<PlataformaFutevoleiDbContext>(options =>

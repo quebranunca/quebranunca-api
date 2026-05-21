@@ -52,7 +52,7 @@ internal static class InicializacaoBancoDeDados
                 {
                     throw new InvalidOperationException(
                         "Não foi possível conectar ao PostgreSQL: autenticação falhou (usuário/senha inválidos). " +
-                        "No Railway, confirme se a API está apontando para o Postgres correto e use DATABASE_URL/PGPASSWORD do mesmo serviço.",
+                        "No Railway, confirme se ConnectionStrings__DefaultConnection aponta para o Postgres correto e usa a senha atual do mesmo serviço.",
                         ex);
                 }
                 catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidAuthorizationSpecification)
