@@ -17,6 +17,7 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
             var (statusCode, mensagem) = ex switch
             {
                 AcessoNegadoException => (HttpStatusCode.Forbidden, ex.Message),
+                PartidaDuplicadaConfirmarException => (HttpStatusCode.Conflict, ex.Message),
                 RegraNegocioException => (HttpStatusCode.BadRequest, ex.Message),
                 EntidadeNaoEncontradaException => (HttpStatusCode.NotFound, ex.Message),
                 _ => (HttpStatusCode.InternalServerError, "Ocorreu um erro inesperado.")
@@ -36,20 +37,29 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
             context.Response.StatusCode = (int)statusCode;
             context.Response.ContentType = "application/json";
 
-            var resposta = ex is ConflitoGrupoAtletaException conflitoGrupoAtleta
-                ? JsonSerializer.Serialize(new
+            var resposta = ex switch
+            {
+                PartidaDuplicadaConfirmarException partidaDuplicada => JsonSerializer.Serialize(new
+                {
+                    erro = mensagem,
+                    mensagem,
+                    codigo = partidaDuplicada.Codigo,
+                    correlationId
+                }),
+                ConflitoGrupoAtletaException conflitoGrupoAtleta => JsonSerializer.Serialize(new
                 {
                     erro = mensagem,
                     codigo = conflitoGrupoAtleta.Codigo,
                     grupoAtletaId = conflitoGrupoAtleta.GrupoAtletaId,
                     atletaId = conflitoGrupoAtleta.AtletaId,
                     correlationId
-                })
-                : JsonSerializer.Serialize(new
+                }),
+                _ => JsonSerializer.Serialize(new
                 {
                     erro = mensagem,
                     correlationId
-                });
+                })
+            };
 
             await context.Response.WriteAsync(resposta);
         }

@@ -269,7 +269,7 @@ public class PartidaServico(
         DateTime dataPartida,
         CancellationToken cancellationToken)
     {
-        if (dto.PermitirDuplicidade)
+        if (dto.DuplicidadeConfirmada)
         {
             return;
         }
@@ -289,7 +289,7 @@ public class PartidaServico(
 
         if (verificacao.ExisteDuplicidade)
         {
-            throw new RegraNegocioException(MensagemPartidaDuplicada);
+            throw new PartidaDuplicadaConfirmarException(MensagemPartidaDuplicada);
         }
     }
 

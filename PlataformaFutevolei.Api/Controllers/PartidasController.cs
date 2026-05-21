@@ -125,6 +125,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Criar([FromBody] CriarPartidaDto dto, CancellationToken cancellationToken)
     {
         var partida = await partidaServico.CriarAsync(dto, cancellationToken);

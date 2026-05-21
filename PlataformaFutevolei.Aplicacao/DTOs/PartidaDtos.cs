@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.DTOs;
@@ -25,7 +26,13 @@ public record CriarPartidaDto(
     string? Observacoes,
     bool PermitirDuplicidade = false,
     LocalizacaoPartidaDto? Localizacao = null
-);
+)
+{
+    public bool ConfirmarDuplicidade { get; init; }
+
+    [JsonIgnore]
+    public bool DuplicidadeConfirmada => PermitirDuplicidade || ConfirmarDuplicidade;
+}
 
 public record LocalizacaoPartidaDto(
     double? Latitude,
