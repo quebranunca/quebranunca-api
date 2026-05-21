@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Api.Inicializacao;
@@ -40,10 +41,26 @@ internal static class InicializacaoBancoDeDados
                         "Revise as variáveis de ambiente do Railway e as referências ao serviço Postgres.");
                 }
 
+                RegistrarResumoConexao(app, connectionString);
+
                 try
                 {
                     await dbContext.Database.OpenConnectionAsync(cancellationToken);
                     await dbContext.Database.CloseConnectionAsync();
+                }
+                catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidPassword)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL: autenticação falhou (usuário/senha inválidos). " +
+                        "No Railway, confirme se a API está apontando para o Postgres correto e use DATABASE_URL/PGPASSWORD do mesmo serviço.",
+                        ex);
+                }
+                catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidAuthorizationSpecification)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL: usuário inválido para autenticação. " +
+                        "Revise PGUSER/Username na connection string da API.",
+                        ex);
                 }
                 catch (Exception ex)
                 {
@@ -93,6 +110,25 @@ internal static class InicializacaoBancoDeDados
 
             app.Logger.LogCritical(ex, "Falha crítica ao preparar banco de dados na inicialização.");
             throw;
+        }
+    }
+
+    private static void RegistrarResumoConexao(WebApplication app, string connectionString)
+    {
+        try
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString);
+            app.Logger.LogInformation(
+                "Resumo conexão PostgreSQL: Host={Host}; Porta={Porta}; Banco={Banco}; Usuário={Usuario}; SSL={SslMode}.",
+                builder.Host,
+                builder.Port,
+                builder.Database,
+                builder.Username,
+                builder.SslMode);
+        }
+        catch
+        {
+            app.Logger.LogWarning("Não foi possível extrair resumo da connection string para diagnóstico.");
         }
     }
 
