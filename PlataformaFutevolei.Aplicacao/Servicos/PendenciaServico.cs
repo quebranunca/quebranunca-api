@@ -18,7 +18,8 @@ public class PendenciaServico(
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico
+    IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IConviteCadastroServico conviteCadastroServico
 ) : IPendenciaServico
 {
     private const string MarcadorMetadadosLados = "[[lados:";
@@ -126,6 +127,12 @@ public class PendenciaServico(
 
         var atleta = pendencia.Atleta ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
 
+        var deveCriarConvite = false;
+        string? emailConvite = null;
+        string? telefoneConvite = null;
+        Guid atletaConviteId = atleta.Id;
+        Guid? partidaConviteId = pendencia.PartidaId;
+
         if (atleta.Usuario is not null)
         {
             ConcluirPendencia(pendencia, "Pendência encerrada porque o atleta já possui usuário vinculado.");
@@ -158,6 +165,9 @@ public class PendenciaServico(
 
             atleta.Email = emailNormalizado;
             atleta.AtualizarDataModificacao();
+            deveCriarConvite = true;
+            emailConvite = emailNormalizado;
+            telefoneConvite = atleta.Telefone;
             await ConcluirPendenciasContatoAtletaAsync(
                 atleta.Id,
                 pendencia.PartidaId.HasValue
@@ -170,6 +180,19 @@ public class PendenciaServico(
 
         var pendenciaAtualizada = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+
+        if (deveCriarConvite && !string.IsNullOrWhiteSpace(emailConvite))
+        {
+            await conviteCadastroServico.CriarParaPendenciaAtletaAsync(
+                new CriarConvitePendenciaAtletaDto(
+                    emailConvite,
+                    telefoneConvite,
+                    usuario.Id,
+                    atletaConviteId,
+                    partidaConviteId),
+                cancellationToken);
+        }
+
         return new AtualizarContatoPendenciaResultadoDto(false, pendenciaAtualizada.ParaDto(), null);
     }
 

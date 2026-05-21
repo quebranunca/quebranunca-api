@@ -22,6 +22,8 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.UsadoEmUtc).HasColumnName("usado_em_utc");
         builder.Property(x => x.Ativo).HasColumnName("ativo").IsRequired();
         builder.Property(x => x.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
+        builder.Property(x => x.AtletaId).HasColumnName("atleta_id");
+        builder.Property(x => x.PartidaId).HasColumnName("partida_id");
         builder.Property(x => x.CanalEnvio).HasColumnName("canal_envio").HasMaxLength(50);
         builder.Property(x => x.UltimaTentativaEnvioEmailEmUtc).HasColumnName("ultima_tentativa_envio_email_em_utc");
         builder.Property(x => x.EmailEnviadoEmUtc).HasColumnName("email_enviado_em_utc");
@@ -34,11 +36,23 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
 
         builder.HasIndex(x => x.IdentificadorPublico).IsUnique();
         builder.HasIndex(x => x.Email);
+        builder.HasIndex(x => x.AtletaId);
+        builder.HasIndex(x => x.PartidaId);
         builder.HasIndex(x => new { x.Ativo, x.ExpiraEmUtc });
 
         builder.HasOne(x => x.CriadoPorUsuario)
             .WithMany()
             .HasForeignKey(x => x.CriadoPorUsuarioId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Atleta)
+            .WithMany()
+            .HasForeignKey(x => x.AtletaId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.Partida)
+            .WithMany()
+            .HasForeignKey(x => x.PartidaId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

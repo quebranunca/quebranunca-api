@@ -23,7 +23,8 @@ public class AtletaServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
-    IPendenciaServico pendenciaServico
+    IPendenciaServico pendenciaServico,
+    IConviteCadastroServico conviteCadastroServico
 ) : IAtletaServico
 {
     public async Task<IReadOnlyList<AtletaPublicoDto>> ListarPublicoAsync(CancellationToken cancellationToken = default)
@@ -386,6 +387,15 @@ public class AtletaServico(
         atleta.AtualizarDataModificacao();
         atletaRepositorio.Atualizar(atleta);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        await conviteCadastroServico.CriarParaPendenciaAtletaAsync(
+            new CriarConvitePendenciaAtletaDto(
+                emailNormalizado,
+                atleta.Telefone,
+                usuario.Id,
+                atleta.Id,
+                null),
+            cancellationToken);
 
         return new AtletaPendenciaDto(
             atleta.Id,

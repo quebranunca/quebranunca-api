@@ -33,6 +33,10 @@ public interface IConviteCadastroRepositorio
         Guid usuarioId,
         string email,
         CancellationToken cancellationToken = default);
+    Task<ConviteCadastro?> ObterAtivoPendentePorEmailAsync(
+        string email,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default);
     Task<ConviteCadastro?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastro?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastro?> ObterPorIdentificadorPublicoAsync(string identificadorPublico, CancellationToken cancellationToken = default);

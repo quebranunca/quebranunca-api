@@ -341,6 +341,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("boolean")
                         .HasColumnName("ativo");
 
+                    b.Property<Guid?>("AtletaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atleta_id");
+
                     b.Property<string>("CanalEnvio")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -402,6 +406,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("integer")
                         .HasColumnName("perfil_destino");
 
+                    b.Property<Guid?>("PartidaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("partida_id");
+
                     b.Property<string>("Telefone")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
@@ -425,12 +433,16 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AtletaId");
+
                     b.HasIndex("CriadoPorUsuarioId");
 
                     b.HasIndex("Email");
 
                     b.HasIndex("IdentificadorPublico")
                         .IsUnique();
+
+                    b.HasIndex("PartidaId");
 
                     b.HasIndex("Ativo", "ExpiraEmUtc");
 
@@ -1519,13 +1531,27 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.ConviteCadastro", b =>
                 {
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Atleta", "Atleta")
+                        .WithMany()
+                        .HasForeignKey("AtletaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "CriadoPorUsuario")
                         .WithMany()
                         .HasForeignKey("CriadoPorUsuarioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Partida", "Partida")
+                        .WithMany()
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Atleta");
+
                     b.Navigation("CriadoPorUsuario");
+
+                    b.Navigation("Partida");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Dupla", b =>

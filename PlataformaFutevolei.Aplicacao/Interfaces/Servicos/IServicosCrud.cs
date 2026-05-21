@@ -55,6 +55,9 @@ public interface IConviteCadastroServico
     Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroPublicoDto> ObterPublicoAsync(string identificadorOuToken, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default);
+    Task<ConvitePendenciaAtletaResultadoDto> CriarParaPendenciaAtletaAsync(
+        CriarConvitePendenciaAtletaDto dto,
+        CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default);
     Task DesativarAsync(Guid id, CancellationToken cancellationToken = default);

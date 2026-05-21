@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -19,11 +20,13 @@ public class ConviteCadastroServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IGeracaoLinkConviteCadastroServico geracaoLinkConviteCadastroServico,
     IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico,
-    IEnvioWhatsappConviteCadastroServico envioWhatsappConviteCadastroServico
+    IEnvioWhatsappConviteCadastroServico envioWhatsappConviteCadastroServico,
+    ILogger<ConviteCadastroServico> logger
 ) : IConviteCadastroServico
 {
     private static readonly TimeSpan ValidadePadrao = TimeSpan.FromDays(7);
     private const PerfilUsuario PerfilDestinoPadraoConvite = PerfilUsuario.Atleta;
+    private const string CanalEmail = "e-mail";
 
     public async Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
@@ -139,6 +142,88 @@ public class ConviteCadastroServico(
         await TentarEnviarWhatsappAutomaticoAsync(conviteCriado, cancellationToken);
 
         return conviteCriado.ParaDto();
+    }
+
+    public async Task<ConvitePendenciaAtletaResultadoDto> CriarParaPendenciaAtletaAsync(
+        CriarConvitePendenciaAtletaDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var emailNormalizado = NormalizarEmail(dto.Email);
+            var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
+            if (usuarioExistente is not null)
+            {
+                logger.LogInformation(
+                    "Convite de pendência ignorado porque já existe usuário para o e-mail. UsuarioResolvedorId: {UsuarioResolvedorId}. AtletaId: {AtletaId}. PartidaId: {PartidaId}. UsuarioExistenteId: {UsuarioExistenteId}.",
+                    dto.UsuarioResolvedorId,
+                    dto.AtletaId,
+                    dto.PartidaId,
+                    usuarioExistente.Id);
+                return new ConvitePendenciaAtletaResultadoDto(false, false, true, null);
+            }
+
+            var agoraUtc = DateTime.UtcNow;
+            var conviteExistente = await conviteCadastroRepositorio.ObterAtivoPendentePorEmailAsync(
+                emailNormalizado,
+                agoraUtc,
+                cancellationToken);
+            if (conviteExistente is not null)
+            {
+                logger.LogInformation(
+                    "Convite de pendência ignorado porque já existe convite ativo para o e-mail. ConviteId: {ConviteId}. UsuarioResolvedorId: {UsuarioResolvedorId}. AtletaId: {AtletaId}. PartidaId: {PartidaId}.",
+                    conviteExistente.Id,
+                    dto.UsuarioResolvedorId,
+                    dto.AtletaId,
+                    dto.PartidaId);
+                return new ConvitePendenciaAtletaResultadoDto(false, true, false, conviteExistente.Id);
+            }
+
+            var convite = new ConviteCadastro
+            {
+                Email = emailNormalizado,
+                Telefone = NormalizarTelefone(dto.Telefone),
+                IdentificadorPublico = await GerarIdentificadorPublicoUnicoAsync(cancellationToken),
+                PerfilDestino = PerfilDestinoPadraoConvite,
+                ExpiraEmUtc = NormalizarExpiracao(null),
+                Ativo = true,
+                CriadoPorUsuarioId = dto.UsuarioResolvedorId,
+                AtletaId = dto.AtletaId,
+                PartidaId = dto.PartidaId,
+                CanalEnvio = CanalEmail
+            };
+            DefinirNovoCodigoConvite(convite);
+
+            await conviteCadastroRepositorio.AdicionarAsync(convite, cancellationToken);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Convite criado automaticamente ao concluir pendência de atleta. ConviteId: {ConviteId}. UsuarioResolvedorId: {UsuarioResolvedorId}. AtletaId: {AtletaId}. PartidaId: {PartidaId}.",
+                convite.Id,
+                dto.UsuarioResolvedorId,
+                dto.AtletaId,
+                dto.PartidaId);
+
+            var conviteCriado = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(convite.Id, cancellationToken)
+                ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+            await TentarEnviarEmailAutomaticoAsync(conviteCriado, cancellationToken);
+
+            return new ConvitePendenciaAtletaResultadoDto(true, false, false, convite.Id);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Erro ao criar/enviar convite automático de pendência de atleta. UsuarioResolvedorId: {UsuarioResolvedorId}. AtletaId: {AtletaId}. PartidaId: {PartidaId}.",
+                dto.UsuarioResolvedorId,
+                dto.AtletaId,
+                dto.PartidaId);
+            return new ConvitePendenciaAtletaResultadoDto(false, false, false, null);
+        }
     }
 
     public async Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default)
@@ -352,6 +437,12 @@ public class ConviteCadastroServico(
         else
         {
             conviteCadastro.RegistrarFalhaEnvioEmail(resultado.Erro, DateTime.UtcNow);
+            logger.LogWarning(
+                "Falha ao enviar e-mail do convite. ConviteId: {ConviteId}. AtletaId: {AtletaId}. PartidaId: {PartidaId}. Erro: {ErroEnvioEmail}.",
+                conviteCadastro.Id,
+                conviteCadastro.AtletaId,
+                conviteCadastro.PartidaId,
+                conviteCadastro.ErroEnvioEmail);
         }
 
         conviteCadastroRepositorio.Atualizar(conviteCadastro);

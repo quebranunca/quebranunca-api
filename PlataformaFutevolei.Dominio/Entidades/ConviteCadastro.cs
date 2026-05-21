@@ -14,6 +14,8 @@ public class ConviteCadastro : EntidadeBase
     public DateTime? UsadoEmUtc { get; set; }
     public bool Ativo { get; set; } = true;
     public Guid CriadoPorUsuarioId { get; set; }
+    public Guid? AtletaId { get; set; }
+    public Guid? PartidaId { get; set; }
     public string? CanalEnvio { get; set; }
     public DateTime? UltimaTentativaEnvioEmailEmUtc { get; set; }
     public DateTime? EmailEnviadoEmUtc { get; set; }
@@ -23,6 +25,8 @@ public class ConviteCadastro : EntidadeBase
     public string? ErroEnvioWhatsapp { get; set; }
 
     public Usuario? CriadoPorUsuario { get; set; }
+    public Atleta? Atleta { get; set; }
+    public Partida? Partida { get; set; }
 
     public bool FoiUtilizado() => UsadoEmUtc.HasValue;
 

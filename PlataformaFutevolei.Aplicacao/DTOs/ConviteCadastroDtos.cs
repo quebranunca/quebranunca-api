@@ -20,6 +20,8 @@ public record ConviteCadastroDto(
     bool Ativo,
     Guid CriadoPorUsuarioId,
     string? CriadoPorUsuarioNome,
+    Guid? AtletaId,
+    Guid? PartidaId,
     string? CanalEnvio,
     string Situacao,
     bool PodeSerUsado,
@@ -33,6 +35,21 @@ public record ConviteCadastroDto(
     string? ErroEnvioWhatsapp,
     DateTime DataCriacao,
     DateTime DataAtualizacao
+);
+
+public record CriarConvitePendenciaAtletaDto(
+    string Email,
+    string? Telefone,
+    Guid UsuarioResolvedorId,
+    Guid AtletaId,
+    Guid? PartidaId
+);
+
+public record ConvitePendenciaAtletaResultadoDto(
+    bool ConviteCriado,
+    bool IgnoradoPorConviteAtivo,
+    bool IgnoradoPorUsuarioExistente,
+    Guid? ConviteId
 );
 
 public record ConviteCadastroLinkAceiteDto(

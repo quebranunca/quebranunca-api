@@ -56,6 +56,8 @@ internal static class MapeadorEntidades
             conviteCadastro.Ativo,
             conviteCadastro.CriadoPorUsuarioId,
             conviteCadastro.CriadoPorUsuario?.Nome,
+            conviteCadastro.AtletaId,
+            conviteCadastro.PartidaId,
             conviteCadastro.CanalEnvio,
             conviteCadastro.ObterSituacao(agoraUtc),
             conviteCadastro.PodeSerUsado(agoraUtc),

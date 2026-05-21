@@ -26,6 +26,22 @@ public class ConviteCadastroRepositorio(PlataformaFutevoleiDbContext dbContext) 
             .ToListAsync(cancellationToken);
     }
 
+    public Task<ConviteCadastro?> ObterAtivoPendentePorEmailAsync(
+        string email,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.ConvitesCadastro
+            .AsNoTracking()
+            .Include(x => x.CriadoPorUsuario)
+            .FirstOrDefaultAsync(
+                x => x.Email == email &&
+                     x.Ativo &&
+                     x.UsadoEmUtc == null &&
+                     x.ExpiraEmUtc > dataUtc,
+                cancellationToken);
+    }
+
     public Task<ConviteCadastro?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.ConvitesCadastro

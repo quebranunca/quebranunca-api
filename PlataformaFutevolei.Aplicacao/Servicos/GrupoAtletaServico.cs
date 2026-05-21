@@ -19,7 +19,8 @@ public class GrupoAtletaServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
-    IPendenciaServico pendenciaServico
+    IPendenciaServico pendenciaServico,
+    IConviteCadastroServico conviteCadastroServico
 ) : IGrupoAtletaServico
 {
     private const string CodigoPossivelDuplicidadeNome = "PossivelDuplicidadeAtletaGrupo";
@@ -135,6 +136,7 @@ public class GrupoAtletaServico(
         CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(grupoId, cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         await ObterGrupoValidoAsync(grupoId, cancellationToken);
 
         var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
@@ -157,6 +159,16 @@ public class GrupoAtletaServico(
 
         var atualizado = await grupoAtletaRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Atleta do grupo não encontrado.");
+
+        await conviteCadastroServico.CriarParaPendenciaAtletaAsync(
+            new CriarConvitePendenciaAtletaDto(
+                emailNormalizado,
+                atualizado.Atleta.Telefone,
+                usuario.Id,
+                atualizado.AtletaId,
+                null),
+            cancellationToken);
+
         return atualizado.ParaDto();
     }
 
