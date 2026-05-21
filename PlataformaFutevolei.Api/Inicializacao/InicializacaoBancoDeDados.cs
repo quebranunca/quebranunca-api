@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
@@ -33,6 +32,41 @@ internal static class InicializacaoBancoDeDados
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
                     throw new InvalidOperationException("Connection string vazia ou não configurada para o DbContext.");
+                }
+
+                if (ContemPlaceholderVariavel(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Connection string contém placeholder não resolvido (ex.: ${{...}}). " +
+                        "Revise as variáveis de ambiente do Railway e as referências ao serviço Postgres.");
+                }
+
+                RegistrarResumoConexao(app, connectionString);
+
+                try
+                {
+                    await dbContext.Database.OpenConnectionAsync(cancellationToken);
+                    await dbContext.Database.CloseConnectionAsync();
+                }
+                catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidPassword)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL: autenticação falhou (usuário/senha inválidos). " +
+                        "No Railway, confirme se a API está apontando para o Postgres correto e use DATABASE_URL/PGPASSWORD do mesmo serviço.",
+                        ex);
+                }
+                catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidAuthorizationSpecification)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL: usuário inválido para autenticação. " +
+                        "Revise PGUSER/Username na connection string da API.",
+                        ex);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL. Verifique host/porta/credenciais e se o banco está online.",
+                        ex);
                 }
 
                 if (ContemPlaceholderVariavel(connectionString))
@@ -87,70 +121,6 @@ internal static class InicializacaoBancoDeDados
 
             app.Logger.LogCritical(ex, "Falha crítica ao preparar banco de dados na inicialização.");
             throw;
-        }
-    }
-
-    private static Task ValidarConexaoComRetryAsync(
-        PlataformaFutevoleiDbContext dbContext,
-        CancellationToken cancellationToken)
-    {
-        return ValidarConexaoComRetryAsync((ILogger?)null, dbContext, cancellationToken);
-    }
-
-    private static Task ValidarConexaoComRetryAsync(
-        ILogger logger,
-        PlataformaFutevoleiDbContext dbContext,
-        CancellationToken cancellationToken)
-    {
-        return ValidarConexaoComRetryAsync((ILogger?)logger, dbContext, cancellationToken);
-    }
-
-    private static async Task ValidarConexaoComRetryAsync(
-        ILogger? logger,
-        PlataformaFutevoleiDbContext dbContext,
-        CancellationToken cancellationToken)
-    {
-        const int maxTentativas = 3;
-
-        for (var tentativa = 1; tentativa <= maxTentativas; tentativa++)
-        {
-            try
-            {
-                await dbContext.Database.OpenConnectionAsync(cancellationToken);
-                await dbContext.Database.CloseConnectionAsync();
-                return;
-            }
-            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidPassword)
-            {
-                throw new InvalidOperationException(
-                    "Não foi possível conectar ao PostgreSQL: autenticação falhou (usuário/senha inválidos). " +
-                    "No Railway, confirme se a API está apontando para o Postgres correto e use DATABASE_URL/PGPASSWORD do mesmo serviço.",
-                    ex);
-            }
-            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidAuthorizationSpecification)
-            {
-                throw new InvalidOperationException(
-                    "Não foi possível conectar ao PostgreSQL: usuário inválido para autenticação. " +
-                    "Revise PGUSER/Username na connection string da API.",
-                    ex);
-            }
-            catch (Exception ex) when (tentativa < maxTentativas)
-            {
-                var aguardar = TimeSpan.FromSeconds(tentativa * 2);
-                logger?.LogWarning(
-                    ex,
-                    "Falha transitória ao conectar no PostgreSQL. Tentativa {Tentativa}/{MaxTentativas}. Nova tentativa em {AguardarSegundos}s.",
-                    tentativa,
-                    maxTentativas,
-                    aguardar.TotalSeconds);
-                await Task.Delay(aguardar, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    "Não foi possível conectar ao PostgreSQL. Verifique host/porta/credenciais, SSL e se o banco está online.",
-                    ex);
-            }
         }
     }
 
