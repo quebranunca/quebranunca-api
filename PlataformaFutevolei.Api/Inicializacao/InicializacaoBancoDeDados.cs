@@ -27,10 +27,29 @@ internal static class InicializacaoBancoDeDados
             {
                 app.Logger.LogInformation("Validando conexão com o banco de dados...");
 
-                var conectou = await dbContext.Database.CanConnectAsync(cancellationToken);
-                if (!conectou)
+                var connectionString = dbContext.Database.GetConnectionString();
+                if (string.IsNullOrWhiteSpace(connectionString))
                 {
-                    throw new InvalidOperationException("Não foi possível conectar ao PostgreSQL.");
+                    throw new InvalidOperationException("Connection string vazia ou não configurada para o DbContext.");
+                }
+
+                if (ContemPlaceholderVariavel(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Connection string contém placeholder não resolvido (ex.: ${{...}}). " +
+                        "Revise as variáveis de ambiente do Railway e as referências ao serviço Postgres.");
+                }
+
+                try
+                {
+                    await dbContext.Database.OpenConnectionAsync(cancellationToken);
+                    await dbContext.Database.CloseConnectionAsync();
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível conectar ao PostgreSQL. Verifique host/porta/credenciais e se o banco está online.",
+                        ex);
                 }
 
                 app.Logger.LogInformation("Conexão com o banco de dados validada com sucesso.");
@@ -75,5 +94,11 @@ internal static class InicializacaoBancoDeDados
             app.Logger.LogCritical(ex, "Falha crítica ao preparar banco de dados na inicialização.");
             throw;
         }
+    }
+
+    private static bool ContemPlaceholderVariavel(string connectionString)
+    {
+        return connectionString.Contains("${{", StringComparison.Ordinal) ||
+               connectionString.Contains("}}", StringComparison.Ordinal);
     }
 }
