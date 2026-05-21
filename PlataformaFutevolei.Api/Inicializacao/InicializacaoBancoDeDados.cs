@@ -69,6 +69,17 @@ internal static class InicializacaoBancoDeDados
                         ex);
                 }
 
+                if (ContemPlaceholderVariavel(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Connection string contém placeholder não resolvido (ex.: ${{...}}). " +
+                        "Revise as variáveis de ambiente do Railway e as referências ao serviço Postgres.");
+                }
+
+                RegistrarResumoConexao(app, connectionString);
+
+                await ValidarConexaoComRetryAsync(app, dbContext, cancellationToken);
+
                 app.Logger.LogInformation("Conexão com o banco de dados validada com sucesso.");
             }
             else
