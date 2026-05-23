@@ -134,6 +134,11 @@ public interface ICompeticaoRepositorio
 public interface IGrupoRepositorio
 {
     Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        bool incluirPrivadosDeTerceiros,
+        CancellationToken cancellationToken = default);
     Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default);
     Task<Grupo?> ObterResumoUsuarioAsync(
         Guid usuarioId,

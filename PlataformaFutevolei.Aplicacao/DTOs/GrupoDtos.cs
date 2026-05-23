@@ -32,3 +32,11 @@ public record GrupoDto(
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
+
+public record GrupoSelecaoDto(
+    Guid Id,
+    string Nome,
+    int QuantidadeAtletas,
+    string? ImagemUrl,
+    string Privacidade
+);

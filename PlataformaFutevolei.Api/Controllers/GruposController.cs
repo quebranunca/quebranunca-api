@@ -21,6 +21,14 @@ public class GruposController(
         return Ok(grupos);
     }
 
+    [HttpGet("selecao")]
+    [ProducesResponseType(typeof(IReadOnlyList<GrupoSelecaoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarParaSelecao(CancellationToken cancellationToken)
+    {
+        var grupos = await grupoServico.ListarParaSelecaoAsync(cancellationToken);
+        return Ok(grupos);
+    }
+
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status200OK)]

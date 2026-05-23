@@ -24,6 +24,19 @@ public class GrupoServico(
         return grupos.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<IReadOnlyList<GrupoSelecaoDto>> ListarParaSelecaoAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var incluirPrivadosDeTerceiros = usuario.Perfil == PerfilUsuario.Administrador;
+        var grupos = await grupoRepositorio.ListarParaSelecaoAsync(
+            usuario.Id,
+            usuario.AtletaId,
+            incluirPrivadosDeTerceiros,
+            cancellationToken);
+
+        return grupos.Select(ParaSelecaoDto).ToList();
+    }
+
     public async Task<GrupoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
@@ -162,5 +175,16 @@ public class GrupoServico(
             DateTimeKind.Local => data.ToUniversalTime(),
             _ => DateTime.SpecifyKind(data, DateTimeKind.Utc)
         };
+    }
+
+    private static GrupoSelecaoDto ParaSelecaoDto(Grupo grupo)
+    {
+        var privacidade = grupo.UsuarioOrganizadorId.HasValue ? "Privado" : "Público";
+        return new GrupoSelecaoDto(
+            grupo.Id,
+            grupo.Nome,
+            grupo.Atletas?.Count ?? 0,
+            null,
+            privacidade);
     }
 }

@@ -21,6 +21,27 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        bool incluirPrivadosDeTerceiros,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = dbContext.Grupos
+            .AsNoTracking()
+            .Include(x => x.Atletas)
+            .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower());
+
+        if (!incluirPrivadosDeTerceiros)
+        {
+            consulta = AplicarFiltroSelecao(usuarioId, atletaId, consulta);
+        }
+
+        return await consulta
+            .OrderBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.Grupos
@@ -176,7 +197,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
                 (partida.DuplaA.Atleta1Id == atletaIdValor ||
                  partida.DuplaA.Atleta2Id == atletaIdValor ||
                  partida.DuplaB.Atleta1Id == atletaIdValor ||
-                partida.DuplaB.Atleta2Id == atletaIdValor)));
+                 partida.DuplaB.Atleta2Id == atletaIdValor)));
     }
 
     private static IQueryable<Grupo> AplicarFiltroParticipacaoUsuario(
@@ -191,6 +212,34 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
 
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
+            x.UsuarioOrganizadorId == usuarioId ||
+            x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
+            x.Partidas.Any(partida =>
+                partida.DuplaA != null &&
+                partida.DuplaB != null &&
+                (partida.DuplaA.Atleta1Id == atletaIdValor ||
+                 partida.DuplaA.Atleta2Id == atletaIdValor ||
+                 partida.DuplaB.Atleta1Id == atletaIdValor ||
+                partida.DuplaB.Atleta2Id == atletaIdValor)));
+    }
+
+    private static IQueryable<Grupo> AplicarFiltroSelecao(
+        Guid usuarioId,
+        Guid? atletaId,
+        IQueryable<Grupo> query)
+    {
+        var consulta = query.Where(x =>
+            x.UsuarioOrganizadorId == null ||
+            x.UsuarioOrganizadorId == usuarioId);
+
+        if (!atletaId.HasValue)
+        {
+            return consulta;
+        }
+
+        var atletaIdValor = atletaId.Value;
+        return query.Where(x =>
+            x.UsuarioOrganizadorId == null ||
             x.UsuarioOrganizadorId == usuarioId ||
             x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Partidas.Any(partida =>
