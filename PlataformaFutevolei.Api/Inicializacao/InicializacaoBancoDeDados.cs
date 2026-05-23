@@ -65,7 +65,9 @@ internal static class InicializacaoBancoDeDados
                 catch (Exception ex)
                 {
                     throw new InvalidOperationException(
-                        "Não foi possível conectar ao PostgreSQL. Verifique host/porta/credenciais e se o banco está online.",
+                        "Não foi possível conectar ao PostgreSQL. " +
+                        $"{ObterResumoConexaoSeguro(connectionString)}. " +
+                        "Verifique host/porta/credenciais e se o banco está online.",
                         ex);
                 }
 
@@ -129,6 +131,19 @@ internal static class InicializacaoBancoDeDados
         catch
         {
             app.Logger.LogWarning("Não foi possível extrair resumo da connection string para diagnóstico.");
+        }
+    }
+
+    private static string ObterResumoConexaoSeguro(string connectionString)
+    {
+        try
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString);
+            return $"Destino configurado: Host={builder.Host}; Porta={builder.Port}; Banco={builder.Database}; Usuário={builder.Username}; SSL={builder.SslMode}";
+        }
+        catch
+        {
+            return "Não foi possível extrair o destino configurado da connection string";
         }
     }
 

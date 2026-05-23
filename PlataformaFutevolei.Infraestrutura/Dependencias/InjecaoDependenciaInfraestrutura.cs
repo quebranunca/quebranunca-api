@@ -16,15 +16,29 @@ namespace PlataformaFutevolei.Infraestrutura.Dependencias;
 public static class InjecaoDependenciaInfraestrutura
 {
     public static IServiceCollection AdicionarInfraestrutura(this IServiceCollection services, IConfiguration configuration)
+        => AdicionarInfraestrutura(services, configuration, nomeAmbiente: null);
+
+    public static IServiceCollection AdicionarInfraestrutura(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string? nomeAmbiente)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var frontendUrlPadrao = ObterPrimeiraUrlConfigurada(configuration["Frontend:Url"]);
+        var ambienteCritico = EhAmbienteCritico(nomeAmbiente);
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
                 "Connection string não configurada. Defina ConnectionStrings:DefaultConnection " +
                 "(ou ConnectionStrings__DefaultConnection).");
+        }
+
+        if (ambienteCritico && EhConnectionStringLocal(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string de produção inválida. Defina ConnectionStrings__DefaultConnection " +
+                "com a connection string do PostgreSQL do ambiente atual.");
         }
 
         services.AddDbContext<PlataformaFutevoleiDbContext>(options =>
@@ -186,6 +200,34 @@ public static class InjecaoDependenciaInfraestrutura
         }
 
         return null;
+    }
+
+    private static bool EhAmbienteCritico(string? nomeAmbiente)
+    {
+        var ambiente = nomeAmbiente
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+
+        return string.Equals(ambiente, "Production", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(ambiente, "Staging", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EhConnectionStringLocal(string connectionString)
+    {
+        try
+        {
+            var builder = new Npgsql.NpgsqlConnectionStringBuilder(
+                ConnectionStringPostgres.Normalizar(connectionString));
+            var host = builder.Host?.Trim();
+
+            return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string? ObterValorComFallback(

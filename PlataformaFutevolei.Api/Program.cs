@@ -81,7 +81,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
 
 builder.Services.AdicionarAplicacao();
-builder.Services.AdicionarInfraestrutura(builder.Configuration);
+builder.Services.AdicionarInfraestrutura(builder.Configuration, builder.Environment.EnvironmentName);
 
 var origemFrontendConfigurada = builder.Configuration.GetValue<string>("Frontend:Url");
 var origensFrontend = ConfiguracaoCorsFrontend.ObterOrigens(origemFrontendConfigurada);
