@@ -7,6 +7,7 @@ using PlataformaFutevolei.Aplicacao.Mapeadores;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
+using System.Net.Mail;
 using System.Security.Cryptography;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
@@ -96,12 +97,7 @@ public class AutenticacaoServico(
         SolicitarCodigoLoginRequisicaoDto dto,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(dto.Email))
-        {
-            throw new RegraNegocioException("E-mail é obrigatório.");
-        }
-
-        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var emailNormalizado = NormalizarEmailCodigoLogin(dto);
         var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
         var mensagemPadrao = "Se o e-mail estiver cadastrado, um código de acesso foi enviado.";
 
@@ -131,6 +127,30 @@ public class AutenticacaoServico(
         }
 
         return new SolicitarCodigoLoginRespostaDto(mensagemPadrao, resultado.CodigoDesenvolvimento);
+    }
+
+    private static string NormalizarEmailCodigoLogin(SolicitarCodigoLoginRequisicaoDto? dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Email))
+        {
+            throw new RegraNegocioException("E-mail é obrigatório.");
+        }
+
+        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        try
+        {
+            var email = new MailAddress(emailNormalizado);
+            if (!string.Equals(email.Address, emailNormalizado, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new FormatException();
+            }
+        }
+        catch
+        {
+            throw new RegraNegocioException("E-mail inválido.");
+        }
+
+        return emailNormalizado;
     }
 
     public async Task<RespostaAutenticacaoDto> LoginComCodigoAsync(
