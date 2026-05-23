@@ -16,6 +16,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .AsNoTracking()
             .Include(x => x.Local)
             .Include(x => x.UsuarioOrganizador)
+            .Include(x => x.Atletas)
             .OrderByDescending(x => x.DataInicio)
             .ThenBy(x => x.Nome)
             .ToListAsync(cancellationToken);
@@ -46,7 +47,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
     {
         return dbContext.Grupos
             .AsNoTracking()
-            .CountAsync(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower(), cancellationToken);
+            .CountAsync(x => x.Publico && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower(), cancellationToken);
     }
 
     public Task<Grupo?> ObterResumoUsuarioAsync(
@@ -189,6 +190,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
             x.UsuarioOrganizadorId == usuarioId ||
+            x.Publico ||
             x.Nome.Trim().ToLower() == GruposPadrao.NomeGeral.ToLower() ||
             x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Partidas.Any(partida =>
@@ -229,7 +231,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         IQueryable<Grupo> query)
     {
         var consulta = query.Where(x =>
-            x.UsuarioOrganizadorId == null ||
+            x.Publico ||
             x.UsuarioOrganizadorId == usuarioId);
 
         if (!atletaId.HasValue)
@@ -239,7 +241,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
 
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
-            x.UsuarioOrganizadorId == null ||
+            x.Publico ||
             x.UsuarioOrganizadorId == usuarioId ||
             x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
             x.Partidas.Any(partida =>

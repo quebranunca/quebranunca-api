@@ -6,7 +6,9 @@ public record CriarGrupoDto(
     string? Link,
     DateTime DataInicio,
     DateTime? DataFim,
-    Guid? LocalId
+    Guid? LocalId,
+    string? Privacidade = null,
+    string? ImagemUrl = null
 );
 
 public record AtualizarGrupoDto(
@@ -15,7 +17,9 @@ public record AtualizarGrupoDto(
     string? Link,
     DateTime DataInicio,
     DateTime? DataFim,
-    Guid? LocalId
+    Guid? LocalId,
+    string? Privacidade = null,
+    string? ImagemUrl = null
 );
 
 public record GrupoDto(
@@ -29,6 +33,8 @@ public record GrupoDto(
     Guid? UsuarioOrganizadorId,
     string? NomeLocal,
     string? NomeUsuarioOrganizador,
+    string Privacidade,
+    string? ImagemUrl,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -39,4 +45,17 @@ public record GrupoSelecaoDto(
     int QuantidadeAtletas,
     string? ImagemUrl,
     string Privacidade
+);
+
+public record GrupoNomeSimilarDto(
+    Guid Id,
+    string Nome,
+    int QuantidadeAtletas,
+    string Privacidade
+);
+
+public record GrupoVerificacaoNomeDto(
+    bool Disponivel,
+    bool ExisteExato,
+    IReadOnlyList<GrupoNomeSimilarDto> Similares
 );

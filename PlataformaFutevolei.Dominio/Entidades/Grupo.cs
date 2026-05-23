@@ -9,6 +9,8 @@ public class Grupo : EntidadeBase
     public DateTime? DataFim { get; set; }
     public Guid? LocalId { get; set; }
     public Guid? UsuarioOrganizadorId { get; set; }
+    public bool Publico { get; set; }
+    public string? ImagemUrl { get; set; }
 
     public Local? Local { get; set; }
     public Usuario? UsuarioOrganizador { get; set; }

@@ -249,6 +249,8 @@ internal static class MapeadorEntidades
             grupo.UsuarioOrganizadorId,
             grupo.Local?.Nome,
             grupo.UsuarioOrganizador?.Nome,
+            grupo.Publico ? "Público" : "Privado",
+            grupo.ImagemUrl,
             grupo.DataCriacao,
             grupo.DataAtualizacao
         );

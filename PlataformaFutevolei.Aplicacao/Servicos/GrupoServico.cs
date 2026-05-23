@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -44,6 +46,34 @@ public class GrupoServico(
         return grupo.ParaDto();
     }
 
+    public async Task<GrupoVerificacaoNomeDto> VerificarNomeAsync(string nome, CancellationToken cancellationToken = default)
+    {
+        var nomeValidado = ValidarNome(nome);
+        var nomeNormalizado = NormalizarParaBusca(nomeValidado);
+        var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
+        var candidatos = grupos
+            .Where(grupo => !string.Equals(grupo.Nome, grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase))
+            .Select(grupo => new
+            {
+                Grupo = grupo,
+                NomeNormalizado = NormalizarParaBusca(grupo.Nome)
+            })
+            .ToList();
+        var existeExato = candidatos.Any(x => x.NomeNormalizado == nomeNormalizado);
+        var termos = nomeNormalizado.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var similares = candidatos
+            .Where(x => x.NomeNormalizado != nomeNormalizado && NomePareceComBusca(x.NomeNormalizado, nomeNormalizado, termos))
+            .Take(5)
+            .Select(x => new GrupoNomeSimilarDto(
+                x.Grupo.Id,
+                x.Grupo.Nome,
+                x.Grupo.Atletas?.Count ?? 0,
+                ObterPrivacidade(x.Grupo)))
+            .ToList();
+
+        return new GrupoVerificacaoNomeDto(!existeExato, existeExato, similares);
+    }
+
     public async Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
@@ -63,6 +93,7 @@ public class GrupoServico(
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
         await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var publico = EhPublico(dto.Privacidade);
 
         var grupo = new Grupo
         {
@@ -72,7 +103,9 @@ public class GrupoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             LocalId = dto.LocalId,
-            UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta ? usuario.Id : null
+            UsuarioOrganizadorId = usuario.Id,
+            Publico = publico,
+            ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl)
         };
 
         await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
@@ -112,6 +145,8 @@ public class GrupoServico(
         grupo.DataInicio = NormalizarParaUtc(dto.DataInicio);
         grupo.DataFim = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
         grupo.LocalId = dto.LocalId;
+        grupo.Publico = EhPublico(dto.Privacidade);
+        grupo.ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl);
         grupo.AtualizarDataModificacao();
 
         grupoRepositorio.Atualizar(grupo);
@@ -179,12 +214,59 @@ public class GrupoServico(
 
     private static GrupoSelecaoDto ParaSelecaoDto(Grupo grupo)
     {
-        var privacidade = grupo.UsuarioOrganizadorId.HasValue ? "Privado" : "Público";
         return new GrupoSelecaoDto(
             grupo.Id,
             grupo.Nome,
             grupo.Atletas?.Count ?? 0,
-            null,
-            privacidade);
+            grupo.ImagemUrl,
+            ObterPrivacidade(grupo));
+    }
+
+    private static string ValidarNome(string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            throw new RegraNegocioException("Nome do grupo é obrigatório.");
+        }
+
+        return nome.Trim();
+    }
+
+    private static bool EhPublico(string? privacidade)
+        => string.Equals(privacidade?.Trim(), "Público", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(privacidade?.Trim(), "Publico", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(privacidade?.Trim(), "publico", StringComparison.OrdinalIgnoreCase);
+
+    private static string ObterPrivacidade(Grupo grupo)
+        => grupo.Publico ? "Público" : "Privado";
+
+    private static string? NormalizarImagemUrl(string? imagemUrl)
+        => string.IsNullOrWhiteSpace(imagemUrl) ? null : imagemUrl.Trim();
+
+    private static bool NomePareceComBusca(string nomeGrupo, string nomeBusca, IReadOnlyCollection<string> termosBusca)
+    {
+        if (nomeGrupo.Contains(nomeBusca, StringComparison.OrdinalIgnoreCase) ||
+            nomeBusca.Contains(nomeGrupo, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return termosBusca.Count > 0 && termosBusca.Count(termo => termo.Length >= 3 && nomeGrupo.Contains(termo)) >= Math.Min(2, termosBusca.Count);
+    }
+
+    private static string NormalizarParaBusca(string valor)
+    {
+        var texto = valor.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(texto.Length);
+
+        foreach (var caractere in texto)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(caractere) != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(char.IsLetterOrDigit(caractere) ? caractere : ' ');
+            }
+        }
+
+        return string.Join(' ', builder.ToString().Normalize(NormalizationForm.FormC).Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 }

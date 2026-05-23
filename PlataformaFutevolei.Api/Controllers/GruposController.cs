@@ -29,6 +29,14 @@ public class GruposController(
         return Ok(grupos);
     }
 
+    [HttpGet("verificar-nome")]
+    [ProducesResponseType(typeof(GrupoVerificacaoNomeDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> VerificarNome([FromQuery] string nome, CancellationToken cancellationToken)
+    {
+        var verificacao = await grupoServico.VerificarNomeAsync(nome, cancellationToken);
+        return Ok(verificacao);
+    }
+
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status200OK)]

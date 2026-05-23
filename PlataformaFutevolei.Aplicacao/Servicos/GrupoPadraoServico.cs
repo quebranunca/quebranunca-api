@@ -25,10 +25,12 @@ public class GrupoPadraoServico(
         if (grupoExistente is not null)
         {
             if (grupoExistente.UsuarioOrganizadorId is not null ||
+                !grupoExistente.Publico ||
                 !string.Equals(grupoExistente.Nome, NomeGrupoGeralConstante, StringComparison.Ordinal))
             {
                 grupoExistente.Nome = NomeGrupoGeralConstante;
                 grupoExistente.UsuarioOrganizadorId = null;
+                grupoExistente.Publico = true;
                 grupoExistente.AtualizarDataModificacao();
                 grupoRepositorio.Atualizar(grupoExistente);
                 await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -42,7 +44,8 @@ public class GrupoPadraoServico(
             Nome = NomeGrupoGeralConstante,
             Descricao = "Grupo global criado automaticamente para partidas sem grupo informado.",
             DataInicio = DateTime.UtcNow,
-            UsuarioOrganizadorId = null
+            UsuarioOrganizadorId = null,
+            Publico = true
         };
 
         await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
@@ -96,7 +99,8 @@ public class GrupoPadraoServico(
             Nome = nomeNormalizado,
             Descricao = "Criada automaticamente a partir do registro rápido de partidas.",
             DataInicio = DateTime.UtcNow,
-            UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta ? usuario.Id : null
+            UsuarioOrganizadorId = usuario.Id,
+            Publico = false
         };
 
         await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
@@ -132,7 +136,7 @@ public class GrupoPadraoServico(
         Usuario usuario,
         CancellationToken cancellationToken)
     {
-        if (EhGrupoGeral(grupo) || usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id)
+        if (EhGrupoGeral(grupo) || grupo.Publico || usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id)
         {
             return true;
         }
