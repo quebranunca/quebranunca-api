@@ -62,6 +62,15 @@ internal static class InicializacaoBancoDeDados
                         "Revise PGUSER/Username na connection string da API.",
                         ex);
                 }
+                catch (Exception ex) when (EhTimeoutConexao(ex))
+                {
+                    throw new InvalidOperationException(
+                        "Timeout ao conectar ao PostgreSQL. " +
+                        $"{ObterResumoConexaoSeguro(connectionString)}. " +
+                        "No Railway, confirme se ConnectionStrings__DefaultConnection foi atualizada após recriar/renomear o banco. " +
+                        "Se a API estiver fora da rede privada do Railway, use o host público/TCP Proxy em vez de postgres.railway.internal.",
+                        ex);
+                }
                 catch (Exception ex)
                 {
                     throw new InvalidOperationException(
@@ -151,5 +160,23 @@ internal static class InicializacaoBancoDeDados
     {
         return connectionString.Contains("${{", StringComparison.Ordinal) ||
                connectionString.Contains("}}", StringComparison.Ordinal);
+    }
+
+    private static bool EhTimeoutConexao(Exception exception)
+    {
+        for (var atual = exception; atual is not null; atual = atual.InnerException)
+        {
+            if (atual is TimeoutException)
+            {
+                return true;
+            }
+
+            if (atual.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
