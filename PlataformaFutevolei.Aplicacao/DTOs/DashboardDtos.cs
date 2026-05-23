@@ -8,6 +8,8 @@ public record DashboardAtletaDto(
     IReadOnlyList<DashboardAtletaPartidaDto> UltimasPartidas,
     IReadOnlyList<DashboardAtletaRelacaoDto> MelhoresParceiros,
     IReadOnlyList<DashboardAtletaRelacaoDto> RivaisMaisEnfrentados,
+    IReadOnlyList<DashboardAtletaRelacaoDto> ParceirosRecentes,
+    IReadOnlyList<DashboardAtletaRelacaoDto> RivaisRecentes,
     IReadOnlyList<DashboardAtletaHeatmapDiaDto> Heatmap,
     IReadOnlyList<string> Insights
 );
@@ -20,7 +22,8 @@ public record DashboardAtletaPerfilDto(
     int? PosicaoRanking,
     decimal Aproveitamento,
     int SequenciaAtual,
-    string TextoSequencia
+    string TextoSequencia,
+    string? FotoPerfilUrl
 );
 
 public record DashboardAtletaResumoDto(
@@ -87,12 +90,22 @@ public record DashboardAtletaRelacaoDto(
     string? Apelido,
     int Partidas,
     int Vitorias,
-    decimal Aproveitamento
+    int Derrotas,
+    decimal Aproveitamento,
+    DateTime? UltimaPartida,
+    string? FotoPerfilUrl
 );
 
 public record DashboardAtletaHeatmapDiaDto(
     DateOnly Data,
     int Quantidade
+);
+
+public record DashboardAtletaConexoesDto(
+    IReadOnlyList<DashboardAtletaRelacaoDto> MelhoresParceiros,
+    IReadOnlyList<DashboardAtletaRelacaoDto> RivaisMaisEnfrentados,
+    IReadOnlyList<DashboardAtletaRelacaoDto> ParceirosRecentes,
+    IReadOnlyList<DashboardAtletaRelacaoDto> RivaisRecentes
 );
 
 public record DashboardDuplaDto(
@@ -226,7 +239,8 @@ public record DashboardPublicoRankingAtletaDto(
     int Derrotas,
     decimal Aproveitamento,
     decimal Pontos,
-    int SequenciaAtual
+    int SequenciaAtual,
+    string? FotoPerfilUrl
 );
 
 public record DashboardPublicoAtletaDestaqueDto(
@@ -235,7 +249,8 @@ public record DashboardPublicoAtletaDestaqueDto(
     string? Apelido,
     string Destaque,
     string Valor,
-    string Complemento
+    string Complemento,
+    string? FotoPerfilUrl
 );
 
 public record DashboardPublicoGrupoDto(

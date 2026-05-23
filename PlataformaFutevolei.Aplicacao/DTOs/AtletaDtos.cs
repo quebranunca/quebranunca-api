@@ -63,6 +63,7 @@ public record AtletaDto(
     DateTime? DataNascimento,
     Guid? UsuarioCriadorId,
     string? NomeUsuarioCriador,
+    string? FotoPerfilUrl,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -80,6 +81,7 @@ public record AtletaPublicoDto(
     LadoAtleta Lado,
     Guid? UsuarioCriadorId,
     string? NomeUsuarioCriador,
+    string? FotoPerfilUrl,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );

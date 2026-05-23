@@ -438,7 +438,7 @@ public class PartidaServico(
                 atleta.Posicao,
                 ObterNomeExibicaoRanking(atleta),
                 atleta.Pontos,
-                null);
+                atleta.FotoPerfilUrl);
 
     private static string ObterNomeExibicaoRanking(RankingAtletaDto atleta)
         => string.IsNullOrWhiteSpace(atleta.ApelidoAtleta)
@@ -452,7 +452,7 @@ public class PartidaServico(
         ];
 
     private static PartidaCompartilhamentoAtletaDto MontarAtletaCompartilhamento(Atleta atleta)
-        => new(atleta.Id, atleta.Nome, atleta.Apelido, null);
+        => new(atleta.Id, atleta.Nome, atleta.Apelido, ObterFotoPerfilAtleta(atleta));
 
     private static FeedPartidaItemDto MontarItemFeed(Partida partida)
         => new(
@@ -463,6 +463,7 @@ public class PartidaServico(
             MontarDuplaFeed(partida.DuplaA),
             MontarDuplaFeed(partida.DuplaB),
             partida.CriadoPorUsuario?.Nome,
+            ObterFotoPerfilPublica(partida.CriadoPorUsuario),
             partida.MidiaUrl,
             partida.MidiaTipo?.ToString(),
             partida.CategoriaCompeticao?.Nome,
@@ -483,6 +484,12 @@ public class PartidaServico(
 
         return string.IsNullOrWhiteSpace(atleta.Apelido) ? atleta.Nome : atleta.Apelido;
     }
+
+    private static string? ObterFotoPerfilAtleta(Atleta? atleta)
+        => ObterFotoPerfilPublica(atleta?.Usuario);
+
+    private static string? ObterFotoPerfilPublica(Usuario? usuario)
+        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     private static bool DuplaContemAtleta(Dupla dupla, Guid atletaId)
         => dupla.Atleta1Id == atletaId || dupla.Atleta2Id == atletaId;

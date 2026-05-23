@@ -32,6 +32,12 @@ public interface IAtletaServico
 public interface IDashboardAtletaServico
 {
     Task<DashboardAtletaDto> ObterDashboardAsync(CancellationToken cancellationToken = default);
+    Task<DashboardAtletaPerfilDto> ObterPerfilAsync(CancellationToken cancellationToken = default);
+    Task<DashboardAtletaResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> ObterInsightsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DashboardAtletaPartidaDto>> ListarUltimasPartidasAsync(CancellationToken cancellationToken = default);
+    Task<DashboardAtletaConexoesDto> ObterConexoesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DashboardAtletaHeatmapDiaDto>> ObterFrequenciaAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IDashboardPublicoServico

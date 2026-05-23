@@ -64,6 +64,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
 
         return await dbContext.Atletas
             .AsNoTracking()
+            .Include(x => x.Usuario)
             .Where(x => atleta1Ids.Contains(x.Id) || atleta2Ids.Contains(x.Id))
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
@@ -87,6 +88,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
     {
         var query = dbContext.Atletas
             .AsNoTracking()
+            .Include(x => x.Usuario)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(termo))
@@ -156,6 +158,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
 
         return await dbContext.Atletas
             .AsNoTracking()
+            .Include(x => x.Usuario)
             .Where(x =>
                 x.Nome.ToLower().StartsWith(termoNormalizado) ||
                 (x.Apelido != null && x.Apelido.ToLower().StartsWith(termoNormalizado)))

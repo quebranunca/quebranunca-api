@@ -99,7 +99,7 @@ internal static class MapeadorEntidades
             atleta.Cidade,
             atleta.Estado,
             quantidadeJogos,
-            null
+            ObterFotoPerfilPublica(atleta.Usuario)
         );
 
     public static AtletaDto ParaDto(this Atleta atleta)
@@ -120,6 +120,7 @@ internal static class MapeadorEntidades
             atleta.DataNascimento,
             atleta.UsuarioCriadorId,
             atleta.UsuarioCriador?.Nome,
+            ObterFotoPerfilPublica(atleta.Usuario),
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
@@ -141,10 +142,14 @@ internal static class MapeadorEntidades
             atleta.Lado,
             perfilPrivado ? null : atleta.UsuarioCriadorId,
             perfilPrivado ? null : atleta.UsuarioCriador?.Nome,
+            perfilPrivado ? null : ObterFotoPerfilPublica(atleta.Usuario),
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
     }
+
+    private static string? ObterFotoPerfilPublica(Usuario? usuario)
+        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     public static DuplaDto ParaDto(this Dupla dupla)
         => new(

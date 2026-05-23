@@ -897,6 +897,7 @@ public class RankingServico(
                 atleta.Empates,
                 atleta.Pontos,
                 atleta.PontosPendentes,
+                atleta.FotoPerfilUrl,
                 atleta.Partidas
                     .OrderByDescending(partida => partida.DataPartida)
                     .ToList()))
@@ -1098,7 +1099,8 @@ public class RankingServico(
         bool possuiUsuarioVinculado,
         bool cadastroPendente,
         bool temEmail,
-        string statusPendencia)
+        string statusPendencia,
+        string? fotoPerfilUrl)
     {
         public Guid AtletaId { get; } = atletaId;
         public string NomeAtleta { get; } = nomeAtleta;
@@ -1111,6 +1113,7 @@ public class RankingServico(
         public bool CadastroPendente { get; } = cadastroPendente;
         public bool TemEmail { get; } = temEmail;
         public string StatusPendencia { get; } = statusPendencia;
+        public string? FotoPerfilUrl { get; } = fotoPerfilUrl;
         public int Jogos { get; set; }
         public int Vitorias { get; set; }
         public int Derrotas { get; set; }
@@ -1133,8 +1136,12 @@ public class RankingServico(
             StatusCadastroAtletaUtil.PossuiUsuarioVinculado(atleta),
             atleta.CadastroPendente,
             StatusCadastroAtletaUtil.TemEmail(atleta),
-            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta));
+            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta),
+            ObterFotoPerfilPublica(atleta.Usuario));
     }
+
+    private static string? ObterFotoPerfilPublica(Usuario? usuario)
+        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     private static IEnumerable<Atleta> EnumerarAtletasRanking(Partida partida)
     {

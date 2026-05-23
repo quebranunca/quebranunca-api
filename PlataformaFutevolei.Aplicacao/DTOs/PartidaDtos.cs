@@ -235,6 +235,7 @@ public record FeedPartidaItemDto(
     FeedPartidaDuplaDto Dupla1,
     FeedPartidaDuplaDto Dupla2,
     string? CriadoPorNome,
+    string? CriadoPorFotoPerfilUrl,
     string? MidiaUrl,
     string? MidiaTipo,
     string? CategoriaNome,

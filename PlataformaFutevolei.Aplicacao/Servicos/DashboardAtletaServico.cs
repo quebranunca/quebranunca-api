@@ -18,28 +18,25 @@ public class DashboardAtletaServico(
 {
     private const int QuantidadeMesesEvolucao = 6;
     private const int QuantidadeDiasHeatmap = 112;
+    private const int QuantidadeUltimasPartidas = 5;
+    private const int QuantidadeRelacoes = 8;
+
+    private sealed record DashboardAtletaContexto(
+        Atleta Atleta,
+        IReadOnlyList<Partida> PartidasValidas);
 
     public async Task<DashboardAtletaDto> ObterDashboardAsync(CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (!usuario.AtletaId.HasValue)
-        {
-            throw new RegraNegocioException("Seu usuário precisa estar vinculado a um atleta para visualizar o dashboard.");
-        }
-
-        var atleta = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken)
-            ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
-        var partidas = await partidaRepositorio.ListarPorAtletaAsync(atleta.Id, cancellationToken);
-        var partidasValidas = partidas
-            .Where(PartidaContaParaDashboard)
-            .OrderByDescending(ObterDataReferencia)
-            .ThenByDescending(x => x.DataCriacao)
-            .ToList();
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var atleta = contexto.Atleta;
+        var partidasValidas = contexto.PartidasValidas;
 
         var resumo = MontarResumo(atleta.Id, partidasValidas);
         var posicaoRanking = await ObterPosicaoRankingAsync(atleta.Id, cancellationToken);
         var parceiros = MontarRelacoes(atleta.Id, partidasValidas, obterParceiros: true);
         var rivais = MontarRelacoes(atleta.Id, partidasValidas, obterParceiros: false);
+        var parceirosRecentes = MontarRelacoesRecentes(parceiros);
+        var rivaisRecentes = MontarRelacoesRecentes(rivais);
         var melhorParceiro = parceiros.FirstOrDefault();
         var rivalMaisFrequente = rivais.FirstOrDefault();
         var resumoComNomes = resumo with
@@ -57,15 +54,113 @@ public class DashboardAtletaServico(
                 posicaoRanking,
                 resumoComNomes.Aproveitamento,
                 resumoComNomes.SequenciaAtual,
-                MontarTextoSequencia(resumoComNomes.SequenciaAtual)),
+                MontarTextoSequencia(resumoComNomes.SequenciaAtual),
+                ObterFotoPerfilAtleta(atleta)),
             resumoComNomes,
             MontarMetricas(resumoComNomes),
             MontarEvolucao(atleta.Id, partidasValidas),
-            partidasValidas.Take(5).Select(x => MontarPartidaRecente(atleta.Id, x)).ToList(),
-            parceiros.Take(8).ToList(),
-            rivais.Take(8).ToList(),
+            partidasValidas.Take(QuantidadeUltimasPartidas).Select(x => MontarPartidaRecente(atleta.Id, x)).ToList(),
+            parceiros.Take(QuantidadeRelacoes).ToList(),
+            rivais.Take(QuantidadeRelacoes).ToList(),
+            parceirosRecentes.Take(QuantidadeRelacoes).ToList(),
+            rivaisRecentes.Take(QuantidadeRelacoes).ToList(),
             MontarHeatmap(partidasValidas),
             MontarInsights(resumoComNomes, melhorParceiro, rivais.FirstOrDefault(), partidasValidas));
+    }
+
+    public async Task<DashboardAtletaPerfilDto> ObterPerfilAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var resumo = MontarResumo(contexto.Atleta.Id, contexto.PartidasValidas);
+        var posicaoRanking = await ObterPosicaoRankingAsync(contexto.Atleta.Id, cancellationToken);
+
+        return new DashboardAtletaPerfilDto(
+            contexto.Atleta.Id,
+            contexto.Atleta.Nome,
+            contexto.Atleta.Apelido,
+            contexto.Atleta.Nivel?.ToString() ?? "Geral",
+            posicaoRanking,
+            resumo.Aproveitamento,
+            resumo.SequenciaAtual,
+            MontarTextoSequencia(resumo.SequenciaAtual),
+            ObterFotoPerfilAtleta(contexto.Atleta));
+    }
+
+    public async Task<DashboardAtletaResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var resumo = MontarResumo(contexto.Atleta.Id, contexto.PartidasValidas);
+        var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
+        var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
+
+        return resumo with
+        {
+            MelhorParceiro = ObterNomeExibicao(parceiros.FirstOrDefault()?.Nome, parceiros.FirstOrDefault()?.Apelido),
+            RivalMaisFrequente = ObterNomeExibicao(rivais.FirstOrDefault()?.Nome, rivais.FirstOrDefault()?.Apelido)
+        };
+    }
+
+    public async Task<IReadOnlyList<string>> ObterInsightsAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var resumo = MontarResumo(contexto.Atleta.Id, contexto.PartidasValidas);
+        var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
+        var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
+        var resumoComNomes = resumo with
+        {
+            MelhorParceiro = ObterNomeExibicao(parceiros.FirstOrDefault()?.Nome, parceiros.FirstOrDefault()?.Apelido),
+            RivalMaisFrequente = ObterNomeExibicao(rivais.FirstOrDefault()?.Nome, rivais.FirstOrDefault()?.Apelido)
+        };
+
+        return MontarInsights(resumoComNomes, parceiros.FirstOrDefault(), rivais.FirstOrDefault(), contexto.PartidasValidas);
+    }
+
+    public async Task<IReadOnlyList<DashboardAtletaPartidaDto>> ListarUltimasPartidasAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        return contexto.PartidasValidas
+            .Take(QuantidadeUltimasPartidas)
+            .Select(x => MontarPartidaRecente(contexto.Atleta.Id, x))
+            .ToList();
+    }
+
+    public async Task<DashboardAtletaConexoesDto> ObterConexoesAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
+        var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
+
+        return new DashboardAtletaConexoesDto(
+            parceiros.Take(QuantidadeRelacoes).ToList(),
+            rivais.Take(QuantidadeRelacoes).ToList(),
+            MontarRelacoesRecentes(parceiros).Take(QuantidadeRelacoes).ToList(),
+            MontarRelacoesRecentes(rivais).Take(QuantidadeRelacoes).ToList());
+    }
+
+    public async Task<IReadOnlyList<DashboardAtletaHeatmapDiaDto>> ObterFrequenciaAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        return MontarHeatmap(contexto.PartidasValidas);
+    }
+
+    private async Task<DashboardAtletaContexto> CarregarContextoAsync(CancellationToken cancellationToken)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("Seu usuário precisa estar vinculado a um atleta para visualizar o dashboard.");
+        }
+
+        var atleta = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+        var partidas = await partidaRepositorio.ListarPorAtletaAsync(atleta.Id, cancellationToken);
+        var partidasValidas = partidas
+            .Where(PartidaContaParaDashboard)
+            .OrderByDescending(ObterDataReferencia)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToList();
+
+        return new DashboardAtletaContexto(atleta, partidasValidas);
     }
 
     private static bool PartidaContaParaDashboard(Partida partida)
@@ -186,14 +281,16 @@ public class DashboardAtletaServico(
     {
         return partidas
             .SelectMany(partida => ObterAtletasRelacao(atletaId, partida, obterParceiros)
-                .Select(atleta => new { Atleta = atleta, Vitoria = AtletaVenceu(atletaId, partida) }))
+                .Select(atleta => new { Atleta = atleta, Partida = partida, Vitoria = AtletaVenceu(atletaId, partida) }))
             .GroupBy(x => x.Atleta.Id)
             .Select(grupo =>
             {
                 var primeiro = grupo.First().Atleta;
                 var partidasJuntos = grupo.Count();
                 var vitorias = grupo.Count(x => x.Vitoria);
+                var derrotas = partidasJuntos - vitorias;
                 var aproveitamento = partidasJuntos == 0 ? 0 : decimal.Round(vitorias * 100m / partidasJuntos, 1);
+                var ultimaPartida = grupo.Max(x => ObterDataReferencia(x.Partida));
 
                 return new DashboardAtletaRelacaoDto(
                     primeiro.Id,
@@ -201,10 +298,24 @@ public class DashboardAtletaServico(
                     primeiro.Apelido,
                     partidasJuntos,
                     vitorias,
-                    aproveitamento);
+                    derrotas,
+                    aproveitamento,
+                    ultimaPartida,
+                    ObterFotoPerfilAtleta(primeiro));
             })
             .OrderByDescending(x => x.Partidas)
             .ThenByDescending(x => x.Aproveitamento)
+            .ThenBy(x => ObterNomeExibicao(x.Nome, x.Apelido))
+            .ToList();
+    }
+
+    private static IReadOnlyList<DashboardAtletaRelacaoDto> MontarRelacoesRecentes(
+        IReadOnlyList<DashboardAtletaRelacaoDto> relacoes)
+    {
+        return relacoes
+            .Where(x => x.UltimaPartida.HasValue)
+            .OrderByDescending(x => x.UltimaPartida)
+            .ThenByDescending(x => x.Partidas)
             .ThenBy(x => ObterNomeExibicao(x.Nome, x.Apelido))
             .ToList();
     }
@@ -361,4 +472,7 @@ public class DashboardAtletaServico(
     {
         return !string.IsNullOrWhiteSpace(apelido) ? apelido.Trim() : nome?.Trim() ?? "Atleta";
     }
+
+    private static string? ObterFotoPerfilAtleta(Atleta? atleta)
+        => atleta?.Usuario?.PermitirUsoImagem == true ? atleta.Usuario.FotoPerfilUrl : null;
 }

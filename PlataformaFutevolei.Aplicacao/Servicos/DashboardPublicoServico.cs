@@ -51,7 +51,8 @@ public class DashboardPublicoServico(
                 x.Derrotas,
                 CalcularAproveitamento(x.Vitorias, x.Jogos),
                 x.Pontos,
-                CalcularSequenciaAtual(x.AtletaId, partidasValidas)))
+                CalcularSequenciaAtual(x.AtletaId, partidasValidas),
+                x.FotoPerfilUrl))
             .ToList() ?? [];
 
         var totalCampeonatos = competicoes.Count(x => x.Tipo == TipoCompeticao.Campeonato);
@@ -182,19 +183,19 @@ public class DashboardPublicoServico(
         var maiorSequencia = ranking.OrderByDescending(x => x.SequenciaAtual).FirstOrDefault();
         if (maiorSequencia is not null && maiorSequencia.SequenciaAtual > 0)
         {
-            destaques.Add(new(maiorSequencia.AtletaId, maiorSequencia.Nome, maiorSequencia.Apelido, "Maior sequência", $"{maiorSequencia.SequenciaAtual}", "vitórias seguidas"));
+            destaques.Add(new(maiorSequencia.AtletaId, maiorSequencia.Nome, maiorSequencia.Apelido, "Maior sequência", $"{maiorSequencia.SequenciaAtual}", "vitórias seguidas", maiorSequencia.FotoPerfilUrl));
         }
 
         var maisVitorias = ranking.OrderByDescending(x => x.Vitorias).FirstOrDefault();
         if (maisVitorias is not null)
         {
-            destaques.Add(new(maisVitorias.AtletaId, maisVitorias.Nome, maisVitorias.Apelido, "Mais vitórias", $"{maisVitorias.Vitorias}", "vitórias registradas"));
+            destaques.Add(new(maisVitorias.AtletaId, maisVitorias.Nome, maisVitorias.Apelido, "Mais vitórias", $"{maisVitorias.Vitorias}", "vitórias registradas", maisVitorias.FotoPerfilUrl));
         }
 
         var maisAtivo = ranking.OrderByDescending(x => x.Jogos).FirstOrDefault();
         if (maisAtivo is not null)
         {
-            destaques.Add(new(maisAtivo.AtletaId, maisAtivo.Nome, maisAtivo.Apelido, "Mais ativo", $"{maisAtivo.Jogos}", "jogos no histórico"));
+            destaques.Add(new(maisAtivo.AtletaId, maisAtivo.Nome, maisAtivo.Apelido, "Mais ativo", $"{maisAtivo.Jogos}", "jogos no histórico", maisAtivo.FotoPerfilUrl));
         }
 
         var emAlta = ranking
@@ -204,7 +205,7 @@ public class DashboardPublicoServico(
             .FirstOrDefault();
         if (emAlta is not null)
         {
-            destaques.Add(new(emAlta.AtletaId, emAlta.Nome, emAlta.Apelido, "Em alta", $"{emAlta.Aproveitamento:N0}%", "aproveitamento"));
+            destaques.Add(new(emAlta.AtletaId, emAlta.Nome, emAlta.Apelido, "Em alta", $"{emAlta.Aproveitamento:N0}%", "aproveitamento", emAlta.FotoPerfilUrl));
         }
 
         return destaques

@@ -35,6 +35,7 @@ public record RankingAtletaDto(
     int Empates,
     decimal Pontos,
     decimal PontosPendentes,
+    string? FotoPerfilUrl,
     IReadOnlyList<RankingPartidaDto> Partidas
 );
 
