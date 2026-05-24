@@ -50,6 +50,44 @@ public class GrupoResumoUsuarioServico(
         return resumos;
     }
 
+    public async Task<GrupoDashboardUsuarioDto> ObterDashboardAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var grupos = await grupoRepositorio.ListarDashboardUsuarioAsync(
+            usuario.Id,
+            usuario.AtletaId,
+            cancellationToken);
+
+        var itens = new List<GrupoDashboardItemDto>(grupos.Count);
+        foreach (var grupo in grupos)
+        {
+            var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupo.Id, cancellationToken);
+            itens.Add(new GrupoDashboardItemDto(
+                grupo.Id,
+                grupo.Nome,
+                grupo.Publico ? "Público" : "Privado",
+                grupo.UsuarioOrganizadorId,
+                grupo.UsuarioOrganizador?.Nome,
+                grupo.Atletas.Select(x => x.AtletaId).Distinct().Count(),
+                grupo.Partidas.Count,
+                ContarPendenciasGrupo(grupo),
+                ObterUltimaAtividade(grupo),
+                MontarRankingResumo(ranking, usuario.AtletaId)));
+        }
+
+        var totais = new GrupoDashboardTotaisDto(
+            itens.Count,
+            grupos
+                .SelectMany(x => x.Atletas)
+                .Select(x => x.AtletaId)
+                .Distinct()
+                .Count(),
+            itens.Sum(x => x.QuantidadePartidas),
+            itens.Sum(x => x.Pendencias));
+
+        return new GrupoDashboardUsuarioDto(totais, itens);
+    }
+
     private async Task<GrupoResumoUsuarioDto> MontarResumoGrupoAsync(
         Grupo grupo,
         Guid? atletaUsuarioId,
@@ -90,6 +128,29 @@ public class GrupoResumoUsuarioServico(
             new GrupoResumoAtletaDto(dupla.Atleta1.Id, dupla.Atleta1.Nome, dupla.Atleta1.Apelido),
             new GrupoResumoAtletaDto(dupla.Atleta2.Id, dupla.Atleta2.Nome, dupla.Atleta2.Apelido)
         ];
+    }
+
+    private static int ContarPendenciasGrupo(Grupo grupo)
+        => grupo.Atletas.Count(x =>
+            x.Atleta is not null &&
+            x.Atleta.Usuario is null &&
+            string.IsNullOrWhiteSpace(x.Atleta.Email));
+
+    private static DateTime? ObterUltimaAtividade(Grupo grupo)
+    {
+        var ultimaPartida = grupo.Partidas
+            .Select(x => x.DataPartida ?? x.DataCriacao)
+            .DefaultIfEmpty()
+            .Max();
+
+        if (ultimaPartida != default)
+        {
+            return ultimaPartida;
+        }
+
+        return grupo.DataAtualizacao != default
+            ? grupo.DataAtualizacao
+            : grupo.DataCriacao;
     }
 
     private static IReadOnlyList<GrupoResumoRankingAtletaDto> MontarRankingResumo(

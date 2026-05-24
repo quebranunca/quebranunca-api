@@ -59,3 +59,28 @@ public record GrupoVerificacaoNomeDto(
     bool ExisteExato,
     IReadOnlyList<GrupoNomeSimilarDto> Similares
 );
+
+public record GrupoDashboardUsuarioDto(
+    GrupoDashboardTotaisDto Totais,
+    IReadOnlyList<GrupoDashboardItemDto> Grupos
+);
+
+public record GrupoDashboardTotaisDto(
+    int QuantidadeGrupos,
+    int QuantidadeAtletas,
+    int QuantidadePartidas,
+    int PendenciasGrupos
+);
+
+public record GrupoDashboardItemDto(
+    Guid GrupoId,
+    string Nome,
+    string Privacidade,
+    Guid? UsuarioOrganizadorId,
+    string? NomeUsuarioOrganizador,
+    int QuantidadeAtletas,
+    int QuantidadePartidas,
+    int Pendencias,
+    DateTime? UltimaAtividade,
+    IReadOnlyList<GrupoResumoRankingAtletaDto> RankingTop3
+);

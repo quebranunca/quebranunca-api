@@ -1097,8 +1097,7 @@ public class PartidaServico(
         if (grupo is not null)
         {
             var grupoEspecificoSelecionado = grupoEspecificoExistenteInformado && !EhGrupoGeral(grupo);
-            var usuarioPodeAdicionarAtletasAoGrupo = grupoEspecificoSelecionado &&
-                await UsuarioPodeAdicionarAtletasAoGrupoAsync(grupo, cancellationToken);
+            var grupoPrivadoEspecificoSelecionado = grupoEspecificoSelecionado && !grupo.Publico;
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
             var atletaDuplaA2 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta2Id, duplaAAtleta2Nome, cancellationToken);
             var atletaDuplaB1 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta1Id, duplaBAtleta1Nome, cancellationToken);
@@ -1108,7 +1107,7 @@ public class PartidaServico(
 
             foreach (var atleta in new[] { atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2 }.DistinctBy(x => x.Id))
             {
-                if (grupoEspecificoSelecionado && !usuarioPodeAdicionarAtletasAoGrupo)
+                if (grupoPrivadoEspecificoSelecionado)
                 {
                     await GarantirAtletaPertenceAoGrupoAsync(grupo.Id, atleta.Id, cancellationToken);
                 }
@@ -1254,14 +1253,6 @@ public class PartidaServico(
         {
             throw new RegraNegocioException("Todos os atletas da partida precisam pertencer ao grupo selecionado.");
         }
-    }
-
-    private async Task<bool> UsuarioPodeAdicionarAtletasAoGrupoAsync(
-        Grupo grupo,
-        CancellationToken cancellationToken)
-    {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        return usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id;
     }
 
     private bool EhGrupoGeral(Grupo grupo)

@@ -62,6 +62,14 @@ public class GruposController(
         return Ok(resumos);
     }
 
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(GrupoDashboardUsuarioDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterDashboard(CancellationToken cancellationToken)
+    {
+        var dashboard = await grupoResumoUsuarioServico.ObterDashboardAsync(cancellationToken);
+        return Ok(dashboard);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarGrupoDto dto, CancellationToken cancellationToken)

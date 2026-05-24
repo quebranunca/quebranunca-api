@@ -149,6 +149,10 @@ public interface IGrupoRepositorio
         Guid? atletaId,
         int limite,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
         Guid usuarioId,
         Guid? atletaId,

@@ -92,6 +92,32 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(
+        Guid usuarioId,
+        Guid? atletaId,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = AplicarFiltroParticipacaoUsuario(
+                dbContext.Grupos
+                    .AsNoTracking()
+                    .Include(x => x.Atletas)
+                        .ThenInclude(x => x.Atleta)
+                            .ThenInclude(x => x.Usuario)
+                    .Include(x => x.UsuarioOrganizador)
+                    .Include(x => x.Partidas)
+                    .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
+                usuarioId,
+                atletaId);
+
+        return await consulta
+            .OrderByDescending(x => x.UsuarioOrganizadorId == usuarioId)
+            .ThenByDescending(x => x.Partidas.Max(partida => (DateTime?)(partida.DataPartida ?? partida.DataCriacao)))
+            .ThenByDescending(x => x.DataAtualizacao)
+            .ThenByDescending(x => x.DataInicio)
+            .ThenBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(
         Guid usuarioId,
         Guid? atletaId,
