@@ -41,6 +41,16 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
         return Ok(atletas);
     }
 
+    [HttpGet("sugestoes/partida")]
+    [ProducesResponseType(typeof(AtletasSugestoesPartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterSugestoesPartida(
+        [FromQuery] Guid? grupoId,
+        CancellationToken cancellationToken)
+    {
+        var sugestoes = await atletaServico.ObterSugestoesPartidaAsync(grupoId, cancellationToken);
+        return Ok(sugestoes);
+    }
+
     [HttpGet("pendencias")]
     [ProducesResponseType(typeof(IReadOnlyList<AtletaPendenciaDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarPendencias(CancellationToken cancellationToken)

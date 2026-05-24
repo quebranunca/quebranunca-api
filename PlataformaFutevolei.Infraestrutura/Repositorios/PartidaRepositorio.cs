@@ -10,6 +10,7 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IPartidaRepositorio
 {
     private const string NomeCategoriaSemCategoria = "Sem categoria";
+    private sealed record RelacaoAtletaPartida(Guid AtletaId, string Nome, bool PertenceAoGrupo);
 
     public async Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
@@ -328,6 +329,149 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ThenByDescending(x => x.DataCriacao)
             .Select(x => x.GrupoId ?? (x.CategoriaCompeticao != null ? (Guid?)x.CategoriaCompeticao.CompeticaoId : null))
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<AtletasSugestoesPartidaDto> ObterSugestoesPartidaAsync(
+        Guid atletaId,
+        Guid? grupoId,
+        int limitePorSecao,
+        CancellationToken cancellationToken = default)
+    {
+        var parceiros = await ListarSugestoesPorRelacoesAsync(
+            CriarConsultaRelacoesParceiros(atletaId, grupoId),
+            atletaId,
+            limitePorSecao,
+            cancellationToken);
+        var rivais = await ListarSugestoesPorRelacoesAsync(
+            CriarConsultaRelacoesRivais(atletaId, grupoId),
+            atletaId,
+            limitePorSecao,
+            cancellationToken);
+
+        return new AtletasSugestoesPartidaDto(parceiros, rivais);
+    }
+
+    private IQueryable<RelacaoAtletaPartida> CriarConsultaRelacoesParceiros(Guid atletaId, Guid? grupoId)
+    {
+        var partidas = CriarConsultaPartidasParaSugestao(atletaId);
+
+        var parceiroDuplaAAtleta1 = partidas
+            .Where(x => x.DuplaA!.Atleta1Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaA!.Atleta2Id,
+                x.DuplaA.Atleta2.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta2Id)));
+
+        var parceiroDuplaAAtleta2 = partidas
+            .Where(x => x.DuplaA!.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaA!.Atleta1Id,
+                x.DuplaA.Atleta1.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta1Id)));
+
+        var parceiroDuplaBAtleta1 = partidas
+            .Where(x => x.DuplaB!.Atleta1Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaB!.Atleta2Id,
+                x.DuplaB.Atleta2.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta2Id)));
+
+        var parceiroDuplaBAtleta2 = partidas
+            .Where(x => x.DuplaB!.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaB!.Atleta1Id,
+                x.DuplaB.Atleta1.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta1Id)));
+
+        return parceiroDuplaAAtleta1
+            .Concat(parceiroDuplaAAtleta2)
+            .Concat(parceiroDuplaBAtleta1)
+            .Concat(parceiroDuplaBAtleta2);
+    }
+
+    private IQueryable<RelacaoAtletaPartida> CriarConsultaRelacoesRivais(Guid atletaId, Guid? grupoId)
+    {
+        var partidas = CriarConsultaPartidasParaSugestao(atletaId);
+
+        var rivaisContraDuplaAAtleta1 = partidas
+            .Where(x => x.DuplaA!.Atleta1Id == atletaId || x.DuplaA.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaB!.Atleta1Id,
+                x.DuplaB.Atleta1.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta1Id)));
+
+        var rivaisContraDuplaAAtleta2 = partidas
+            .Where(x => x.DuplaA!.Atleta1Id == atletaId || x.DuplaA.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaB!.Atleta2Id,
+                x.DuplaB.Atleta2.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta2Id)));
+
+        var rivaisContraDuplaBAtleta1 = partidas
+            .Where(x => x.DuplaB!.Atleta1Id == atletaId || x.DuplaB.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaA!.Atleta1Id,
+                x.DuplaA.Atleta1.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta1Id)));
+
+        var rivaisContraDuplaBAtleta2 = partidas
+            .Where(x => x.DuplaB!.Atleta1Id == atletaId || x.DuplaB.Atleta2Id == atletaId)
+            .Select(x => new RelacaoAtletaPartida(
+                x.DuplaA!.Atleta2Id,
+                x.DuplaA.Atleta2.Nome,
+                grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
+                    vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta2Id)));
+
+        return rivaisContraDuplaAAtleta1
+            .Concat(rivaisContraDuplaAAtleta2)
+            .Concat(rivaisContraDuplaBAtleta1)
+            .Concat(rivaisContraDuplaBAtleta2);
+    }
+
+    private IQueryable<Partida> CriarConsultaPartidasParaSugestao(Guid atletaId)
+    {
+        return dbContext.Partidas
+            .AsNoTracking()
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
+            .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .Where(x => x.DuplaA != null && x.DuplaB != null)
+            .Where(x =>
+                x.DuplaA!.Atleta1Id == atletaId ||
+                x.DuplaA.Atleta2Id == atletaId ||
+                x.DuplaB!.Atleta1Id == atletaId ||
+                x.DuplaB.Atleta2Id == atletaId);
+    }
+
+    private static async Task<IReadOnlyList<AtletaSugestaoPartidaDto>> ListarSugestoesPorRelacoesAsync(
+        IQueryable<RelacaoAtletaPartida> relacoes,
+        Guid atletaId,
+        int limite,
+        CancellationToken cancellationToken)
+    {
+        return await relacoes
+            .Where(x => x.AtletaId != atletaId)
+            .GroupBy(x => new { x.AtletaId, x.Nome })
+            .Select(x => new
+            {
+                Id = x.Key.AtletaId,
+                x.Key.Nome,
+                TotalPartidas = x.Count(),
+                PrioridadeGrupo = x.Any(item => item.PertenceAoGrupo)
+            })
+            .OrderByDescending(x => x.PrioridadeGrupo)
+            .ThenByDescending(x => x.TotalPartidas)
+            .ThenBy(x => x.Nome)
+            .Take(limite)
+            .Select(x => new AtletaSugestaoPartidaDto(x.Id, x.Nome, x.TotalPartidas))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(

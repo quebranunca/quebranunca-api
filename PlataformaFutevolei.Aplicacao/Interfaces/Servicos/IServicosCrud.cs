@@ -15,6 +15,9 @@ public interface IAtletaServico
         Guid competicaoId,
         string? termo,
         CancellationToken cancellationToken = default);
+    Task<AtletasSugestoesPartidaDto> ObterSugestoesPartidaAsync(
+        Guid? grupoId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default);
     Task<AtletaPublicoDto> ObterPublicoPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AtletaDto> ObterGerencialPorIdAsync(Guid id, CancellationToken cancellationToken = default);

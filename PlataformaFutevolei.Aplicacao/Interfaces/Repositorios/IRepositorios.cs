@@ -249,6 +249,11 @@ public interface IPartidaRepositorio
         Guid? usuarioOrganizadorId,
         Guid? atletaId,
         CancellationToken cancellationToken = default);
+    Task<AtletasSugestoesPartidaDto> ObterSugestoesPartidaAsync(
+        Guid atletaId,
+        Guid? grupoId,
+        int limitePorSecao,
+        CancellationToken cancellationToken = default);
     Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default);

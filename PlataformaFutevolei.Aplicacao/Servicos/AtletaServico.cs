@@ -98,6 +98,36 @@ public class AtletaServico(
         return atletas.Select(x => x.ParaResumoDto()).ToList();
     }
 
+    public async Task<AtletasSugestoesPartidaDto> ObterSugestoesPartidaAsync(
+        Guid? grupoId,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            return new AtletasSugestoesPartidaDto([], []);
+        }
+
+        if (grupoId.HasValue && usuario.Perfil == PerfilUsuario.Atleta)
+        {
+            var possuiAcesso = await grupoRepositorio.AtletaPossuiAcessoAsync(
+                grupoId.Value,
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
+            if (!possuiAcesso)
+            {
+                throw new RegraNegocioException("Você só pode consultar sugestões de grupos em que participa.");
+            }
+        }
+
+        return await partidaRepositorio.ObterSugestoesPartidaAsync(
+            usuario.AtletaId.Value,
+            grupoId,
+            3,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AtletaPendenciaDto>> ListarPendenciasAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);

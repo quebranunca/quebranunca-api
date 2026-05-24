@@ -46,6 +46,17 @@ public record AtletaResumoDto(
     string? AvatarUrl
 );
 
+public record AtletaSugestaoPartidaDto(
+    Guid Id,
+    string Nome,
+    int TotalPartidas
+);
+
+public record AtletasSugestoesPartidaDto(
+    IReadOnlyList<AtletaSugestaoPartidaDto> ParceirosFrequentes,
+    IReadOnlyList<AtletaSugestaoPartidaDto> RivaisFrequentes
+);
+
 public record AtletaDto(
     Guid Id,
     string Nome,

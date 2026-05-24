@@ -19,6 +19,7 @@
 - Propagar `CancellationToken` e manter respostas claras e consistentes
 - Fluxos novos devem preferir ampliar endpoints existentes antes de criar controller paralelo sem necessidade
 - Autocomplete de atletas por competição deve ser endpoint fino e reutilizável; elegibilidade, autorização e limite mínimo de 3 caracteres ficam na aplicação/repositório, não no controller
+- Sugestões inteligentes para registro de partida devem ter endpoint fino em `AtletasController`, com agregação do histórico na aplicação/repositório e sem recalcular regra de partida no controller.
 - Para importação CSV, manter upload em `multipart/form-data` e devolver resumo por linha, sem mover validação para controller
 - Em importação ou criação em lote, reutilizar os serviços já existentes de atleta, dupla, inscrição e partida; não criar atalho direto no controller
 - Em fluxos que dependem de dupla inscrita no campeonato, considerar a ordem normalizada dos atletas para evitar falso negativo de inscrição
