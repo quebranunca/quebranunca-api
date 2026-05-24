@@ -129,7 +129,7 @@ public class GrupoServico(
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
 
-        var nome = Validar(dto.Nome, dto.DataInicio, dto.DataFim, dto.Link);
+        var nome = ValidarNome(dto.Nome);
         if (string.Equals(nome, grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(grupo.Nome?.Trim(), grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase))
         {
@@ -137,16 +137,9 @@ public class GrupoServico(
         }
 
         await grupoPadraoServico.ValidarNomeDisponivelOuAcessivelAsync(nome, id, cancellationToken);
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
 
         grupo.Nome = nome;
-        grupo.Descricao = dto.Descricao?.Trim();
-        grupo.Link = NormalizarLink(dto.Link);
-        grupo.DataInicio = NormalizarParaUtc(dto.DataInicio);
-        grupo.DataFim = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
-        grupo.LocalId = dto.LocalId;
-        grupo.Publico = EhPublico(dto.Privacidade);
-        grupo.ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl);
+        grupo.Publico = ResolverPublico(dto, grupo.Publico);
         grupo.AtualizarDataModificacao();
 
         grupoRepositorio.Atualizar(grupo);
@@ -236,6 +229,31 @@ public class GrupoServico(
         => string.Equals(privacidade?.Trim(), "Público", StringComparison.OrdinalIgnoreCase) ||
            string.Equals(privacidade?.Trim(), "Publico", StringComparison.OrdinalIgnoreCase) ||
            string.Equals(privacidade?.Trim(), "publico", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ResolverPublico(AtualizarGrupoDto dto, bool publicoAtual)
+    {
+        if (dto.Publico.HasValue)
+        {
+            return dto.Publico.Value;
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Privacidade))
+        {
+            return publicoAtual;
+        }
+
+        if (EhPublico(dto.Privacidade))
+        {
+            return true;
+        }
+
+        if (string.Equals(dto.Privacidade.Trim(), "Privado", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        throw new RegraNegocioException("Visibilidade do grupo inválida.");
+    }
 
     private static string ObterPrivacidade(Grupo grupo)
         => grupo.Publico ? "Público" : "Privado";

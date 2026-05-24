@@ -13,13 +13,8 @@ public record CriarGrupoDto(
 
 public record AtualizarGrupoDto(
     string Nome,
-    string? Descricao,
-    string? Link,
-    DateTime DataInicio,
-    DateTime? DataFim,
-    Guid? LocalId,
-    string? Privacidade = null,
-    string? ImagemUrl = null
+    bool? Publico = null,
+    string? Privacidade = null
 );
 
 public record GrupoDto(
