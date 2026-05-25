@@ -117,8 +117,17 @@ public interface IArenaRepositorio
     Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ArenaEspaco>> ListarEspacosPorArenaAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default);
+    Task<ArenaEspaco?> ObterEspacoPorIdEArenaAsync(
+        Guid arenaId,
+        Guid espacoId,
+        CancellationToken cancellationToken = default);
     Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default);
+    Task AdicionarEspacoAsync(ArenaEspaco espaco, CancellationToken cancellationToken = default);
     void Atualizar(Arena arena);
+    void AtualizarEspaco(ArenaEspaco espaco);
     void Remover(Arena arena);
 }
 

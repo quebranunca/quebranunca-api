@@ -247,10 +247,28 @@ public class ArenaServicoPublicoTests
         public Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default)
             => Task.FromResult(arenas.Any(x => x.Slug == slug && x.Id != idIgnorado));
 
+        public Task<IReadOnlyList<ArenaEspaco>> ListarEspacosPorArenaAsync(
+            Guid arenaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ArenaEspaco>>([]);
+
+        public Task<ArenaEspaco?> ObterEspacoPorIdEArenaAsync(
+            Guid arenaId,
+            Guid espacoId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<ArenaEspaco?>(null);
+
         public Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
+        public Task AdicionarEspacoAsync(ArenaEspaco espaco, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
         public void Atualizar(Arena arena)
+        {
+        }
+
+        public void AtualizarEspaco(ArenaEspaco espaco)
         {
         }
 

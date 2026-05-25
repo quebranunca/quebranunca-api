@@ -124,6 +124,59 @@ public class ArenaServicoAdminTests
         Assert.Empty(publicas);
     }
 
+    [Fact]
+    public async Task ListarEspacosAsync_RetornaEspacosOrdenadosPorOrdem()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+        cenario.AdicionarEspaco(arena, "Quadra 2", TipoEspaco.QuadraCoberta, 2);
+        cenario.AdicionarEspaco(arena, "Quadra 1", TipoEspaco.QuadraCoberta, 1);
+
+        var espacos = await cenario.Servico.ListarEspacosAsync(arena.Id);
+
+        Assert.Collection(espacos,
+            item => Assert.Equal("Quadra 1", item.Nome),
+            item => Assert.Equal("Quadra 2", item.Nome));
+    }
+
+    [Fact]
+    public async Task CriarEspacoAsync_AdicionaEspacoComInformacoesBasicas()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        var espaco = await cenario.Servico.CriarEspacoAsync(arena.Id, new CriarArenaEspacoRequest(
+            "Rede central",
+            TipoEspaco.RedePraia,
+            "Rede com luz e cobertura",
+            true,
+            true,
+            true,
+            3));
+
+        Assert.Equal(arena.Id, espaco.ArenaId);
+        Assert.Equal("Rede central", espaco.Nome);
+        Assert.Equal(TipoEspaco.RedePraia, espaco.TipoEspaco);
+        Assert.True(espaco.PossuiIluminacao);
+        Assert.True(espaco.PossuiCobertura);
+        Assert.True(espaco.Ativo);
+        Assert.Equal(3, espaco.OrdemExibicao);
+    }
+
+    [Fact]
+    public async Task AtualizarStatusEspacoAsync_DesativaEspaco()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+        var espaco = cenario.AdicionarEspaco(arena, "Treino", TipoEspaco.AreaTreino, 1);
+
+        await cenario.Servico.AtualizarStatusEspacoAsync(arena.Id, espaco.Id, false);
+
+        var atualizados = await cenario.Servico.ListarEspacosAsync(arena.Id);
+        Assert.Single(atualizados);
+        Assert.False(atualizados[0].Ativo);
+    }
+
     private static CriarArenaRequest NovoRequest(string nome)
         => new(
             nome, "Descrição", TipoArena.ArenaPrivada, "Rua 1", "Centro", "Santos", "SP",
@@ -180,6 +233,24 @@ public class ArenaServicoAdminTests
             arenas.Add(arena);
             return arena;
         }
+
+        public ArenaEspaco AdicionarEspaco(Arena arena, string nome, TipoEspaco tipoEspaco, int? ordemExibicao = null)
+        {
+            var espaco = new ArenaEspaco
+            {
+                ArenaId = arena.Id,
+                Nome = nome,
+                TipoEspaco = tipoEspaco,
+                Descricao = "Descrição",
+                PossuiIluminacao = true,
+                PossuiCobertura = true,
+                Ativo = true,
+                OrdemExibicao = ordemExibicao
+            };
+
+            arena.Espacos.Add(espaco);
+            return espaco;
+        }
     }
 
     private sealed class ArenaRepositorioMemoria(List<Arena> arenas) : IArenaRepositorio
@@ -232,13 +303,39 @@ public class ArenaServicoAdminTests
         public Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default)
             => Task.FromResult(arenas.Any(x => x.Id != idIgnorado && x.Slug == slug));
 
+        public Task<IReadOnlyList<ArenaEspaco>> ListarEspacosPorArenaAsync(
+            Guid arenaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ArenaEspaco>>(arenas
+                .First(x => x.Id == arenaId)
+                .Espacos
+                .OrderBy(x => x.OrdemExibicao ?? int.MaxValue)
+                .ThenBy(x => x.Nome)
+                .ToList());
+
+        public Task<ArenaEspaco?> ObterEspacoPorIdEArenaAsync(
+            Guid arenaId,
+            Guid espacoId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.First(x => x.Id == arenaId).Espacos.FirstOrDefault(x => x.Id == espacoId));
+
         public Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default)
         {
             arenas.Add(arena);
             return Task.CompletedTask;
         }
 
+        public Task AdicionarEspacoAsync(ArenaEspaco espaco, CancellationToken cancellationToken = default)
+        {
+            arenas.First(x => x.Id == espaco.ArenaId).Espacos.Add(espaco);
+            return Task.CompletedTask;
+        }
+
         public void Atualizar(Arena arena)
+        {
+        }
+
+        public void AtualizarEspaco(ArenaEspaco espaco)
         {
         }
 

@@ -185,6 +185,37 @@ public record AtualizarStatusArenaRequest(bool Ativa);
 
 public record AtualizarVisibilidadeArenaRequest(bool Publica);
 
+public record CriarArenaEspacoRequest(
+    string Nome,
+    TipoEspaco TipoEspaco,
+    string? Descricao,
+    bool PossuiIluminacao,
+    bool PossuiCobertura,
+    bool Ativo,
+    int? OrdemExibicao);
+
+public record AtualizarArenaEspacoRequest(
+    string Nome,
+    TipoEspaco TipoEspaco,
+    string? Descricao,
+    bool PossuiIluminacao,
+    bool PossuiCobertura,
+    bool Ativo,
+    int? OrdemExibicao);
+
+public record AtualizarStatusArenaEspacoRequest(bool Ativo);
+
+public record ArenaEspacoAdminResponse(
+    Guid Id,
+    Guid ArenaId,
+    string Nome,
+    TipoEspaco TipoEspaco,
+    string? Descricao,
+    bool PossuiIluminacao,
+    bool PossuiCobertura,
+    bool Ativo,
+    int? OrdemExibicao);
+
 public record ArenaAdminResumoResponse(
     Guid Id,
     string Nome,

@@ -230,6 +230,103 @@ public class ArenaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ArenaEspacoAdminResponse>> ListarEspacosAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arena.Id, cancellationToken);
+
+        return (await arenaRepositorio.ListarEspacosPorArenaAsync(arena.Id, cancellationToken))
+            .Select(ParaEspacoAdminResponse)
+            .ToList();
+    }
+
+    public async Task<ArenaEspacoAdminResponse> CriarEspacoAsync(
+        Guid arenaId,
+        CriarArenaEspacoRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arena.Id, cancellationToken);
+
+        var nome = ValidarNomeEspaco(request.Nome);
+        ValidarTipoEspaco(request.TipoEspaco);
+        ValidarOrdemExibicao(request.OrdemExibicao);
+
+        var espaco = new ArenaEspaco
+        {
+            ArenaId = arena.Id,
+            Nome = nome,
+            TipoEspaco = request.TipoEspaco,
+            Descricao = Normalizar(request.Descricao),
+            PossuiIluminacao = request.PossuiIluminacao,
+            PossuiCobertura = request.PossuiCobertura,
+            Ativo = request.Ativo,
+            OrdemExibicao = request.OrdemExibicao
+        };
+
+        await arenaRepositorio.AdicionarEspacoAsync(espaco, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return ParaEspacoAdminResponse(espaco);
+    }
+
+    public async Task<ArenaEspacoAdminResponse> AtualizarEspacoAsync(
+        Guid arenaId,
+        Guid espacoId,
+        AtualizarArenaEspacoRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arena.Id, cancellationToken);
+
+        var espaco = await arenaRepositorio.ObterEspacoPorIdEArenaAsync(arena.Id, espacoId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Espaço da arena não encontrado.");
+
+        var nome = ValidarNomeEspaco(request.Nome);
+        ValidarTipoEspaco(request.TipoEspaco);
+        ValidarOrdemExibicao(request.OrdemExibicao);
+
+        espaco.Nome = nome;
+        espaco.TipoEspaco = request.TipoEspaco;
+        espaco.Descricao = Normalizar(request.Descricao);
+        espaco.PossuiIluminacao = request.PossuiIluminacao;
+        espaco.PossuiCobertura = request.PossuiCobertura;
+        espaco.Ativo = request.Ativo;
+        espaco.OrdemExibicao = request.OrdemExibicao;
+        espaco.AtualizarDataModificacao();
+
+        arenaRepositorio.AtualizarEspaco(espaco);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return ParaEspacoAdminResponse(espaco);
+    }
+
+    public async Task AtualizarStatusEspacoAsync(
+        Guid arenaId,
+        Guid espacoId,
+        bool ativo,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arena.Id, cancellationToken);
+
+        var espaco = await arenaRepositorio.ObterEspacoPorIdEArenaAsync(arena.Id, espacoId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Espaço da arena não encontrado.");
+
+        espaco.Ativo = ativo;
+        espaco.AtualizarDataModificacao();
+        arenaRepositorio.AtualizarEspaco(espaco);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ArenaDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
         var arenas = await arenaRepositorio.ListarAsync(cancellationToken);
@@ -399,6 +496,32 @@ public class ArenaServico(
         }
     }
 
+    private static void ValidarTipoEspaco(TipoEspaco tipoEspaco)
+    {
+        if (!Enum.IsDefined(tipoEspaco))
+        {
+            throw new RegraNegocioException("Tipo de espaço inválido.");
+        }
+    }
+
+    private static string ValidarNomeEspaco(string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            throw new RegraNegocioException("Nome do espaço é obrigatório.");
+        }
+
+        return nome.Trim();
+    }
+
+    private static void ValidarOrdemExibicao(int? ordemExibicao)
+    {
+        if (ordemExibicao.HasValue && ordemExibicao < 0)
+        {
+            throw new RegraNegocioException("Ordem de exibição não pode ser negativa.");
+        }
+    }
+
     private static void ValidarQuantidadeEspacos(int quantidadeEspacos)
     {
         if (quantidadeEspacos < 0)
@@ -487,4 +610,16 @@ public class ArenaServico(
                     x.Usuario.Email,
                     x.Papel))
                 .ToList());
+
+    private static ArenaEspacoAdminResponse ParaEspacoAdminResponse(ArenaEspaco espaco)
+        => new(
+            espaco.Id,
+            espaco.ArenaId,
+            espaco.Nome,
+            espaco.TipoEspaco,
+            espaco.Descricao,
+            espaco.PossuiIluminacao,
+            espaco.PossuiCobertura,
+            espaco.Ativo,
+            espaco.OrdemExibicao);
 }

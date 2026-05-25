@@ -35,4 +35,5 @@ public class Arena : EntidadeBase
     public ICollection<ArenaResponsavel> Responsaveis { get; set; } = new List<ArenaResponsavel>();
     public ICollection<Competicao> Competicoes { get; set; } = new List<Competicao>();
     public ICollection<Grupo> Grupos { get; set; } = new List<Grupo>();
+    public ICollection<ArenaEspaco> Espacos { get; set; } = new List<ArenaEspaco>();
 }

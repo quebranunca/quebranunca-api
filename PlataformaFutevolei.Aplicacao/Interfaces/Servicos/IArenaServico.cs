@@ -33,6 +33,23 @@ public interface IArenaServico
         Guid arenaId,
         bool publica,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ArenaEspacoAdminResponse>> ListarEspacosAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default);
+    Task<ArenaEspacoAdminResponse> CriarEspacoAsync(
+        Guid arenaId,
+        CriarArenaEspacoRequest request,
+        CancellationToken cancellationToken = default);
+    Task<ArenaEspacoAdminResponse> AtualizarEspacoAsync(
+        Guid arenaId,
+        Guid espacoId,
+        AtualizarArenaEspacoRequest request,
+        CancellationToken cancellationToken = default);
+    Task AtualizarStatusEspacoAsync(
+        Guid arenaId,
+        Guid espacoId,
+        bool ativo,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ArenaDto>> ListarAsync(CancellationToken cancellationToken = default);
     Task<ArenaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ArenaDto> CriarAsync(CriarArenaDto dto, CancellationToken cancellationToken = default);

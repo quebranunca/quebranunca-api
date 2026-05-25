@@ -106,6 +106,57 @@ public class ArenasController(IArenaServico arenaServico) : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("admin/{arenaId:guid}/espacos")]
+    [ProducesResponseType(typeof(IReadOnlyList<ArenaEspacoAdminResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListarEspacos(Guid arenaId, CancellationToken cancellationToken)
+    {
+        var espacos = await arenaServico.ListarEspacosAsync(arenaId, cancellationToken);
+        return Ok(espacos);
+    }
+
+    [HttpPost("admin/{arenaId:guid}/espacos")]
+    [ProducesResponseType(typeof(ArenaEspacoAdminResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CriarEspaco(
+        Guid arenaId,
+        [FromBody] CriarArenaEspacoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var espaco = await arenaServico.CriarEspacoAsync(arenaId, request, cancellationToken);
+        return CreatedAtAction(nameof(ListarEspacos), new { arenaId }, espaco);
+    }
+
+    [HttpPut("admin/{arenaId:guid}/espacos/{espacoId:guid}")]
+    [ProducesResponseType(typeof(ArenaEspacoAdminResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AtualizarEspaco(
+        Guid arenaId,
+        Guid espacoId,
+        [FromBody] AtualizarArenaEspacoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var espaco = await arenaServico.AtualizarEspacoAsync(arenaId, espacoId, request, cancellationToken);
+        return Ok(espaco);
+    }
+
+    [HttpPatch("admin/{arenaId:guid}/espacos/{espacoId:guid}/status")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AtualizarStatusEspaco(
+        Guid arenaId,
+        Guid espacoId,
+        [FromBody] AtualizarStatusArenaEspacoRequest request,
+        CancellationToken cancellationToken)
+    {
+        await arenaServico.AtualizarStatusEspacoAsync(arenaId, espacoId, request.Ativo, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ArenaDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

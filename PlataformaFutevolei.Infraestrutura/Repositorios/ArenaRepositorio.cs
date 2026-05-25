@@ -172,14 +172,45 @@ public class ArenaRepositorio(PlataformaFutevoleiDbContext dbContext) : IArenaRe
     public Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default)
         => dbContext.Arenas.AnyAsync(x => x.Slug == slug && x.Id != idIgnorado, cancellationToken);
 
+    public async Task<IReadOnlyList<ArenaEspaco>> ListarEspacosPorArenaAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.ArenaEspacos
+            .AsNoTracking()
+            .Where(x => x.ArenaId == arenaId)
+            .OrderBy(x => x.OrdemExibicao ?? int.MaxValue)
+            .ThenBy(x => x.Nome)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<ArenaEspaco?> ObterEspacoPorIdEArenaAsync(
+        Guid arenaId,
+        Guid espacoId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.ArenaEspacos
+            .FirstOrDefaultAsync(x => x.ArenaId == arenaId && x.Id == espacoId, cancellationToken);
+    }
+
     public async Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default)
     {
         await dbContext.Arenas.AddAsync(arena, cancellationToken);
     }
 
+    public async Task AdicionarEspacoAsync(ArenaEspaco espaco, CancellationToken cancellationToken = default)
+    {
+        await dbContext.ArenaEspacos.AddAsync(espaco, cancellationToken);
+    }
+
     public void Atualizar(Arena arena)
     {
         dbContext.Arenas.Update(arena);
+    }
+
+    public void AtualizarEspaco(ArenaEspaco espaco)
+    {
+        dbContext.ArenaEspacos.Update(espaco);
     }
 
     public void Remover(Arena arena)
