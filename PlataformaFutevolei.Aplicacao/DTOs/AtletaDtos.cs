@@ -49,7 +49,8 @@ public record AtletaResumoDto(
 public record AtletaSugestaoPartidaDto(
     Guid Id,
     string Nome,
-    int TotalPartidas
+    int TotalPartidas,
+    string? FotoPerfilUrl
 );
 
 public record AtletasSugestoesPartidaDto(

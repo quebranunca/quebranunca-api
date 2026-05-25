@@ -6,6 +6,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -452,7 +453,7 @@ public class PartidaServico(
         ];
 
     private static PartidaCompartilhamentoAtletaDto MontarAtletaCompartilhamento(Atleta atleta)
-        => new(atleta.Id, atleta.Nome, atleta.Apelido, ObterFotoPerfilAtleta(atleta));
+        => new(atleta.Id, atleta.Nome, atleta.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(atleta));
 
     private static FeedPartidaItemDto MontarItemFeed(Partida partida)
         => new(
@@ -463,7 +464,7 @@ public class PartidaServico(
             MontarDuplaFeed(partida.DuplaA),
             MontarDuplaFeed(partida.DuplaB),
             partida.CriadoPorUsuario?.Nome,
-            ObterFotoPerfilPublica(partida.CriadoPorUsuario),
+            FotoPerfilAtletaUtil.ObterUrlPublica(partida.CriadoPorUsuario),
             partida.MidiaUrl,
             partida.MidiaTipo?.ToString(),
             partida.CategoriaCompeticao?.Nome,
@@ -484,12 +485,6 @@ public class PartidaServico(
 
         return string.IsNullOrWhiteSpace(atleta.Apelido) ? atleta.Nome : atleta.Apelido;
     }
-
-    private static string? ObterFotoPerfilAtleta(Atleta? atleta)
-        => ObterFotoPerfilPublica(atleta?.Usuario);
-
-    private static string? ObterFotoPerfilPublica(Usuario? usuario)
-        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     private static bool DuplaContemAtleta(Dupla dupla, Guid atletaId)
         => dupla.Atleta1Id == atletaId || dupla.Atleta2Id == atletaId;

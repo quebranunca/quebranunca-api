@@ -99,7 +99,7 @@ internal static class MapeadorEntidades
             atleta.Cidade,
             atleta.Estado,
             quantidadeJogos,
-            ObterFotoPerfilPublica(atleta.Usuario)
+            FotoPerfilAtletaUtil.ObterUrlPublica(atleta)
         );
 
     public static AtletaDto ParaDto(this Atleta atleta)
@@ -120,7 +120,7 @@ internal static class MapeadorEntidades
             atleta.DataNascimento,
             atleta.UsuarioCriadorId,
             atleta.UsuarioCriador?.Nome,
-            ObterFotoPerfilPublica(atleta.Usuario),
+            FotoPerfilAtletaUtil.ObterUrlPublica(atleta),
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
@@ -142,14 +142,11 @@ internal static class MapeadorEntidades
             atleta.Lado,
             perfilPrivado ? null : atleta.UsuarioCriadorId,
             perfilPrivado ? null : atleta.UsuarioCriador?.Nome,
-            perfilPrivado ? null : ObterFotoPerfilPublica(atleta.Usuario),
+            perfilPrivado ? null : FotoPerfilAtletaUtil.ObterUrlPublica(atleta),
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
     }
-
-    private static string? ObterFotoPerfilPublica(Usuario? usuario)
-        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     public static DuplaDto ParaDto(this Dupla dupla)
         => new(
@@ -265,6 +262,7 @@ internal static class MapeadorEntidades
             grupoAtleta.Atleta?.Email,
             grupoAtleta.Atleta?.CadastroPendente ?? false,
             grupoAtleta.Atleta?.Usuario is not null,
+            FotoPerfilAtletaUtil.ObterUrlPublica(grupoAtleta.Atleta),
             grupoAtleta.DataCriacao,
             grupoAtleta.DataAtualizacao
         );
@@ -279,6 +277,7 @@ internal static class MapeadorEntidades
             null,
             grupoAtleta.Atleta?.CadastroPendente ?? false,
             grupoAtleta.Atleta?.Usuario is not null,
+            FotoPerfilAtletaUtil.ObterUrlPublica(grupoAtleta.Atleta),
             grupoAtleta.DataCriacao,
             grupoAtleta.DataAtualizacao
         );

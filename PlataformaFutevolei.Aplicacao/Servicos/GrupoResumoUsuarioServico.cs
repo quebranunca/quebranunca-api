@@ -2,6 +2,7 @@ using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
@@ -125,8 +126,8 @@ public class GrupoResumoUsuarioServico(
         }
 
         return [
-            new GrupoResumoAtletaDto(dupla.Atleta1.Id, dupla.Atleta1.Nome, dupla.Atleta1.Apelido),
-            new GrupoResumoAtletaDto(dupla.Atleta2.Id, dupla.Atleta2.Nome, dupla.Atleta2.Apelido)
+            new GrupoResumoAtletaDto(dupla.Atleta1.Id, dupla.Atleta1.Nome, dupla.Atleta1.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(dupla.Atleta1)),
+            new GrupoResumoAtletaDto(dupla.Atleta2.Id, dupla.Atleta2.Nome, dupla.Atleta2.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(dupla.Atleta2))
         ];
     }
 
@@ -165,6 +166,7 @@ public class GrupoResumoUsuarioServico(
                 AtletaId = x.Key,
                 NomeAtleta = x.First().NomeAtleta,
                 ApelidoAtleta = x.First().ApelidoAtleta,
+                FotoPerfilUrl = x.First().FotoPerfilUrl,
                 Pontuacao = x.Sum(atleta => atleta.Pontos)
             })
             .OrderByDescending(x => x.Pontuacao)
@@ -175,7 +177,8 @@ public class GrupoResumoUsuarioServico(
                 x.NomeAtleta,
                 x.ApelidoAtleta,
                 x.Pontuacao,
-                atletaUsuarioId.HasValue && x.AtletaId == atletaUsuarioId.Value))
+                atletaUsuarioId.HasValue && x.AtletaId == atletaUsuarioId.Value,
+                x.FotoPerfilUrl))
             .ToList();
 
         if (rankingOrdenado.Count == 0)

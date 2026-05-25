@@ -135,7 +135,8 @@ public record GrupoResumoUltimoJogoDto(
 public record GrupoResumoAtletaDto(
     Guid Id,
     string Nome,
-    string? Apelido
+    string? Apelido,
+    string? FotoPerfilUrl
 );
 
 public record GrupoResumoRankingAtletaDto(
@@ -144,5 +145,6 @@ public record GrupoResumoRankingAtletaDto(
     string NomeAtleta,
     string? ApelidoAtleta,
     decimal Pontuacao,
-    bool UsuarioLogado
+    bool UsuarioLogado,
+    string? FotoPerfilUrl
 );

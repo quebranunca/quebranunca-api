@@ -14,6 +14,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         public Guid AtletaId { get; init; }
         public string Nome { get; init; } = string.Empty;
+        public string? FotoPerfilUrl { get; init; }
         public bool PertenceAoGrupo { get; init; }
     }
 
@@ -366,6 +367,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaA!.Atleta2Id,
                 Nome = x.DuplaA.Atleta2.Nome,
+                FotoPerfilUrl = x.DuplaA.Atleta2.Usuario != null && x.DuplaA.Atleta2.Usuario.PermitirUsoImagem
+                    ? x.DuplaA.Atleta2.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta2Id)
             });
@@ -376,6 +380,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaA!.Atleta1Id,
                 Nome = x.DuplaA.Atleta1.Nome,
+                FotoPerfilUrl = x.DuplaA.Atleta1.Usuario != null && x.DuplaA.Atleta1.Usuario.PermitirUsoImagem
+                    ? x.DuplaA.Atleta1.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta1Id)
             });
@@ -386,6 +393,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaB!.Atleta2Id,
                 Nome = x.DuplaB.Atleta2.Nome,
+                FotoPerfilUrl = x.DuplaB.Atleta2.Usuario != null && x.DuplaB.Atleta2.Usuario.PermitirUsoImagem
+                    ? x.DuplaB.Atleta2.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta2Id)
             });
@@ -396,6 +406,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaB!.Atleta1Id,
                 Nome = x.DuplaB.Atleta1.Nome,
+                FotoPerfilUrl = x.DuplaB.Atleta1.Usuario != null && x.DuplaB.Atleta1.Usuario.PermitirUsoImagem
+                    ? x.DuplaB.Atleta1.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta1Id)
             });
@@ -416,6 +429,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaB!.Atleta1Id,
                 Nome = x.DuplaB.Atleta1.Nome,
+                FotoPerfilUrl = x.DuplaB.Atleta1.Usuario != null && x.DuplaB.Atleta1.Usuario.PermitirUsoImagem
+                    ? x.DuplaB.Atleta1.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta1Id)
             });
@@ -426,6 +442,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaB!.Atleta2Id,
                 Nome = x.DuplaB.Atleta2.Nome,
+                FotoPerfilUrl = x.DuplaB.Atleta2.Usuario != null && x.DuplaB.Atleta2.Usuario.PermitirUsoImagem
+                    ? x.DuplaB.Atleta2.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaB.Atleta2Id)
             });
@@ -436,6 +455,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaA!.Atleta1Id,
                 Nome = x.DuplaA.Atleta1.Nome,
+                FotoPerfilUrl = x.DuplaA.Atleta1.Usuario != null && x.DuplaA.Atleta1.Usuario.PermitirUsoImagem
+                    ? x.DuplaA.Atleta1.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta1Id)
             });
@@ -446,6 +468,9 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             {
                 AtletaId = x.DuplaA!.Atleta2Id,
                 Nome = x.DuplaA.Atleta2.Nome,
+                FotoPerfilUrl = x.DuplaA.Atleta2.Usuario != null && x.DuplaA.Atleta2.Usuario.PermitirUsoImagem
+                    ? x.DuplaA.Atleta2.Usuario.FotoPerfilUrl
+                    : null,
                 PertenceAoGrupo = grupoId.HasValue && dbContext.GruposAtletas.Any(vinculo =>
                     vinculo.GrupoId == grupoId.Value && vinculo.AtletaId == x.DuplaA.Atleta2Id)
             });
@@ -479,11 +504,12 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         return await relacoes
             .Where(x => x.AtletaId != atletaId)
-            .GroupBy(x => new { x.AtletaId, x.Nome })
+            .GroupBy(x => new { x.AtletaId, x.Nome, x.FotoPerfilUrl })
             .Select(x => new
             {
                 Id = x.Key.AtletaId,
                 x.Key.Nome,
+                x.Key.FotoPerfilUrl,
                 TotalPartidas = x.Count(),
                 PrioridadeGrupo = x.Any(item => item.PertenceAoGrupo)
             })
@@ -491,7 +517,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ThenByDescending(x => x.TotalPartidas)
             .ThenBy(x => x.Nome)
             .Take(limite)
-            .Select(x => new AtletaSugestaoPartidaDto(x.Id, x.Nome, x.TotalPartidas))
+            .Select(x => new AtletaSugestaoPartidaDto(x.Id, x.Nome, x.TotalPartidas, x.FotoPerfilUrl))
             .ToListAsync(cancellationToken);
     }
 

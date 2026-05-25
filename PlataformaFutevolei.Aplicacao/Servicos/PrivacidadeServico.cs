@@ -132,7 +132,7 @@ public class PrivacidadeServico(
             usuario.ExibirEmail,
             usuario.PermitirUsoLocalizacao,
             usuario.PermitirUsoImagem,
-            PossuiFotoPerfil: false,
+            PossuiFotoPerfil: !string.IsNullOrWhiteSpace(usuario.FotoPerfilUrl),
             usuario.ExclusaoSolicitadaEmUtc.HasValue);
 
     private static string? Limitar(string? valor, int tamanhoMaximo)

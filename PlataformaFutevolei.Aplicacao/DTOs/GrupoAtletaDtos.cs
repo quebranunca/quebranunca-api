@@ -19,6 +19,7 @@ public record GrupoAtletaDto(
     string? EmailAtleta,
     bool CadastroPendente,
     bool VinculadoAUsuario,
+    string? FotoPerfilUrl,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -27,5 +28,6 @@ public record GrupoAtletaBuscaDto(
     Guid Id,
     string Nome,
     string? Apelido,
-    string TextoExibicao
+    string TextoExibicao,
+    string? FotoPerfilUrl
 );

@@ -1137,11 +1137,8 @@ public class RankingServico(
             atleta.CadastroPendente,
             StatusCadastroAtletaUtil.TemEmail(atleta),
             StatusCadastroAtletaUtil.ObterStatusPendencia(atleta),
-            ObterFotoPerfilPublica(atleta.Usuario));
+            FotoPerfilAtletaUtil.ObterUrlPublica(atleta));
     }
-
-    private static string? ObterFotoPerfilPublica(Usuario? usuario)
-        => usuario?.PermitirUsoImagem == true ? usuario.FotoPerfilUrl : null;
 
     private static IEnumerable<Atleta> EnumerarAtletasRanking(Partida partida)
     {

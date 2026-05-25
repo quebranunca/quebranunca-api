@@ -42,6 +42,7 @@ public class GrupoAtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IG
         return await dbContext.GruposAtletas
             .AsNoTracking()
             .Include(x => x.Atleta)
+                .ThenInclude(x => x.Usuario)
             .Where(x => x.GrupoId == grupoId)
             .Where(x =>
                 x.Atleta.Nome.ToLower().StartsWith(termoNormalizado) ||

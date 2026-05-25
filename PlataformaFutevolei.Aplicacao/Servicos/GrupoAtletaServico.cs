@@ -78,7 +78,12 @@ public class GrupoAtletaServico(
             var nome = x.Atleta?.Nome ?? string.Empty;
             var apelido = x.Atleta?.Apelido;
             var textoExibicao = string.IsNullOrWhiteSpace(apelido) ? nome : apelido!;
-            return new GrupoAtletaBuscaDto(x.AtletaId, nome, apelido, textoExibicao);
+            return new GrupoAtletaBuscaDto(
+                x.AtletaId,
+                nome,
+                apelido,
+                textoExibicao,
+                FotoPerfilAtletaUtil.ObterUrlPublica(x.Atleta));
         }).ToList();
     }
 

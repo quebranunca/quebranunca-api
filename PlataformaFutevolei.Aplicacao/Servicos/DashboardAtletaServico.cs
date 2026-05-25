@@ -4,6 +4,7 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -55,7 +56,7 @@ public class DashboardAtletaServico(
                 resumoComNomes.Aproveitamento,
                 resumoComNomes.SequenciaAtual,
                 MontarTextoSequencia(resumoComNomes.SequenciaAtual),
-                ObterFotoPerfilAtleta(atleta)),
+                FotoPerfilAtletaUtil.ObterUrlPublica(atleta)),
             resumoComNomes,
             MontarMetricas(resumoComNomes),
             MontarEvolucao(atleta.Id, partidasValidas),
@@ -83,7 +84,7 @@ public class DashboardAtletaServico(
             resumo.Aproveitamento,
             resumo.SequenciaAtual,
             MontarTextoSequencia(resumo.SequenciaAtual),
-            ObterFotoPerfilAtleta(contexto.Atleta));
+            FotoPerfilAtletaUtil.ObterUrlPublica(contexto.Atleta));
     }
 
     public async Task<DashboardAtletaResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default)
@@ -301,7 +302,7 @@ public class DashboardAtletaServico(
                     derrotas,
                     aproveitamento,
                     ultimaPartida,
-                    ObterFotoPerfilAtleta(primeiro));
+                    FotoPerfilAtletaUtil.ObterUrlPublica(primeiro));
             })
             .OrderByDescending(x => x.Partidas)
             .ThenByDescending(x => x.Aproveitamento)
@@ -473,6 +474,4 @@ public class DashboardAtletaServico(
         return !string.IsNullOrWhiteSpace(apelido) ? apelido.Trim() : nome?.Trim() ?? "Atleta";
     }
 
-    private static string? ObterFotoPerfilAtleta(Atleta? atleta)
-        => atleta?.Usuario?.PermitirUsoImagem == true ? atleta.Usuario.FotoPerfilUrl : null;
 }
