@@ -373,6 +373,7 @@ public class PartidaServicoGrupoTests
     {
         public Task InicializarFluxoPartidaAsync(Partida partida, Guid usuarioRegistradorId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<PendenciaUsuarioDto>>([]);
+        public Task<PendenciasResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default) => Task.FromResult(new PendenciasResumoDto(0, 0, 0, 0));
         public Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<PendenciaUsuarioDto> AprovarPartidaAsync(Guid pendenciaId, ResponderPendenciaPartidaDto dto, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PendenciaUsuarioDto> ContestarPartidaAsync(Guid pendenciaId, ResponderPendenciaPartidaDto dto, CancellationToken cancellationToken = default) => throw new NotSupportedException();

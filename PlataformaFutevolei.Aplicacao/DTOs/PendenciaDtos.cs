@@ -5,6 +5,7 @@ namespace PlataformaFutevolei.Aplicacao.DTOs;
 public record PendenciaUsuarioDto(
     Guid Id,
     TipoPendenciaUsuario Tipo,
+    PrioridadePendenciaUsuario Prioridade,
     StatusPendenciaUsuario Status,
     DateTime DataCriacao,
     DateTime? DataConclusao,
@@ -28,6 +29,13 @@ public record PendenciaUsuarioDto(
     int? PlacarDuplaB,
     Guid? CriadoPorUsuarioId,
     string? NomeCriadoPorUsuario
+);
+
+public record PendenciasResumoDto(
+    int Total,
+    int AltaPrioridade,
+    int MediaPrioridade,
+    int BaixaPrioridade
 );
 
 public record ResponderPendenciaPartidaDto(

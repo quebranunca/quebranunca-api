@@ -1,6 +1,7 @@
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Mapeadores;
 
@@ -410,6 +411,7 @@ internal static class MapeadorEntidades
         => new(
             pendencia.Id,
             pendencia.Tipo,
+            ObterPrioridadePendencia(pendencia.Tipo),
             pendencia.Status,
             pendencia.DataCriacao,
             pendencia.DataConclusao,
@@ -434,6 +436,14 @@ internal static class MapeadorEntidades
             pendencia.Partida?.CriadoPorUsuarioId,
             pendencia.Partida?.CriadoPorUsuario?.Nome
         );
+
+    private static PrioridadePendenciaUsuario ObterPrioridadePendencia(TipoPendenciaUsuario tipo)
+        => tipo switch
+        {
+            TipoPendenciaUsuario.AprovarPartida => PrioridadePendenciaUsuario.Alta,
+            TipoPendenciaUsuario.CompletarContatoAtletaDaPartida => PrioridadePendenciaUsuario.Media,
+            _ => PrioridadePendenciaUsuario.Baixa
+        };
 
     public static InscricaoCampeonatoDto ParaDto(this InscricaoCampeonato inscricao)
         => new(

@@ -32,17 +32,26 @@ public class PendenciaServico(
         return pendencias
             .Where(PendenciaAindaAcionavel)
             .Select(x => x.ParaDto())
-            .OrderBy(x => x.Tipo)
+            .OrderBy(x => x.Prioridade)
             .ThenByDescending(x => x.DataCriacao)
             .ToList();
     }
 
+    public async Task<PendenciasResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default)
+    {
+        var pendencias = await ListarMinhasAsync(cancellationToken);
+
+        return new PendenciasResumoDto(
+            pendencias.Count,
+            pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Alta),
+            pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Media),
+            pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Baixa));
+    }
+
     public async Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var existePendencia = await pendenciaUsuarioRepositorio.ExistePendentePorUsuarioAsync(usuario.Id, cancellationToken);
-
-        return existePendencia;
+        var resumo = await ObterResumoAsync(cancellationToken);
+        return resumo.Total > 0;
     }
 
     public async Task<PendenciaUsuarioDto> AprovarPartidaAsync(
