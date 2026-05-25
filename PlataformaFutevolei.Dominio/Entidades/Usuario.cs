@@ -30,6 +30,7 @@ public class Usuario : EntidadeBase
     public Atleta? Atleta { get; set; }
     public Usuario? ExcluidoPorUsuario { get; set; }
     public ICollection<UsuarioConsentimentoLgpd> ConsentimentosLgpd { get; set; } = new List<UsuarioConsentimentoLgpd>();
+    public ICollection<ArenaResponsavel> ArenasResponsaveis { get; set; } = new List<ArenaResponsavel>();
 
     public void AtualizarFotoPerfil(string fotoPerfilUrl, string fotoPerfilPublicId)
     {

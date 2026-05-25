@@ -15,7 +15,7 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
         return await dbContext.Competicoes
             .AsNoTracking()
             .Include(x => x.Liga)
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.FormatoCampeonato)
             .Include(x => x.RegraCompeticao)
             .Include(x => x.UsuarioOrganizador)
@@ -74,7 +74,7 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
     {
         return dbContext.Competicoes
             .Include(x => x.Liga)
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.FormatoCampeonato)
             .Include(x => x.RegraCompeticao)
             .Include(x => x.UsuarioOrganizador)
@@ -85,7 +85,7 @@ public class CompeticaoRepositorio(PlataformaFutevoleiDbContext dbContext) : ICo
     {
         return dbContext.Competicoes
             .Include(x => x.Liga)
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.FormatoCampeonato)
             .Include(x => x.RegraCompeticao)
             .Include(x => x.UsuarioOrganizador)

@@ -97,14 +97,30 @@ public interface ILigaRepositorio
     void Remover(Liga liga);
 }
 
-public interface ILocalRepositorio
+public interface IArenaRepositorio
 {
-    Task<IReadOnlyList<Local>> ListarAsync(CancellationToken cancellationToken = default);
-    Task<Local?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<Local?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
-    Task AdicionarAsync(Local local, CancellationToken cancellationToken = default);
-    void Atualizar(Local local);
-    void Remover(Local local);
+    Task<IReadOnlyList<ArenaListagemPublicaResponse>> ListarPublicasAsync(
+        ArenaFiltroPublicoRequest filtro,
+        CancellationToken cancellationToken = default);
+    Task<ArenaDetalhePublicoResponse?> ObterPublicaPorSlugAsync(
+        string slug,
+        CancellationToken cancellationToken = default);
+    Task<ArenaResumoPublicoResponse?> ObterResumoPublicoAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default);
+    Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default);
+    void Atualizar(Arena arena);
+    void Remover(Arena arena);
+}
+
+public interface IArenaResponsavelRepositorio
+{
+    Task<bool> UsuarioPodeGerenciarAsync(Guid arenaId, Guid usuarioId, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(ArenaResponsavel responsavel, CancellationToken cancellationToken = default);
 }
 
 public interface ICompeticaoRepositorio

@@ -21,7 +21,7 @@ public class Competicao : EntidadeBase
     public DateTime DataInicio { get; set; }
     public DateTime? DataFim { get; set; }
     public Guid? LigaId { get; set; }
-    public Guid? LocalId { get; set; }
+    public Guid? ArenaId { get; set; }
     public Guid? FormatoCampeonatoId { get; set; }
     public Guid? RegraCompeticaoId { get; set; }
     public Guid? UsuarioOrganizadorId { get; set; }
@@ -31,7 +31,7 @@ public class Competicao : EntidadeBase
     public bool PossuiFinalReset { get; set; }
 
     public Liga? Liga { get; set; }
-    public Local? Local { get; set; }
+    public Arena? Arena { get; set; }
     public FormatoCampeonato? FormatoCampeonato { get; set; }
     public RegraCompeticao? RegraCompeticao { get; set; }
     public Usuario? UsuarioOrganizador { get; set; }

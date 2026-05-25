@@ -14,7 +14,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 public class GrupoServico(
     IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
-    ILocalRepositorio localRepositorio,
+    IArenaRepositorio arenaRepositorio,
     IGrupoPadraoServico grupoPadraoServico,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
@@ -92,7 +92,8 @@ public class GrupoServico(
         await grupoPadraoServico.ValidarNomeDisponivelOuAcessivelAsync(nome, cancellationToken: cancellationToken);
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var arenaId = dto.ArenaId ?? dto.LocalId;
+        await ValidarArenaAsync(arenaId, cancellationToken);
         var publico = EhPublico(dto.Privacidade);
 
         var grupo = new Grupo
@@ -102,7 +103,7 @@ public class GrupoServico(
             Link = NormalizarLink(dto.Link),
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
-            LocalId = dto.LocalId,
+            ArenaId = arenaId,
             UsuarioOrganizadorId = usuario.Id,
             Publico = publico,
             ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl)
@@ -158,16 +159,16 @@ public class GrupoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private async Task ValidarLocalAsync(Guid? localId, CancellationToken cancellationToken)
+    private async Task ValidarArenaAsync(Guid? arenaId, CancellationToken cancellationToken)
     {
-        if (!localId.HasValue)
+        if (!arenaId.HasValue)
         {
             return;
         }
 
-        if (await localRepositorio.ObterPorIdAsync(localId.Value, cancellationToken) is null)
+        if (await arenaRepositorio.ObterPorIdAsync(arenaId.Value, cancellationToken) is null)
         {
-            throw new RegraNegocioException("Local informado não foi encontrado.");
+            throw new RegraNegocioException("Arena informada não foi encontrada.");
         }
     }
 

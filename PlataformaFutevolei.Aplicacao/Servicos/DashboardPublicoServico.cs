@@ -257,7 +257,7 @@ public class DashboardPublicoServico(
                     ObterStatusCampeonato(competicao, agora),
                     partidasCampeonato.Count,
                     null,
-                    competicao.Local?.Nome);
+                    competicao.Arena?.Nome);
             })
             .ToList();
     }

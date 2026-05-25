@@ -170,16 +170,33 @@ internal static class MapeadorEntidades
             liga.DataAtualizacao
         );
 
-    public static LocalDto ParaDto(this Local local)
+    public static ArenaDto ParaDto(this Arena arena)
         => new(
-            local.Id,
-            local.Nome,
-            local.Tipo,
-            local.QuantidadeQuadras,
-            local.UsuarioCriadorId,
-            local.UsuarioCriador?.Nome,
-            local.DataCriacao,
-            local.DataAtualizacao
+            arena.Id,
+            arena.Nome,
+            arena.Slug,
+            arena.Descricao,
+            arena.TipoArena,
+            arena.QuantidadeEspacos,
+            arena.Endereco,
+            arena.EnderecoResumo,
+            arena.Cidade,
+            arena.Estado,
+            arena.Latitude,
+            arena.Longitude,
+            arena.Whatsapp,
+            arena.Instagram,
+            arena.Site,
+            arena.LogoUrl,
+            arena.LogoPublicId,
+            arena.CapaUrl,
+            arena.CapaPublicId,
+            arena.Publica,
+            arena.Ativa,
+            arena.Responsaveis.FirstOrDefault(x => x.Ativo && x.Papel == PapelArenaResponsavel.ArenaAdmin)?.UsuarioId,
+            arena.Responsaveis.FirstOrDefault(x => x.Ativo && x.Papel == PapelArenaResponsavel.ArenaAdmin)?.Usuario?.Nome,
+            arena.DataCriacao,
+            arena.DataAtualizacao
         );
 
     public static FormatoCampeonatoDto ParaDto(this FormatoCampeonato formato)
@@ -212,12 +229,12 @@ internal static class MapeadorEntidades
             competicao.DataInicio,
             competicao.DataFim,
             competicao.LigaId,
-            competicao.LocalId,
+            competicao.ArenaId,
             competicao.FormatoCampeonatoId,
             competicao.RegraCompeticaoId,
             competicao.UsuarioOrganizadorId,
             competicao.Liga?.Nome,
-            competicao.Local?.Nome,
+            competicao.Arena?.Nome,
             competicao.FormatoCampeonato?.Nome,
             competicao.RegraCompeticao?.Nome,
             competicao.UsuarioOrganizador?.Nome,
@@ -232,7 +249,9 @@ internal static class MapeadorEntidades
             competicao.ObterPontosDerrota(),
             competicao.ObterPontosParticipacao(),
             competicao.DataCriacao,
-            competicao.DataAtualizacao
+            competicao.DataAtualizacao,
+            competicao.ArenaId,
+            competicao.Arena?.Nome
         );
 
     public static GrupoDto ParaDto(this Grupo grupo)
@@ -243,14 +262,16 @@ internal static class MapeadorEntidades
             grupo.Link,
             grupo.DataInicio,
             grupo.DataFim,
-            grupo.LocalId,
+            grupo.ArenaId,
             grupo.UsuarioOrganizadorId,
-            grupo.Local?.Nome,
+            grupo.Arena?.Nome,
             grupo.UsuarioOrganizador?.Nome,
             grupo.Publico ? "Público" : "Privado",
             grupo.ImagemUrl,
             grupo.DataCriacao,
-            grupo.DataAtualizacao
+            grupo.DataAtualizacao,
+            grupo.ArenaId,
+            grupo.Arena?.Nome
         );
 
     public static GrupoAtletaDto ParaDto(this GrupoAtleta grupoAtleta)

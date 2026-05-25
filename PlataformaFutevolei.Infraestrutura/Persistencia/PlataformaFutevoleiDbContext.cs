@@ -13,7 +13,8 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
     public DbSet<Atleta> Atletas => Set<Atleta>();
     public DbSet<Dupla> Duplas => Set<Dupla>();
     public DbSet<Liga> Ligas => Set<Liga>();
-    public DbSet<Local> Locais => Set<Local>();
+    public DbSet<Arena> Arenas => Set<Arena>();
+    public DbSet<ArenaResponsavel> ArenaResponsaveis => Set<ArenaResponsavel>();
     public DbSet<FormatoCampeonato> FormatosCampeonato => Set<FormatoCampeonato>();
     public DbSet<RegraCompeticao> RegrasCompeticao => Set<RegraCompeticao>();
     public DbSet<Competicao> Competicoes => Set<Competicao>();

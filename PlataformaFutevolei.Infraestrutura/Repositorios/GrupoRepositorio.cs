@@ -14,7 +14,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
     {
         return await dbContext.Grupos
             .AsNoTracking()
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.UsuarioOrganizador)
             .Include(x => x.Atletas)
             .OrderByDescending(x => x.DataInicio)
@@ -148,7 +148,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
     public Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Grupos
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.UsuarioOrganizador)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
@@ -173,7 +173,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
     {
         var nomeNormalizado = nome.Trim().ToLowerInvariant();
         return dbContext.Grupos
-            .Include(x => x.Local)
+            .Include(x => x.Arena)
             .Include(x => x.UsuarioOrganizador)
             .FirstOrDefaultAsync(x => x.Nome.Trim().ToLower() == nomeNormalizado, cancellationToken);
     }

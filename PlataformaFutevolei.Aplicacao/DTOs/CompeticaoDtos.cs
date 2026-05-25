@@ -14,7 +14,8 @@ public record CriarCompeticaoDto(
     Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
     bool? InscricoesAbertas,
-    bool? PossuiFinalReset
+    bool? PossuiFinalReset,
+    Guid? ArenaId = null
 );
 
 public record AtualizarCompeticaoDto(
@@ -29,7 +30,8 @@ public record AtualizarCompeticaoDto(
     Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
     bool? InscricoesAbertas,
-    bool? PossuiFinalReset
+    bool? PossuiFinalReset,
+    Guid? ArenaId = null
 );
 
 public record SalvarCampeonatoCategoriaDto(
@@ -46,7 +48,7 @@ public record SalvarCampeonatoCategoriaDto(
 
 public record CriarCampeonatoDto(
     string Nome,
-    Guid LocalId,
+    Guid? LocalId,
     DateTime DataInicio,
     DateTime? DataFim,
     string? Descricao,
@@ -55,12 +57,13 @@ public record CriarCampeonatoDto(
     Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
     bool? PossuiFinalReset,
-    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias
+    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias,
+    Guid? ArenaId = null
 );
 
 public record AtualizarCampeonatoDto(
     string Nome,
-    Guid LocalId,
+    Guid? LocalId,
     DateTime DataInicio,
     DateTime? DataFim,
     string? Descricao,
@@ -69,7 +72,8 @@ public record AtualizarCampeonatoDto(
     Guid? FormatoCampeonatoId,
     Guid? RegraCompeticaoId,
     bool? PossuiFinalReset,
-    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias
+    IReadOnlyList<SalvarCampeonatoCategoriaDto> Categorias,
+    Guid? ArenaId = null
 );
 
 public record CompeticaoDto(
@@ -101,7 +105,9 @@ public record CompeticaoDto(
     decimal PontosDerrotaEfetivo,
     decimal PontosParticipacaoEfetivo,
     DateTime DataCriacao,
-    DateTime DataAtualizacao
+    DateTime DataAtualizacao,
+    Guid? ArenaId,
+    string? NomeArena
 );
 
 public record CampeonatoDetalheDto(

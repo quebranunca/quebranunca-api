@@ -8,7 +8,8 @@ public record CriarGrupoDto(
     DateTime? DataFim,
     Guid? LocalId,
     string? Privacidade = null,
-    string? ImagemUrl = null
+    string? ImagemUrl = null,
+    Guid? ArenaId = null
 );
 
 public record AtualizarGrupoDto(
@@ -31,7 +32,9 @@ public record GrupoDto(
     string Privacidade,
     string? ImagemUrl,
     DateTime DataCriacao,
-    DateTime DataAtualizacao
+    DateTime DataAtualizacao,
+    Guid? ArenaId,
+    string? NomeArena
 );
 
 public record GrupoSelecaoDto(

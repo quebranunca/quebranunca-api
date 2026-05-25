@@ -10,5 +10,9 @@
 - Se o convite registrar status operacional de envio por e-mail ou WhatsApp, isso não pode relaxar as invariantes de uso do código
 - Ações de entrega por canais diferentes não devem alterar a identidade do convite nem invalidar o código vigente
 - Usuário organizador pode existir sem atleta vinculado; não tratar `AtletaId` como obrigatório no domínio
+- Arena é a entidade central de local esportivo e substitui gradualmente `Local`; não criar entidades principais paralelas `Local`, `Quadra` ou `Rede`
+- Espaços internos podem representar quadras, redes ou áreas de treino da Arena; `ArenaAdmin` e professor vinculados à Arena devem se relacionar a `Usuario`
+- Arena é vínculo opcional para partidas, treinos, competições e grupos; partidas avulsas sem Arena permanecem válidas
+- Imagens públicas de Arena devem usar o padrão existente de mídia externa, sem persistência binária local no domínio
 - Quando a regra estiver hoje centralizada na aplicação, não forçar migração prematura para entidades sem ganho claro
 - Mudança estrutural decorrente do domínio deve ser refletida fora dele via mapeamentos e migrations do EF Core, nunca por SQL estrutural no startup

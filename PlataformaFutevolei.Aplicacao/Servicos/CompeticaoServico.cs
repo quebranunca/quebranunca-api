@@ -18,7 +18,7 @@ public class CompeticaoServico(
     IGrupoRepositorio grupoRepositorio,
     IFormatoCampeonatoRepositorio formatoRepositorio,
     ILigaRepositorio ligaRepositorio,
-    ILocalRepositorio localRepositorio,
+    IArenaRepositorio arenaRepositorio,
     IRegraCompeticaoRepositorio regraRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
@@ -172,7 +172,8 @@ public class CompeticaoServico(
         var nome = dto.Nome.Trim();
         await ValidarNomeUnicoAsync(nome, null, cancellationToken);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var arenaId = dto.ArenaId ?? dto.LocalId;
+        await ValidarArenaAsync(arenaId, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(dto.Tipo, dto.FormatoCampeonatoId, cancellationToken);
         var possuiFinalReset = await ResolverPossuiFinalResetAsync(dto.Tipo, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
         await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
@@ -186,7 +187,7 @@ public class CompeticaoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             LigaId = dto.LigaId,
-            LocalId = dto.LocalId,
+            ArenaId = arenaId,
             FormatoCampeonatoId = formatoCampeonatoId,
             RegraCompeticaoId = dto.RegraCompeticaoId,
             UsuarioOrganizadorId = usuario.Perfil is PerfilUsuario.Organizador or PerfilUsuario.Atleta || dto.Tipo == TipoCompeticao.Grupo
@@ -214,12 +215,13 @@ public class CompeticaoServico(
 
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
-        ValidarCampeonato(dto.Nome, dto.LocalId, dataInicioUtc, dataFimUtc, dto.Categorias);
+        var arenaId = dto.ArenaId ?? dto.LocalId;
+        ValidarCampeonato(dto.Nome, arenaId, dataInicioUtc, dataFimUtc, dto.Categorias);
 
         var nome = dto.Nome.Trim();
         await ValidarNomeUnicoAsync(nome, null, cancellationToken);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        await ValidarArenaAsync(arenaId, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(TipoCompeticao.Campeonato, dto.FormatoCampeonatoId, cancellationToken);
         var possuiFinalReset = await ResolverPossuiFinalResetAsync(TipoCompeticao.Campeonato, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
         await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
@@ -232,7 +234,7 @@ public class CompeticaoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             LigaId = dto.LigaId,
-            LocalId = dto.LocalId,
+            ArenaId = arenaId,
             FormatoCampeonatoId = formatoCampeonatoId,
             RegraCompeticaoId = dto.RegraCompeticaoId,
             UsuarioOrganizadorId = usuario.Perfil == PerfilUsuario.Organizador ? usuario.Id : null,
@@ -270,7 +272,8 @@ public class CompeticaoServico(
 
         Validar(dto.Nome, dataInicioUtc, dataFimUtc, link);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        var arenaId = dto.ArenaId ?? dto.LocalId;
+        await ValidarArenaAsync(arenaId, cancellationToken);
 
         var competicao = await competicaoRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (competicao is null)
@@ -292,7 +295,7 @@ public class CompeticaoServico(
         competicao.DataInicio = dataInicioUtc;
         competicao.DataFim = dataFimUtc;
         competicao.LigaId = dto.LigaId;
-        competicao.LocalId = dto.LocalId;
+        competicao.ArenaId = arenaId;
         competicao.FormatoCampeonatoId = formatoCampeonatoId;
         competicao.RegraCompeticaoId = dto.RegraCompeticaoId;
         competicao.ContaRankingLiga = dto.LigaId.HasValue;
@@ -329,12 +332,13 @@ public class CompeticaoServico(
 
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? (DateTime?)NormalizarParaUtc(dto.DataFim.Value) : null;
-        ValidarCampeonato(dto.Nome, dto.LocalId, dataInicioUtc, dataFimUtc, dto.Categorias);
+        var arenaId = dto.ArenaId ?? dto.LocalId;
+        ValidarCampeonato(dto.Nome, arenaId, dataInicioUtc, dataFimUtc, dto.Categorias);
 
         var nome = dto.Nome.Trim();
         await ValidarNomeUnicoAsync(nome, id, cancellationToken);
         await ValidarLigaAsync(dto.LigaId, cancellationToken);
-        await ValidarLocalAsync(dto.LocalId, cancellationToken);
+        await ValidarArenaAsync(arenaId, cancellationToken);
         var formatoCampeonatoId = await ResolverFormatoCampeonatoAsync(TipoCompeticao.Campeonato, dto.FormatoCampeonatoId, cancellationToken);
         var possuiFinalReset = await ResolverPossuiFinalResetAsync(TipoCompeticao.Campeonato, formatoCampeonatoId, dto.PossuiFinalReset, cancellationToken);
         await ValidarRegraAsync(dto.RegraCompeticaoId, cancellationToken);
@@ -344,7 +348,7 @@ public class CompeticaoServico(
         competicao.DataInicio = dataInicioUtc;
         competicao.DataFim = dataFimUtc;
         competicao.LigaId = dto.LigaId;
-        competicao.LocalId = dto.LocalId;
+        competicao.ArenaId = arenaId;
         competicao.FormatoCampeonatoId = formatoCampeonatoId;
         competicao.RegraCompeticaoId = dto.RegraCompeticaoId;
         competicao.ContaRankingLiga = dto.LigaId.HasValue;
@@ -387,17 +391,17 @@ public class CompeticaoServico(
         }
     }
 
-    private async Task ValidarLocalAsync(Guid? localId, CancellationToken cancellationToken)
+    private async Task ValidarArenaAsync(Guid? arenaId, CancellationToken cancellationToken)
     {
-        if (!localId.HasValue)
+        if (!arenaId.HasValue)
         {
             return;
         }
 
-        var local = await localRepositorio.ObterPorIdAsync(localId.Value, cancellationToken);
-        if (local is null)
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId.Value, cancellationToken);
+        if (arena is null)
         {
-            throw new RegraNegocioException("O local informado para a competição não foi encontrado.");
+            throw new RegraNegocioException("A arena informada para a competição não foi encontrada.");
         }
     }
 
@@ -765,16 +769,16 @@ public class CompeticaoServico(
 
     private static void ValidarCampeonato(
         string nome,
-        Guid localId,
+        Guid? arenaId,
         DateTime dataInicio,
         DateTime? dataFim,
         IReadOnlyList<SalvarCampeonatoCategoriaDto>? categorias)
     {
         Validar(nome, dataInicio, dataFim, null);
 
-        if (localId == Guid.Empty)
+        if (!arenaId.HasValue || arenaId.Value == Guid.Empty)
         {
-            throw new RegraNegocioException("Local do campeonato é obrigatório.");
+            throw new RegraNegocioException("Arena do campeonato é obrigatória.");
         }
 
         if (categorias is null || categorias.Count == 0)

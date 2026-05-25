@@ -20,6 +20,7 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<IDashboardPublicoServico, DashboardPublicoServico>();
         services.AddScoped<IDashboardDuplaServico, DashboardDuplaServico>();
         services.AddScoped<ILigaServico, LigaServico>();
+        services.AddScoped<IArenaServico, ArenaServico>();
         services.AddScoped<ILocalServico, LocalServico>();
         services.AddScoped<IFormatoCampeonatoServico, FormatoCampeonatoServico>();
         services.AddScoped<IRegraCompeticaoServico, RegraCompeticaoServico>();

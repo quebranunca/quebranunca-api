@@ -17,16 +17,16 @@ public class GrupoMapeamento : IEntityTypeConfiguration<Grupo>
         builder.Property(x => x.Link).HasColumnName("link").HasMaxLength(500);
         builder.Property(x => x.DataInicio).HasColumnName("data_inicio").IsRequired();
         builder.Property(x => x.DataFim).HasColumnName("data_fim");
-        builder.Property(x => x.LocalId).HasColumnName("local_id");
+        builder.Property(x => x.ArenaId).HasColumnName("arena_id");
         builder.Property(x => x.UsuarioOrganizadorId).HasColumnName("usuario_organizador_id");
         builder.Property(x => x.Publico).HasColumnName("publico").HasDefaultValue(false);
         builder.Property(x => x.ImagemUrl).HasColumnName("imagem_url").HasMaxLength(500);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
-        builder.HasOne(x => x.Local)
+        builder.HasOne(x => x.Arena)
             .WithMany(x => x.Grupos)
-            .HasForeignKey(x => x.LocalId)
+            .HasForeignKey(x => x.ArenaId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(x => x.UsuarioOrganizador)
@@ -34,7 +34,7 @@ public class GrupoMapeamento : IEntityTypeConfiguration<Grupo>
             .HasForeignKey(x => x.UsuarioOrganizadorId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasIndex(x => x.LocalId);
+        builder.HasIndex(x => x.ArenaId);
         builder.HasIndex(x => x.UsuarioOrganizadorId);
     }
 }
