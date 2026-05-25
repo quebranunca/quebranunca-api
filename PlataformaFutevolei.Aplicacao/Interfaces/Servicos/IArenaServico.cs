@@ -13,6 +13,26 @@ public interface IArenaServico
     Task<ArenaResumoPublicoResponse> ObterResumoPublicoAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+    Task<ArenaAdminDetalheResponse> CriarAdminAsync(
+        CriarArenaRequest request,
+        CancellationToken cancellationToken = default);
+    Task<ArenaAdminDetalheResponse> AtualizarAdminAsync(
+        Guid arenaId,
+        AtualizarArenaRequest request,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ArenaAdminResumoResponse>> ListarMinhasAsync(
+        CancellationToken cancellationToken = default);
+    Task<ArenaAdminDetalheResponse> ObterAdminAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default);
+    Task AtualizarStatusAsync(
+        Guid arenaId,
+        bool ativa,
+        CancellationToken cancellationToken = default);
+    Task AtualizarVisibilidadeAsync(
+        Guid arenaId,
+        bool publica,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ArenaDto>> ListarAsync(CancellationToken cancellationToken = default);
     Task<ArenaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ArenaDto> CriarAsync(CriarArenaDto dto, CancellationToken cancellationToken = default);

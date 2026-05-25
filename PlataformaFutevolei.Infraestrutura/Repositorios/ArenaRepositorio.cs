@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
@@ -111,6 +112,37 @@ public class ArenaRepositorio(PlataformaFutevoleiDbContext dbContext) : IArenaRe
                 x.LogoUrl,
                 x.QuantidadeEspacos))
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Arena>> ListarAdministradasAsync(
+        Guid usuarioId,
+        bool incluirTodas,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Arenas
+            .AsNoTracking()
+            .Include(x => x.Responsaveis)
+                .ThenInclude(x => x.Usuario)
+            .AsQueryable();
+
+        if (!incluirTodas)
+        {
+            query = query.Where(x => x.Responsaveis.Any(r =>
+                r.UsuarioId == usuarioId &&
+                r.Papel == PapelArenaResponsavel.ArenaAdmin &&
+                r.Ativo));
+        }
+
+        return await query.OrderBy(x => x.Nome).ToListAsync(cancellationToken);
+    }
+
+    public Task<Arena?> ObterAdminPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Arenas
+            .AsNoTracking()
+            .Include(x => x.Responsaveis.Where(r => r.Ativo))
+                .ThenInclude(x => x.Usuario)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default)

@@ -1,0 +1,289 @@
+using PlataformaFutevolei.Aplicacao.DTOs;
+using PlataformaFutevolei.Aplicacao.Excecoes;
+using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
+using PlataformaFutevolei.Aplicacao.Servicos;
+using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
+using Xunit;
+
+namespace PlataformaFutevolei.Aplicacao.Tests;
+
+public class ArenaServicoAdminTests
+{
+    [Fact]
+    public async Task CriarAdminAsync_CriaArenaAtivaComResponsavelESlug()
+    {
+        var cenario = new Cenario();
+
+        var arena = await cenario.Servico.CriarAdminAsync(NovoRequest("Arena São José"));
+
+        Assert.Equal("arena-sao-jose", arena.Slug);
+        Assert.True(arena.Ativa);
+        Assert.True(arena.PossuiIluminacao);
+        var responsavel = Assert.Single(arena.Responsaveis);
+        Assert.Equal(cenario.Usuario.Id, responsavel.UsuarioId);
+        Assert.Equal(PapelArenaResponsavel.ArenaAdmin, responsavel.Papel);
+    }
+
+    [Fact]
+    public async Task CriarAdminAsync_AdicionaSufixoQuandoSlugJaExiste()
+    {
+        var cenario = new Cenario();
+        cenario.AdicionarArena("Arena Sol!", "arena-sol");
+
+        var arena = await cenario.Servico.CriarAdminAsync(NovoRequest("Arena Sol"));
+
+        Assert.Equal("arena-sol-2", arena.Slug);
+    }
+
+    [Fact]
+    public async Task ListarMinhasAsync_RetornaSomenteArenasAdministradasPeloUsuario()
+    {
+        var cenario = new Cenario();
+        cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+        cenario.AdicionarArena("Arena Alheia", "arena-alheia", new Usuario { Nome = "Outro", Email = "outro@qnf.test" });
+
+        var arenas = await cenario.Servico.ListarMinhasAsync();
+
+        var arena = Assert.Single(arenas);
+        Assert.Equal("Arena Minha", arena.Nome);
+        Assert.Equal(PapelArenaResponsavel.ArenaAdmin, arena.PapelUsuario);
+    }
+
+    [Fact]
+    public async Task ObterAdminAsync_RetornaDetalheParaArenaAdmin()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        var detalhe = await cenario.Servico.ObterAdminAsync(arena.Id);
+
+        Assert.Equal(arena.Id, detalhe.Id);
+        Assert.Equal(cenario.Usuario.Email, Assert.Single(detalhe.Responsaveis).Email);
+    }
+
+    [Fact]
+    public async Task ObterAdminAsync_BloqueiaUsuarioSemVinculo()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Alheia", "arena-alheia");
+
+        await Assert.ThrowsAsync<AcessoNegadoException>(() => cenario.Servico.ObterAdminAsync(arena.Id));
+    }
+
+    [Fact]
+    public async Task ObterAdminAsync_PermiteAdministradorGlobalSemVinculo()
+    {
+        var cenario = new Cenario();
+        cenario.Usuario.Perfil = PerfilUsuario.Administrador;
+        var arena = cenario.AdicionarArena("Arena Alheia", "arena-alheia");
+
+        var detalhe = await cenario.Servico.ObterAdminAsync(arena.Id);
+
+        Assert.Equal(arena.Id, detalhe.Id);
+    }
+
+    [Fact]
+    public async Task AtualizarAdminAsync_AtualizaArenaComPermissaoEBloqueiaSemPermissao()
+    {
+        var cenario = new Cenario();
+        var minhaArena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+        var arenaAlheia = cenario.AdicionarArena("Arena Alheia", "arena-alheia");
+        var request = NovoAtualizarRequest("Arena Renovada");
+
+        var alterada = await cenario.Servico.AtualizarAdminAsync(minhaArena.Id, request);
+
+        Assert.Equal("Arena Renovada", alterada.Nome);
+        Assert.True(alterada.PossuiCobertura);
+        await Assert.ThrowsAsync<AcessoNegadoException>(() =>
+            cenario.Servico.AtualizarAdminAsync(arenaAlheia.Id, request));
+    }
+
+    [Fact]
+    public async Task AtualizarStatusAsync_DesativadaNaoApareceEmConsultasPublicas()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        await cenario.Servico.AtualizarStatusAsync(arena.Id, false);
+        var publicas = await cenario.Servico.ListarPublicasAsync(new(null, null, null, null));
+
+        Assert.Empty(publicas);
+    }
+
+    [Fact]
+    public async Task AtualizarVisibilidadeAsync_PrivadaNaoApareceEmConsultasPublicas()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        await cenario.Servico.AtualizarVisibilidadeAsync(arena.Id, false);
+        var publicas = await cenario.Servico.ListarPublicasAsync(new(null, null, null, null));
+
+        Assert.Empty(publicas);
+    }
+
+    private static CriarArenaRequest NovoRequest(string nome)
+        => new(
+            nome, "Descrição", TipoArena.ArenaPrivada, "Rua 1", "Centro", "Santos", "SP",
+            null, null, null, null, null, 0, true,
+            true, false, false, true, false, false, false);
+
+    private static AtualizarArenaRequest NovoAtualizarRequest(string nome)
+        => new(
+            nome, "Nova descrição", TipoArena.Clube, "Rua 2", "Bairro", "Santos", "SP",
+            null, null, null, null, null, 3, true,
+            true, true, true, true, true, true, true);
+
+    private sealed class Cenario
+    {
+        private readonly List<Arena> arenas = [];
+
+        public Cenario()
+        {
+            Usuario = new Usuario { Nome = "Gestor", Email = "gestor@qnf.test", Perfil = PerfilUsuario.Atleta };
+            var repositorio = new ArenaRepositorioMemoria(arenas);
+            Servico = new ArenaServico(
+                repositorio,
+                new ArenaResponsavelRepositorioMemoria(arenas),
+                new UnidadeTrabalhoStub(),
+                new AutorizacaoUsuarioServicoStub(Usuario));
+        }
+
+        public Usuario Usuario { get; }
+        public ArenaServico Servico { get; }
+
+        public Arena AdicionarArena(string nome, string slug, Usuario? responsavel = null)
+        {
+            var arena = new Arena
+            {
+                Nome = nome,
+                Slug = slug,
+                TipoArena = TipoArena.Praia,
+                QuantidadeEspacos = 1,
+                Publica = true,
+                Ativa = true
+            };
+            if (responsavel is not null)
+            {
+                arena.Responsaveis.Add(new ArenaResponsavel
+                {
+                    ArenaId = arena.Id,
+                    UsuarioId = responsavel.Id,
+                    Usuario = responsavel,
+                    Papel = PapelArenaResponsavel.ArenaAdmin,
+                    Ativo = true
+                });
+            }
+
+            arenas.Add(arena);
+            return arena;
+        }
+    }
+
+    private sealed class ArenaRepositorioMemoria(List<Arena> arenas) : IArenaRepositorio
+    {
+        public Task<IReadOnlyList<ArenaListagemPublicaResponse>> ListarPublicasAsync(
+            ArenaFiltroPublicoRequest filtro,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ArenaListagemPublicaResponse>>(arenas
+                .Where(x => x.Ativa && x.Publica)
+                .OrderBy(x => x.Nome)
+                .Select(x => new ArenaListagemPublicaResponse(
+                    x.Id, x.Nome, x.Slug, x.Descricao, x.TipoArena, x.Cidade, x.Estado,
+                    x.EnderecoResumo, x.QuantidadeEspacos, x.LogoUrl, x.CapaUrl, x.Instagram,
+                    x.Whatsapp, x.Publica, x.Ativa))
+                .ToList());
+
+        public Task<ArenaDetalhePublicoResponse?> ObterPublicaPorSlugAsync(
+            string slug,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<ArenaDetalhePublicoResponse?>(null);
+
+        public Task<ArenaResumoPublicoResponse?> ObterResumoPublicoAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<ArenaResumoPublicoResponse?>(null);
+
+        public Task<IReadOnlyList<Arena>> ListarAdministradasAsync(
+            Guid usuarioId,
+            bool incluirTodas,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Arena>>(arenas
+                .Where(x => incluirTodas || x.Responsaveis.Any(r =>
+                    r.UsuarioId == usuarioId && r.Ativo && r.Papel == PapelArenaResponsavel.ArenaAdmin))
+                .OrderBy(x => x.Nome)
+                .ToList());
+
+        public Task<Arena?> ObterAdminPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.FirstOrDefault(x => x.Id == id));
+
+        public Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Arena>>(arenas);
+
+        public Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.FirstOrDefault(x => x.Id == id));
+
+        public Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.FirstOrDefault(x =>
+                string.Equals(x.Nome, nome, StringComparison.OrdinalIgnoreCase)));
+
+        public Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.Any(x => x.Id != idIgnorado && x.Slug == slug));
+
+        public Task AdicionarAsync(Arena arena, CancellationToken cancellationToken = default)
+        {
+            arenas.Add(arena);
+            return Task.CompletedTask;
+        }
+
+        public void Atualizar(Arena arena)
+        {
+        }
+
+        public void Remover(Arena arena)
+        {
+            arenas.Remove(arena);
+        }
+    }
+
+    private sealed class ArenaResponsavelRepositorioMemoria(List<Arena> arenas) : IArenaResponsavelRepositorio
+    {
+        public Task<bool> UsuarioPodeGerenciarAsync(
+            Guid arenaId,
+            Guid usuarioId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(arenas.Any(x => x.Id == arenaId && x.Responsaveis.Any(r =>
+                r.UsuarioId == usuarioId && r.Ativo && r.Papel == PapelArenaResponsavel.ArenaAdmin)));
+
+        public Task AdicionarAsync(ArenaResponsavel responsavel, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class UnidadeTrabalhoStub : IUnidadeTrabalho
+    {
+        public Task<int> SalvarAlteracoesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(1);
+
+        public Task ExecutarEmTransacaoAsync(
+            Func<CancellationToken, Task> operacao,
+            CancellationToken cancellationToken = default)
+            => operacao(cancellationToken);
+    }
+
+    private sealed class AutorizacaoUsuarioServicoStub(Usuario usuario) : IAutorizacaoUsuarioServico
+    {
+        public Task<Usuario?> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<Usuario?>(usuario);
+
+        public Task<Usuario> ObterUsuarioAtualObrigatorioAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(usuario);
+
+        public Task GarantirAdministradorAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task GarantirAcessoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task GarantirGestaoCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task GarantirGestaoGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+}

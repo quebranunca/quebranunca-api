@@ -63,6 +63,173 @@ public class ArenaServico(
             ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
     }
 
+    public async Task<ArenaAdminDetalheResponse> CriarAdminAsync(
+        CriarArenaRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var nome = ValidarNome(request.Nome);
+        ValidarTipo(request.TipoArena);
+        ValidarQuantidadeEspacos(request.QuantidadeEspacos);
+        ValidarCoordenadas(request.Latitude, request.Longitude);
+        await ValidarNomeUnicoAsync(nome, null, cancellationToken);
+
+        var arena = new Arena
+        {
+            Nome = nome,
+            Slug = await ObterSlugUnicoAsync(nome, null, cancellationToken),
+            Descricao = Normalizar(request.Descricao),
+            TipoArena = request.TipoArena,
+            QuantidadeEspacos = request.QuantidadeEspacos,
+            Endereco = Normalizar(request.Endereco),
+            EnderecoResumo = Normalizar(request.EnderecoResumo),
+            Cidade = Normalizar(request.Cidade),
+            Estado = Normalizar(request.Estado),
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            Whatsapp = Normalizar(request.Whatsapp),
+            Instagram = Normalizar(request.Instagram),
+            Site = Normalizar(request.Site),
+            Publica = request.Publica,
+            Ativa = true,
+            PossuiIluminacao = request.PossuiIluminacao,
+            PossuiEstacionamento = request.PossuiEstacionamento,
+            PossuiVestiario = request.PossuiVestiario,
+            PossuiDucha = request.PossuiDucha,
+            PossuiBarRestaurante = request.PossuiBarRestaurante,
+            PossuiLoja = request.PossuiLoja,
+            PossuiCobertura = request.PossuiCobertura
+        };
+
+        arena.Responsaveis.Add(new ArenaResponsavel
+        {
+            ArenaId = arena.Id,
+            UsuarioId = usuario.Id,
+            Papel = PapelArenaResponsavel.ArenaAdmin,
+            Ativo = true,
+            Usuario = usuario
+        });
+
+        await arenaRepositorio.AdicionarAsync(arena, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return ParaDetalheAdmin(arena);
+    }
+
+    public async Task<ArenaAdminDetalheResponse> AtualizarAdminAsync(
+        Guid arenaId,
+        AtualizarArenaRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arenaId, cancellationToken);
+
+        var nome = ValidarNome(request.Nome);
+        ValidarTipo(request.TipoArena);
+        ValidarQuantidadeEspacos(request.QuantidadeEspacos);
+        ValidarCoordenadas(request.Latitude, request.Longitude);
+        await ValidarNomeUnicoAsync(nome, arena.Id, cancellationToken);
+
+        arena.Nome = nome;
+        arena.Slug = await ObterSlugUnicoAsync(nome, arena.Id, cancellationToken);
+        arena.Descricao = Normalizar(request.Descricao);
+        arena.TipoArena = request.TipoArena;
+        arena.QuantidadeEspacos = request.QuantidadeEspacos;
+        arena.Endereco = Normalizar(request.Endereco);
+        arena.EnderecoResumo = Normalizar(request.EnderecoResumo);
+        arena.Cidade = Normalizar(request.Cidade);
+        arena.Estado = Normalizar(request.Estado);
+        arena.Latitude = request.Latitude;
+        arena.Longitude = request.Longitude;
+        arena.Whatsapp = Normalizar(request.Whatsapp);
+        arena.Instagram = Normalizar(request.Instagram);
+        arena.Site = Normalizar(request.Site);
+        arena.Publica = request.Publica;
+        arena.PossuiIluminacao = request.PossuiIluminacao;
+        arena.PossuiEstacionamento = request.PossuiEstacionamento;
+        arena.PossuiVestiario = request.PossuiVestiario;
+        arena.PossuiDucha = request.PossuiDucha;
+        arena.PossuiBarRestaurante = request.PossuiBarRestaurante;
+        arena.PossuiLoja = request.PossuiLoja;
+        arena.PossuiCobertura = request.PossuiCobertura;
+        arena.AtualizarDataModificacao();
+
+        arenaRepositorio.Atualizar(arena);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return ParaDetalheAdmin(arena);
+    }
+
+    public async Task<IReadOnlyList<ArenaAdminResumoResponse>> ListarMinhasAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var incluirTodas = usuario.Perfil == PerfilUsuario.Administrador;
+        var arenas = await arenaRepositorio.ListarAdministradasAsync(usuario.Id, incluirTodas, cancellationToken);
+
+        return arenas.Select(x => new ArenaAdminResumoResponse(
+            x.Id,
+            x.Nome,
+            x.Slug,
+            x.TipoArena,
+            x.Cidade,
+            x.Estado,
+            x.EnderecoResumo,
+            x.LogoUrl,
+            x.CapaUrl,
+            x.Publica,
+            x.Ativa,
+            x.QuantidadeEspacos,
+            x.Responsaveis.FirstOrDefault(r =>
+                r.UsuarioId == usuario.Id &&
+                r.Ativo &&
+                r.Papel == PapelArenaResponsavel.ArenaAdmin)?.Papel))
+            .ToList();
+    }
+
+    public async Task<ArenaAdminDetalheResponse> ObterAdminAsync(
+        Guid arenaId,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterAdminPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arenaId, cancellationToken);
+        return ParaDetalheAdmin(arena);
+    }
+
+    public async Task AtualizarStatusAsync(
+        Guid arenaId,
+        bool ativa,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arenaId, cancellationToken);
+
+        arena.Ativa = ativa;
+        arena.AtualizarDataModificacao();
+        arenaRepositorio.Atualizar(arena);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    public async Task AtualizarVisibilidadeAsync(
+        Guid arenaId,
+        bool publica,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, arenaId, cancellationToken);
+
+        arena.Publica = publica;
+        arena.AtualizarDataModificacao();
+        arenaRepositorio.Atualizar(arena);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ArenaDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
         var arenas = await arenaRepositorio.ListarAsync(cancellationToken);
@@ -71,8 +238,10 @@ public class ArenaServico(
 
     public async Task<ArenaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var arena = await arenaRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Arena não encontrada.");
+        await GarantirGestaoPermitidaAsync(usuario, id, cancellationToken);
         return arena.ParaDto();
     }
 
@@ -185,7 +354,7 @@ public class ArenaServico(
 
         if (!await arenaResponsavelRepositorio.UsuarioPodeGerenciarAsync(arenaId, usuario.Id, cancellationToken))
         {
-            throw new RegraNegocioException("O usuário só pode alterar arenas em que é responsável ativo.");
+            throw new AcessoNegadoException("O usuário só pode administrar arenas em que é responsável ativo.");
         }
     }
 
@@ -200,13 +369,16 @@ public class ArenaServico(
 
     private async Task<string> ObterSlugUnicoAsync(string nome, Guid? idIgnorado, CancellationToken cancellationToken)
     {
-        var slug = GerarSlug(nome);
-        if (!await arenaRepositorio.ExisteSlugAsync(slug, idIgnorado, cancellationToken))
+        var slugBase = GerarSlug(nome);
+        var slug = slugBase;
+        var sufixo = 2;
+
+        while (await arenaRepositorio.ExisteSlugAsync(slug, idIgnorado, cancellationToken))
         {
-            return slug;
+            slug = $"{slugBase}-{sufixo++}";
         }
 
-        throw new RegraNegocioException("Já existe uma arena cadastrada com este identificador.");
+        return slug;
     }
 
     private static string ValidarNome(string nome)
@@ -229,9 +401,9 @@ public class ArenaServico(
 
     private static void ValidarQuantidadeEspacos(int quantidadeEspacos)
     {
-        if (quantidadeEspacos <= 0)
+        if (quantidadeEspacos < 0)
         {
-            throw new RegraNegocioException("Quantidade de espaços deve ser maior que zero.");
+            throw new RegraNegocioException("Quantidade de espaços não pode ser negativa.");
         }
     }
 
@@ -278,4 +450,41 @@ public class ArenaServico(
 
     private static string? Normalizar(string? valor)
         => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private static ArenaAdminDetalheResponse ParaDetalheAdmin(Arena arena)
+        => new(
+            arena.Id,
+            arena.Nome,
+            arena.Slug,
+            arena.Descricao,
+            arena.TipoArena,
+            arena.Endereco,
+            arena.EnderecoResumo,
+            arena.Cidade,
+            arena.Estado,
+            arena.Latitude,
+            arena.Longitude,
+            arena.Whatsapp,
+            arena.Instagram,
+            arena.Site,
+            arena.QuantidadeEspacos,
+            arena.LogoUrl,
+            arena.CapaUrl,
+            arena.Publica,
+            arena.Ativa,
+            arena.PossuiIluminacao,
+            arena.PossuiEstacionamento,
+            arena.PossuiVestiario,
+            arena.PossuiDucha,
+            arena.PossuiBarRestaurante,
+            arena.PossuiLoja,
+            arena.PossuiCobertura,
+            arena.Responsaveis
+                .Where(x => x.Ativo && x.Usuario is not null)
+                .Select(x => new ArenaResponsavelResponse(
+                    x.UsuarioId,
+                    x.Usuario!.Nome,
+                    x.Usuario.Email,
+                    x.Papel))
+                .ToList());
 }

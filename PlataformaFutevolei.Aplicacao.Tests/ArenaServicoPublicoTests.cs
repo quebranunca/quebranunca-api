@@ -226,6 +226,15 @@ public class ArenaServicoPublicoTests
             return Task.FromResult(response);
         }
 
+        public Task<IReadOnlyList<Arena>> ListarAdministradasAsync(
+            Guid usuarioId,
+            bool incluirTodas,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Arena>>([]);
+
+        public Task<Arena?> ObterAdminPorIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Arena?>(null);
+
         public Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(arenas);
 

@@ -18,6 +18,13 @@ public class Arena : EntidadeBase
     public string? Whatsapp { get; set; }
     public string? Instagram { get; set; }
     public string? Site { get; set; }
+    public bool PossuiIluminacao { get; set; }
+    public bool PossuiEstacionamento { get; set; }
+    public bool PossuiVestiario { get; set; }
+    public bool PossuiDucha { get; set; }
+    public bool PossuiBarRestaurante { get; set; }
+    public bool PossuiLoja { get; set; }
+    public bool PossuiCobertura { get; set; }
     public string? LogoUrl { get; set; }
     public string? LogoPublicId { get; set; }
     public string? CapaUrl { get; set; }

@@ -26,6 +26,13 @@ public class ArenaMapeamento : IEntityTypeConfiguration<Arena>
         builder.Property(x => x.Whatsapp).HasColumnName("whatsapp").HasMaxLength(30);
         builder.Property(x => x.Instagram).HasColumnName("instagram").HasMaxLength(100);
         builder.Property(x => x.Site).HasColumnName("site").HasMaxLength(500);
+        builder.Property(x => x.PossuiIluminacao).HasColumnName("possui_iluminacao").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiEstacionamento).HasColumnName("possui_estacionamento").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiVestiario).HasColumnName("possui_vestiario").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiDucha).HasColumnName("possui_ducha").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiBarRestaurante).HasColumnName("possui_bar_restaurante").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiLoja).HasColumnName("possui_loja").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.PossuiCobertura).HasColumnName("possui_cobertura").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.LogoUrl).HasColumnName("logo_url").HasMaxLength(500);
         builder.Property(x => x.LogoPublicId).HasColumnName("logo_public_id").HasMaxLength(255);
         builder.Property(x => x.CapaUrl).HasColumnName("capa_url").HasMaxLength(500);

@@ -108,6 +108,11 @@ public interface IArenaRepositorio
     Task<ArenaResumoPublicoResponse?> ObterResumoPublicoAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Arena>> ListarAdministradasAsync(
+        Guid usuarioId,
+        bool incluirTodas,
+        CancellationToken cancellationToken = default);
+    Task<Arena?> ObterAdminPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default);
     Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);

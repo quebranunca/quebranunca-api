@@ -41,8 +41,74 @@ public class ArenasController(IArenaServico arenaServico) : ControllerBase
         return Ok(arena);
     }
 
+    [HttpPost("admin")]
+    [ProducesResponseType(typeof(ArenaAdminDetalheResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CriarAdmin([FromBody] CriarArenaRequest request, CancellationToken cancellationToken)
+    {
+        var arena = await arenaServico.CriarAdminAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(ObterAdmin), new { arenaId = arena.Id }, arena);
+    }
+
+    [HttpGet("admin/minhas")]
+    [ProducesResponseType(typeof(IReadOnlyList<ArenaAdminResumoResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarMinhas(CancellationToken cancellationToken)
+    {
+        var arenas = await arenaServico.ListarMinhasAsync(cancellationToken);
+        return Ok(arenas);
+    }
+
+    [HttpGet("admin/{arenaId:guid}")]
+    [ProducesResponseType(typeof(ArenaAdminDetalheResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObterAdmin(Guid arenaId, CancellationToken cancellationToken)
+    {
+        var arena = await arenaServico.ObterAdminAsync(arenaId, cancellationToken);
+        return Ok(arena);
+    }
+
+    [HttpPut("admin/{arenaId:guid}")]
+    [ProducesResponseType(typeof(ArenaAdminDetalheResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AtualizarAdmin(
+        Guid arenaId,
+        [FromBody] AtualizarArenaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var arena = await arenaServico.AtualizarAdminAsync(arenaId, request, cancellationToken);
+        return Ok(arena);
+    }
+
+    [HttpPatch("admin/{arenaId:guid}/status")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AtualizarStatus(
+        Guid arenaId,
+        [FromBody] AtualizarStatusArenaRequest request,
+        CancellationToken cancellationToken)
+    {
+        await arenaServico.AtualizarStatusAsync(arenaId, request.Ativa, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPatch("admin/{arenaId:guid}/visibilidade")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AtualizarVisibilidade(
+        Guid arenaId,
+        [FromBody] AtualizarVisibilidadeArenaRequest request,
+        CancellationToken cancellationToken)
+    {
+        await arenaServico.AtualizarVisibilidadeAsync(arenaId, request.Publica, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ArenaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> ObterPorId(Guid id, CancellationToken cancellationToken)
     {
         var arena = await arenaServico.ObterPorIdAsync(id, cancellationToken);
@@ -59,6 +125,7 @@ public class ArenasController(IArenaServico arenaServico) : ControllerBase
 
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ArenaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarArenaDto dto, CancellationToken cancellationToken)
     {
         var arena = await arenaServico.AtualizarAsync(id, dto, cancellationToken);
@@ -67,9 +134,11 @@ public class ArenasController(IArenaServico arenaServico) : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
     {
         await arenaServico.RemoverAsync(id, cancellationToken);
         return NoContent();
     }
+
 }
