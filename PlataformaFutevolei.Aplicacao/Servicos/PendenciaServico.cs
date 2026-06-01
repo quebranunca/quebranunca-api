@@ -15,6 +15,7 @@ public class PendenciaServico(
     IPartidaAprovacaoRepositorio partidaAprovacaoRepositorio,
     IPendenciaUsuarioRepositorio pendenciaUsuarioRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
+    IAtletaRepositorio atletaRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
@@ -123,54 +124,53 @@ public class PendenciaServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var pendencia = await ObterPendenciaPendenteAsync(
-            pendenciaId,
-            TipoPendenciaUsuario.CompletarContatoAtletaDaPartida,
-            usuario.Id,
-            cancellationToken);
-
-        if (!pendencia.AtletaId.HasValue)
-        {
-            throw new RegraNegocioException("A pendência informada não possui atleta vinculado.");
-        }
-
-        var atleta = pendencia.Atleta ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
-
         var deveCriarConvite = false;
         string? emailConvite = null;
         string? telefoneConvite = null;
-        Guid atletaConviteId = atleta.Id;
-        Guid? partidaConviteId = pendencia.PartidaId;
+        Guid atletaConviteId = Guid.Empty;
+        Guid? partidaConviteId = null;
+        AtualizarContatoPendenciaResultadoDto? resultado = null;
 
-        if (atleta.Usuario is not null)
+        await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
         {
-            ConcluirPendencia(pendencia, "Pendência encerrada porque o atleta já possui usuário vinculado.");
-        }
-        else
-        {
-            var emailNormalizado = NormalizarEmail(dto.Email);
-            var usuarioExistente = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
-            if (usuarioExistente is not null)
+            var pendencia = await ObterPendenciaPendenteAsync(
+                pendenciaId,
+                TipoPendenciaUsuario.CompletarContatoAtletaDaPartida,
+                usuario.Id,
+                ct);
+
+            if (!pendencia.AtletaId.HasValue)
             {
-                if (!usuarioExistente.Ativo || usuarioExistente.DadosAnonimizados)
-                {
-                    throw new RegraNegocioException("Este e-mail pertence a um usuário inativo.");
-                }
-
-                var atletaExistente = usuarioExistente.Atleta
-                    ?? throw new RegraNegocioException("Este e-mail pertence a um usuário sem atleta vinculado.");
-
-                return new AtualizarContatoPendenciaResultadoDto(
-                    true,
-                    pendencia.ParaDto(),
-                    new UsuarioAtletaPendenciaDto(
-                        usuarioExistente.Id,
-                        atletaExistente.Id,
-                        atletaExistente.Nome,
-                        atletaExistente.Apelido));
+                throw new RegraNegocioException("A pendência informada não possui atleta vinculado.");
             }
 
-            await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, cancellationToken);
+            var atleta = pendencia.Atleta ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+            atletaConviteId = atleta.Id;
+            partidaConviteId = pendencia.PartidaId;
+
+            if (atleta.Usuario is not null)
+            {
+                ConcluirPendencia(pendencia, "Pendência encerrada porque o atleta já possui usuário vinculado.");
+                await RecalcularStatusPartidaSeExistirAsync(pendencia.PartidaId, ct);
+                await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+                resultado = new AtualizarContatoPendenciaResultadoDto(false, pendencia.ParaDto(), null);
+                return;
+            }
+
+            var emailNormalizado = NormalizarEmail(dto.Email);
+            var atletaExistente = await ObterAtletaExistentePorEmailAsync(emailNormalizado, ct);
+            if (atletaExistente is not null)
+            {
+                var pendenciaVinculada = await VincularPendenciaAoAtletaExistenteAsync(
+                    pendencia,
+                    atletaExistente,
+                    usuario.Id,
+                    ct);
+                resultado = new AtualizarContatoPendenciaResultadoDto(false, pendenciaVinculada, null);
+                return;
+            }
+
+            await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, ct);
 
             atleta.Email = emailNormalizado;
             atleta.AtualizarDataModificacao();
@@ -182,13 +182,14 @@ public class PendenciaServico(
                 pendencia.PartidaId.HasValue
                     ? "Contato informado. A partida continua aguardando vínculo do atleta para liberar a aprovação."
                     : "Contato informado.",
-                cancellationToken);
-        }
+                ct);
 
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
 
-        var pendenciaAtualizada = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, cancellationToken)
-            ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+            var pendenciaAtualizada = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, ct)
+                ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+            resultado = new AtualizarContatoPendenciaResultadoDto(false, pendenciaAtualizada.ParaDto(), null);
+        }, cancellationToken);
 
         if (deveCriarConvite && !string.IsNullOrWhiteSpace(emailConvite))
         {
@@ -202,7 +203,7 @@ public class PendenciaServico(
                 cancellationToken);
         }
 
-        return new AtualizarContatoPendenciaResultadoDto(false, pendenciaAtualizada.ParaDto(), null);
+        return resultado ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
     }
 
     public async Task<PendenciaUsuarioDto> ConfirmarVinculoAtletaCadastradoAsync(
@@ -440,6 +441,81 @@ public class PendenciaServico(
             .ToList();
     }
 
+    private async Task<Atleta?> ObterAtletaExistentePorEmailAsync(
+        string emailNormalizado,
+        CancellationToken cancellationToken)
+    {
+        var usuarioExistente = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        if (usuarioExistente is not null)
+        {
+            if (!usuarioExistente.Ativo || usuarioExistente.DadosAnonimizados)
+            {
+                throw new RegraNegocioException("Este e-mail pertence a um usuário inativo.");
+            }
+
+            var atletaUsuario = usuarioExistente.Atleta
+                ?? throw new RegraNegocioException("Este e-mail pertence a um usuário sem atleta vinculado.");
+            atletaUsuario.Usuario = usuarioExistente;
+            return atletaUsuario;
+        }
+
+        var atletas = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        return atletas
+            .OrderByDescending(x => x.Usuario is not null)
+            .ThenBy(x => x.DataCriacao)
+            .FirstOrDefault();
+    }
+
+    private async Task<PendenciaUsuarioDto> VincularPendenciaAoAtletaExistenteAsync(
+        PendenciaUsuario pendencia,
+        Atleta atletaDestino,
+        Guid usuarioId,
+        CancellationToken cancellationToken)
+    {
+        var atletaPendenteId = pendencia.AtletaId!.Value;
+        if (atletaPendenteId == atletaDestino.Id)
+        {
+            await ConcluirPendenciasContatoAtletaAsync(
+                atletaPendenteId,
+                "Pendência concluída porque o atleta já possui este e-mail.",
+                cancellationToken);
+            await RecalcularStatusPartidaSeExistirAsync(pendencia.PartidaId, cancellationToken);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            var pendenciaAtualizada = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, cancellationToken)
+                ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+            return pendenciaAtualizada.ParaDto();
+        }
+
+        var partidas = await ListarPartidasParaVinculoAsync(
+            atletaPendenteId,
+            usuarioId,
+            pendencia.PartidaId,
+            cancellationToken);
+        if (partidas.Count == 0)
+        {
+            throw new RegraNegocioException("Não há partidas pendentes para vincular este atleta.");
+        }
+
+        foreach (var partida in partidas)
+        {
+            await SubstituirAtletaNaPartidaAsync(partida, atletaPendenteId, atletaDestino, cancellationToken);
+            await CriarAprovacaoSeNecessarioAsync(partida, atletaDestino, cancellationToken);
+            await RecalcularStatusPartidaAsync(partida, cancellationToken);
+        }
+
+        await ConcluirPendenciasContatoDasPartidasAsync(
+            atletaPendenteId,
+            partidas.Select(x => x.Id).ToHashSet(),
+            "Pendência concluída com vínculo ao atleta cadastrado.",
+            cancellationToken);
+
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        var pendenciaAtualizadaFinal = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+        return pendenciaAtualizadaFinal.ParaDto();
+    }
+
     private async Task SubstituirAtletaNaPartidaAsync(
         Partida partida,
         Guid atletaPendenteId,
@@ -448,7 +524,7 @@ public class PendenciaServico(
     {
         if (AtletaParticipaDaPartida(partida, atletaDestino.Id))
         {
-            throw new RegraNegocioException("O atleta encontrado já participa desta partida.");
+            throw new RegraNegocioException("Este atleta já está participando desta partida. Não é possível vincular o mesmo atleta duas vezes.");
         }
 
         var duplaAOriginalId = partida.DuplaAId;
