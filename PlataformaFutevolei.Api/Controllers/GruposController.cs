@@ -46,6 +46,15 @@ public class GruposController(
         return Ok(grupo);
     }
 
+    [HttpGet("{id:guid}/dashboard")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(GrupoDashboardDetalheDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterDashboardGrupo(Guid id, CancellationToken cancellationToken)
+    {
+        var dashboard = await grupoServico.ObterDashboardAsync(id, cancellationToken);
+        return Ok(dashboard);
+    }
+
     [HttpGet("resumo-usuario")]
     [ProducesResponseType(typeof(GrupoResumoUsuarioDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterResumoUsuario(CancellationToken cancellationToken)

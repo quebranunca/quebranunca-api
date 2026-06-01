@@ -652,6 +652,8 @@ public class ImportacaoServico(
                         StatusPartida.Encerrada,
                         registro.ObterIntObrigatorio("placarduplaa"),
                         registro.ObterIntObrigatorio("placarduplab"),
+                        null,
+                        TipoRegistroResultado.PlacarDetalhado,
                         registro.ObterDateTimeObrigatorio("datapartida"),
                         registro.ObterOpcional("observacoes", "observacao")),
                     cancellationToken);

@@ -808,6 +808,18 @@ public class RankingServico(
 
     private static string MontarConfrontoRanking(Partida partida)
     {
+        if (!partida.PossuiPlacarDetalhado())
+        {
+            var vencedora = ObterDuplaVencedora(partida);
+            var perdedora = ObterDuplaPerdedora(partida);
+            if (vencedora is not null && perdedora is not null)
+            {
+                return $"{FormatarNomeDuplaRanking(vencedora)} venceu {FormatarNomeDuplaRanking(perdedora)} sem placar detalhado";
+            }
+
+            return $"{FormatarNomeDuplaRanking(partida.DuplaA)} x {FormatarNomeDuplaRanking(partida.DuplaB)} sem placar detalhado";
+        }
+
         return $"{FormatarNomeDuplaRanking(partida.DuplaA)} {partida.PlacarDuplaA} x {partida.PlacarDuplaB} {FormatarNomeDuplaRanking(partida.DuplaB)}";
     }
 

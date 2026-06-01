@@ -6,6 +6,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Mapeadores;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -15,6 +16,8 @@ public class GrupoServico(
     IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IArenaRepositorio arenaRepositorio,
+    IPartidaRepositorio partidaRepositorio,
+    IRankingServico rankingServico,
     IGrupoPadraoServico grupoPadraoServico,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
@@ -44,6 +47,49 @@ public class GrupoServico(
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         return grupo.ParaDto();
+    }
+
+    public async Task<GrupoDashboardDetalheDto> ObterDashboardAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
+        var membros = await grupoAtletaRepositorio.ListarPorGrupoAsync(id, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorGrupoAsync(id, cancellationToken);
+        var ranking = await rankingServico.ListarAtletasPorGrupoAsync(id, cancellationToken);
+        var partidasEncerradas = partidas
+            .Where(x => x.Status == StatusPartida.Encerrada && x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
+            .ToList();
+        var ultimaPartidaEm = partidasEncerradas
+            .Select(x => x.DataPartida ?? x.DataCriacao)
+            .DefaultIfEmpty()
+            .Max();
+        var totalMembros = membros.Select(x => x.AtletaId).Distinct().Count();
+
+        return new GrupoDashboardDetalheDto(
+            new GrupoDashboardCabecalhoDto(
+                grupo.Id,
+                grupo.Nome,
+                grupo.ImagemUrl,
+                grupo.Publico,
+                ObterPrivacidade(grupo),
+                totalMembros,
+                partidasEncerradas.Count,
+                ultimaPartidaEm == default ? null : ultimaPartidaEm,
+                PodeEditarGrupo(usuario, grupo)),
+            new GrupoDashboardResumoDto(
+                totalMembros,
+                partidasEncerradas.Count,
+                partidasEncerradas.SelectMany(ObterAtletasPartida).Select(x => x.Id).Distinct().Count(),
+                partidasEncerradas.Count(x => !x.PossuiPlacarDetalhado()),
+                ultimaPartidaEm == default ? null : ultimaPartidaEm),
+            MontarRankingDashboard(ranking),
+            partidasEncerradas
+                .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+                .Take(5)
+                .Select(MontarPartidaDashboard)
+                .ToList(),
+            MontarMembrosMaisAtivos(partidasEncerradas));
     }
 
     public async Task<GrupoVerificacaoNomeDto> VerificarNomeAsync(string nome, CancellationToken cancellationToken = default)
@@ -258,6 +304,122 @@ public class GrupoServico(
 
     private static string ObterPrivacidade(Grupo grupo)
         => grupo.Publico ? "Público" : "Privado";
+
+    private static bool PodeEditarGrupo(Usuario? usuario, Grupo grupo)
+    {
+        if (usuario is null)
+        {
+            return false;
+        }
+
+        return usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id;
+    }
+
+    private static IReadOnlyList<GrupoDashboardRankingAtletaDto> MontarRankingDashboard(
+        IReadOnlyList<RankingCategoriaDto> ranking)
+    {
+        return ranking
+            .SelectMany(x => x.Atletas)
+            .OrderBy(x => x.Posicao)
+            .Take(5)
+            .Select(x => new GrupoDashboardRankingAtletaDto(
+                x.Posicao,
+                x.AtletaId,
+                x.NomeAtleta,
+                x.ApelidoAtleta,
+                x.FotoPerfilUrl,
+                x.Pontos,
+                x.Jogos,
+                x.Vitorias))
+            .ToList();
+    }
+
+    private static GrupoDashboardPartidaDto MontarPartidaDashboard(Partida partida)
+    {
+        return new GrupoDashboardPartidaDto(
+            partida.Id,
+            partida.DataPartida ?? partida.DataCriacao,
+            MontarAtletasPartida(partida.DuplaA),
+            MontarAtletasPartida(partida.DuplaB),
+            partida.PlacarDuplaA,
+            partida.PlacarDuplaB,
+            ObterNumeroDuplaVencedora(partida),
+            partida.TipoRegistroResultado.ToString(),
+            partida.StatusAprovacao.ToString(),
+            partida.PossuiPlacarDetalhado());
+    }
+
+    private static IReadOnlyList<GrupoDashboardMembroAtivoDto> MontarMembrosMaisAtivos(IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .SelectMany(ObterAtletasPartida)
+            .GroupBy(x => x.Id)
+            .Select(x =>
+            {
+                var atleta = x.First();
+                return new GrupoDashboardMembroAtivoDto(
+                    atleta.Id,
+                    atleta.Nome,
+                    atleta.Apelido,
+                    FotoPerfilAtletaUtil.ObterUrlPublica(atleta),
+                    x.Count());
+            })
+            .OrderByDescending(x => x.TotalPartidas)
+            .ThenBy(x => x.Nome)
+            .Take(5)
+            .ToList();
+    }
+
+    private static IReadOnlyList<GrupoDashboardAtletaPartidaDto> MontarAtletasPartida(Dupla? dupla)
+    {
+        if (dupla is null)
+        {
+            return [];
+        }
+
+        return [
+            MontarAtletaPartida(dupla.Atleta1),
+            MontarAtletaPartida(dupla.Atleta2)
+        ];
+    }
+
+    private static GrupoDashboardAtletaPartidaDto MontarAtletaPartida(Atleta atleta)
+        => new(atleta.Id, atleta.Nome, atleta.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(atleta));
+
+    private static IEnumerable<Atleta> ObterAtletasPartida(Partida partida)
+    {
+        if (partida.DuplaA is not null)
+        {
+            yield return partida.DuplaA.Atleta1;
+            yield return partida.DuplaA.Atleta2;
+        }
+
+        if (partida.DuplaB is not null)
+        {
+            yield return partida.DuplaB.Atleta1;
+            yield return partida.DuplaB.Atleta2;
+        }
+    }
+
+    private static int? ObterNumeroDuplaVencedora(Partida partida)
+    {
+        if (!partida.DuplaVencedoraId.HasValue)
+        {
+            return null;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaAId)
+        {
+            return 1;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaBId)
+        {
+            return 2;
+        }
+
+        return null;
+    }
 
     private static string? NormalizarImagemUrl(string? imagemUrl)
         => string.IsNullOrWhiteSpace(imagemUrl) ? null : imagemUrl.Trim();

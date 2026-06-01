@@ -20,11 +20,11 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
             );
             tabela.HasCheckConstraint(
                 "ck_partidas_placar_nao_negativo",
-                "\"placar_dupla_a\" >= 0 AND \"placar_dupla_b\" >= 0"
+                "(\"placar_dupla_a\" IS NULL OR \"placar_dupla_a\" >= 0) AND (\"placar_dupla_b\" IS NULL OR \"placar_dupla_b\" >= 0)"
             );
             tabela.HasCheckConstraint(
                 "ck_partidas_status_e_resultado",
-                "((\"status\" = 1) AND \"dupla_vencedora_id\" IS NULL AND \"placar_dupla_a\" = 0 AND \"placar_dupla_b\" = 0) OR ((\"status\" = 2) AND \"dupla_a_id\" IS NOT NULL AND \"dupla_b_id\" IS NOT NULL AND (((\"placar_dupla_a\" = \"placar_dupla_b\") AND \"dupla_vencedora_id\" IS NULL) OR ((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\")))"
+                "((\"status\" = 1) AND \"dupla_vencedora_id\" IS NULL) OR ((\"status\" = 2) AND \"dupla_a_id\" IS NOT NULL AND \"dupla_b_id\" IS NOT NULL AND (((\"tipo_registro_resultado\" = 1) AND \"placar_dupla_a\" IS NOT NULL AND \"placar_dupla_b\" IS NOT NULL AND (((\"placar_dupla_a\" = \"placar_dupla_b\") AND \"dupla_vencedora_id\" IS NULL) OR ((\"placar_dupla_a\" > \"placar_dupla_b\") AND \"dupla_vencedora_id\" = \"dupla_a_id\") OR ((\"placar_dupla_b\" > \"placar_dupla_a\") AND \"dupla_vencedora_id\" = \"dupla_b_id\"))) OR ((\"tipo_registro_resultado\" = 2) AND \"placar_dupla_a\" IS NULL AND \"placar_dupla_b\" IS NULL AND \"dupla_vencedora_id\" IS NOT NULL)))"
             );
         });
 
@@ -53,9 +53,10 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.EhFinalissima).HasColumnName("eh_finalissima").HasDefaultValue(false).IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<int>().HasDefaultValue(StatusPartida.Agendada).IsRequired();
         builder.Property(x => x.StatusAprovacao).HasColumnName("status_aprovacao").HasConversion<int>().HasDefaultValue(StatusAprovacaoPartida.Aprovada).IsRequired();
-        builder.Property(x => x.PlacarDuplaA).HasColumnName("placar_dupla_a").IsRequired();
-        builder.Property(x => x.PlacarDuplaB).HasColumnName("placar_dupla_b").IsRequired();
+        builder.Property(x => x.PlacarDuplaA).HasColumnName("placar_dupla_a");
+        builder.Property(x => x.PlacarDuplaB).HasColumnName("placar_dupla_b");
         builder.Property(x => x.DuplaVencedoraId).HasColumnName("dupla_vencedora_id");
+        builder.Property(x => x.TipoRegistroResultado).HasColumnName("tipo_registro_resultado").HasConversion<int>().HasDefaultValue(TipoRegistroResultado.PlacarDetalhado).IsRequired();
         builder.Property(x => x.DataPartida).HasColumnName("data_partida");
         builder.Property(x => x.Latitude).HasColumnName("latitude");
         builder.Property(x => x.Longitude).HasColumnName("longitude");

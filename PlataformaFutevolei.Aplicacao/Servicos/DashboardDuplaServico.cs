@@ -70,8 +70,9 @@ public class DashboardDuplaServico(
         var vitorias = partidas.Count(x => DuplaVenceu(atleta1Id, atleta2Id, x));
         var derrotas = total - vitorias;
         var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
-        var pontosPro = partidas.Sum(x => ObterPontosDupla(atleta1Id, atleta2Id, x));
-        var pontosContra = partidas.Sum(x => ObterPontosAdversario(atleta1Id, atleta2Id, x));
+        var partidasComPlacar = partidas.Where(x => x.PossuiPlacarDetalhado()).ToList();
+        var pontosPro = partidasComPlacar.Sum(x => ObterPontosDupla(atleta1Id, atleta2Id, x)!.Value);
+        var pontosContra = partidasComPlacar.Sum(x => ObterPontosAdversario(atleta1Id, atleta2Id, x)!.Value);
 
         return new DashboardDuplaResumoDto(
             total,
@@ -305,15 +306,25 @@ public class DashboardDuplaServico(
         return ReferenceEquals(duplaAlvo, partida.DuplaA) ? partida.DuplaB : partida.DuplaA;
     }
 
-    private static int ObterPontosDupla(Guid atleta1Id, Guid atleta2Id, Partida partida)
+    private static int? ObterPontosDupla(Guid atleta1Id, Guid atleta2Id, Partida partida)
     {
+        if (!partida.PossuiPlacarDetalhado())
+        {
+            return null;
+        }
+
         return ReferenceEquals(ObterDuplaAlvo(atleta1Id, atleta2Id, partida), partida.DuplaA)
             ? partida.PlacarDuplaA
             : partida.PlacarDuplaB;
     }
 
-    private static int ObterPontosAdversario(Guid atleta1Id, Guid atleta2Id, Partida partida)
+    private static int? ObterPontosAdversario(Guid atleta1Id, Guid atleta2Id, Partida partida)
     {
+        if (!partida.PossuiPlacarDetalhado())
+        {
+            return null;
+        }
+
         return ReferenceEquals(ObterDuplaAlvo(atleta1Id, atleta2Id, partida), partida.DuplaA)
             ? partida.PlacarDuplaB
             : partida.PlacarDuplaA;

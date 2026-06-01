@@ -22,6 +22,8 @@ public record CriarPartidaDto(
     StatusPartida Status,
     int? PlacarDuplaA,
     int? PlacarDuplaB,
+    int? DuplaVencedora,
+    TipoRegistroResultado? TipoRegistroResultado,
     DateTime? DataPartida,
     string? Observacoes,
     bool PermitirDuplicidade = false,
@@ -59,6 +61,8 @@ public record AtualizarPartidaDto(
     StatusPartida Status,
     int? PlacarDuplaA,
     int? PlacarDuplaB,
+    int? DuplaVencedora,
+    TipoRegistroResultado? TipoRegistroResultado,
     DateTime? DataPartida,
     string? Observacoes
 );
@@ -73,7 +77,9 @@ public record AtualizarPartidaBasicaDto(
     Guid? DuplaBAtleta2Id,
     string? DuplaBAtleta2Nome,
     int? PlacarDuplaA,
-    int? PlacarDuplaB
+    int? PlacarDuplaB,
+    int? DuplaVencedora,
+    TipoRegistroResultado? TipoRegistroResultado
 );
 
 public record VerificarDuplicidadePartidaDuplaDto(
@@ -140,8 +146,8 @@ public record JogoRodadaCompeticaoDto(
     string NomeDuplaA,
     Guid? DuplaBId,
     string NomeDuplaB,
-    int PlacarDuplaA,
-    int PlacarDuplaB,
+    int? PlacarDuplaA,
+    int? PlacarDuplaB,
     Guid? DuplaVencedoraId,
     string? NomeDuplaVencedora,
     DateTime? DataPartida
@@ -197,8 +203,10 @@ public record PartidaCompartilhamentoDto(
     DateTime? DataPartida,
     IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla1,
     IReadOnlyList<PartidaCompartilhamentoAtletaDto> Dupla2,
-    int PlacarDupla1,
-    int PlacarDupla2,
+    int? PlacarDupla1,
+    int? PlacarDupla2,
+    int? DuplaVencedora,
+    TipoRegistroResultado TipoRegistroResultado,
     string ResultadoAtletaLogado,
     PartidaCompartilhamentoRankingDto? RankingGrupo
 );
@@ -230,8 +238,10 @@ public record FeedPartidaDuplaDto(
 public record FeedPartidaItemDto(
     Guid PartidaId,
     DateTime? Data,
-    int PlacarDupla1,
-    int PlacarDupla2,
+    int? PlacarDupla1,
+    int? PlacarDupla2,
+    int? DuplaVencedora,
+    TipoRegistroResultado TipoRegistroResultado,
     FeedPartidaDuplaDto Dupla1,
     FeedPartidaDuplaDto Dupla2,
     string? CriadoPorNome,
@@ -286,10 +296,13 @@ public record PartidaDto(
     bool EhFinal,
     bool EhFinalissima,
     StatusPartida Status,
-    int PlacarDuplaA,
-    int PlacarDuplaB,
+    int? PlacarDuplaA,
+    int? PlacarDuplaB,
     Guid? DuplaVencedoraId,
     string? NomeDuplaVencedora,
+    int? DuplaVencedora,
+    TipoRegistroResultado TipoRegistroResultado,
+    bool PossuiPlacarDetalhado,
     StatusAprovacaoPartida StatusAprovacao,
     decimal PesoRankingCategoria,
     decimal PontosRankingVitoria,

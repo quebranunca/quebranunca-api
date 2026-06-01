@@ -31,9 +31,10 @@ public class Partida : EntidadeBase
     public bool EhFinalissima { get; set; }
     public StatusPartida Status { get; set; } = StatusPartida.Agendada;
     public StatusAprovacaoPartida StatusAprovacao { get; set; } = StatusAprovacaoPartida.Aprovada;
-    public int PlacarDuplaA { get; set; }
-    public int PlacarDuplaB { get; set; }
+    public int? PlacarDuplaA { get; set; }
+    public int? PlacarDuplaB { get; set; }
     public Guid? DuplaVencedoraId { get; set; }
+    public TipoRegistroResultado TipoRegistroResultado { get; set; } = TipoRegistroResultado.PlacarDetalhado;
     public DateTime? DataPartida { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
@@ -55,11 +56,16 @@ public class Partida : EntidadeBase
 
     public bool PossuiParticipantesDefinidos() => DuplaAId.HasValue && DuplaBId.HasValue;
 
-    public int ObterMaiorPlacar() => Math.Max(PlacarDuplaA, PlacarDuplaB);
+    public bool PossuiPlacarDetalhado()
+        => TipoRegistroResultado == TipoRegistroResultado.PlacarDetalhado &&
+           PlacarDuplaA.HasValue &&
+           PlacarDuplaB.HasValue;
 
-    public int ObterDiferencaPlacar() => Math.Abs(PlacarDuplaA - PlacarDuplaB);
+    public int ObterMaiorPlacar() => PossuiPlacarDetalhado() ? Math.Max(PlacarDuplaA!.Value, PlacarDuplaB!.Value) : 0;
 
-    public bool TerminouEmpatada() => PlacarDuplaA == PlacarDuplaB;
+    public int ObterDiferencaPlacar() => PossuiPlacarDetalhado() ? Math.Abs(PlacarDuplaA!.Value - PlacarDuplaB!.Value) : 0;
+
+    public bool TerminouEmpatada() => PossuiPlacarDetalhado() && PlacarDuplaA == PlacarDuplaB;
 
     public Guid? ObterDuplaVencedoraPorPlacar()
     {
@@ -71,6 +77,11 @@ public class Partida : EntidadeBase
         if (TerminouEmpatada())
         {
             return null;
+        }
+
+        if (!PossuiPlacarDetalhado())
+        {
+            return DuplaVencedoraId;
         }
 
         return PlacarDuplaA > PlacarDuplaB ? DuplaAId!.Value : DuplaBId!.Value;

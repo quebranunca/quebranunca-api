@@ -80,8 +80,8 @@ public record DashboardAtletaPartidaDto(
     string? NomeDuplaBAtleta2,
     string Parceiro,
     string Adversarios,
-    int PlacarSuaDupla,
-    int PlacarAdversarios
+    int? PlacarSuaDupla,
+    int? PlacarAdversarios
 );
 
 public record DashboardAtletaRelacaoDto(
@@ -163,8 +163,8 @@ public record DashboardDuplaPartidaDto(
     string? Competicao,
     string? Status,
     int? StatusAprovacao,
-    int PlacarDupla,
-    int PlacarAdversarios,
+    int? PlacarDupla,
+    int? PlacarAdversarios,
     IReadOnlyList<DashboardDuplaAtletaDto> Adversarios
 );
 
@@ -223,8 +223,8 @@ public record DashboardPublicoPartidaDto(
     string? Campeonato,
     string Dupla1,
     string Dupla2,
-    int PontosDupla1,
-    int PontosDupla2,
+    int? PontosDupla1,
+    int? PontosDupla2,
     string Vencedor,
     int MinutosAtras
 );

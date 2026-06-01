@@ -172,6 +172,8 @@ public class PartidaServico(
             MontarAtletasCompartilhamento(partida.DuplaB),
             partida.PlacarDuplaA,
             partida.PlacarDuplaB,
+            ObterNumeroDuplaVencedora(partida),
+            partida.TipoRegistroResultado,
             ObterResultadoAtletaLogado(partida, atletaNaDuplaA, atletaNaDuplaB),
             rankingGrupo);
     }
@@ -311,9 +313,9 @@ public class PartidaServico(
     private static bool PartidaPossuiMesmaDuplaEPlacar(
         Dupla dupla,
         VerificarDuplicidadePartidaDuplaDto duplaInformada,
-        int placarRegistrado)
+        int? placarRegistrado)
     {
-        if (!duplaInformada.Pontos.HasValue || placarRegistrado != duplaInformada.Pontos.Value)
+        if (!duplaInformada.Pontos.HasValue || !placarRegistrado.HasValue || placarRegistrado.Value != duplaInformada.Pontos.Value)
         {
             return false;
         }
@@ -461,6 +463,8 @@ public class PartidaServico(
             partida.DataPartida ?? partida.DataCriacao,
             partida.PlacarDuplaA,
             partida.PlacarDuplaB,
+            ObterNumeroDuplaVencedora(partida),
+            partida.TipoRegistroResultado,
             MontarDuplaFeed(partida.DuplaA),
             MontarDuplaFeed(partida.DuplaB),
             partida.CriadoPorUsuario?.Nome,
@@ -505,6 +509,26 @@ public class PartidaServico(
             (atletaNaDuplaB && partida.DuplaVencedoraId == partida.DuplaBId);
 
         return venceu ? "Vitoria" : "Derrota";
+    }
+
+    private static int? ObterNumeroDuplaVencedora(Partida partida)
+    {
+        if (!partida.DuplaVencedoraId.HasValue)
+        {
+            return null;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaAId)
+        {
+            return 1;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaBId)
+        {
+            return 2;
+        }
+
+        return null;
     }
 
     private async Task<CategoriaCompeticao> ObterCategoriaParaConsultaPublicaAsync(Guid categoriaId, CancellationToken cancellationToken)
@@ -692,7 +716,7 @@ public class PartidaServico(
         {
             AplicarLocalizacaoRegistro(partida, dto.Localizacao);
         }
-        AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dataAtualPadraoUtc: DateTime.UtcNow);
+        AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dto.DuplaVencedora, dto.TipoRegistroResultado, dataAtualPadraoUtc: DateTime.UtcNow);
         AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB, usuarioAtual);
         ValidarPartida(partida, categoria?.Competicao, grupo);
         await ValidarDuplicidadeNovaPartidaAsync(
@@ -826,7 +850,7 @@ public class PartidaServico(
         {
             ValidarTabelaAprovadaParaResultado(categoria, dto.Status);
         }
-        AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, partida.DataPartida ?? DateTime.UtcNow);
+        AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dto.DuplaVencedora, dto.TipoRegistroResultado, partida.DataPartida ?? DateTime.UtcNow);
         AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB);
         ValidarPartida(partida, categoria?.Competicao, grupo);
         partida.AtualizarDataModificacao();
@@ -917,7 +941,7 @@ public class PartidaServico(
 
         partida.DuplaAId = duplaA.Id;
         partida.DuplaBId = duplaB.Id;
-        AplicarStatusEResultado(partida, partida.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, partida.DataPartida ?? DateTime.UtcNow);
+        AplicarStatusEResultado(partida, partida.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dto.DuplaVencedora, dto.TipoRegistroResultado, partida.DataPartida ?? DateTime.UtcNow);
         AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB);
         ValidarPartida(partida, categoria?.Competicao, grupo);
         partida.AtualizarDataModificacao();
@@ -1272,19 +1296,42 @@ public class PartidaServico(
         StatusPartida status,
         int? placarDuplaA,
         int? placarDuplaB,
+        int? duplaVencedora,
+        TipoRegistroResultado? tipoRegistroResultado,
         DateTime dataAtualPadraoUtc)
     {
         if (status == StatusPartida.Agendada)
         {
-            partida.PlacarDuplaA = 0;
-            partida.PlacarDuplaB = 0;
+            partida.PlacarDuplaA = null;
+            partida.PlacarDuplaB = null;
             partida.DuplaVencedoraId = null;
+            partida.TipoRegistroResultado = TipoRegistroResultado.PlacarDetalhado;
             return;
         }
 
         if (!partida.Ativa || !partida.PossuiParticipantesDefinidos())
         {
             throw new RegraNegocioException("A partida ainda não possui as duas duplas definidas para receber resultado.");
+        }
+
+        var tipoEfetivo = tipoRegistroResultado ??
+            (placarDuplaA.HasValue || placarDuplaB.HasValue
+                ? TipoRegistroResultado.PlacarDetalhado
+                : TipoRegistroResultado.ApenasResultado);
+
+        if (tipoEfetivo == TipoRegistroResultado.ApenasResultado)
+        {
+            partida.PlacarDuplaA = null;
+            partida.PlacarDuplaB = null;
+            partida.TipoRegistroResultado = TipoRegistroResultado.ApenasResultado;
+            partida.DuplaVencedoraId = duplaVencedora switch
+            {
+                1 => partida.DuplaAId,
+                2 => partida.DuplaBId,
+                _ => null
+            };
+            partida.DataPartida ??= dataAtualPadraoUtc;
+            return;
         }
 
         if (!placarDuplaA.HasValue || !placarDuplaB.HasValue)
@@ -1294,6 +1341,7 @@ public class PartidaServico(
 
         partida.PlacarDuplaA = placarDuplaA.Value;
         partida.PlacarDuplaB = placarDuplaB.Value;
+        partida.TipoRegistroResultado = TipoRegistroResultado.PlacarDetalhado;
         partida.DuplaVencedoraId = partida.ObterDuplaVencedoraPorPlacar();
         partida.DataPartida ??= dataAtualPadraoUtc;
     }
@@ -1367,7 +1415,37 @@ public class PartidaServico(
             return;
         }
 
-        if (partida.PlacarDuplaA < 0 || partida.PlacarDuplaB < 0)
+        if (partida.TipoRegistroResultado == TipoRegistroResultado.ApenasResultado)
+        {
+            if (partida.PlacarDuplaA.HasValue || partida.PlacarDuplaB.HasValue)
+            {
+                throw new RegraNegocioException("Partida registrada apenas por resultado não deve informar placar.");
+            }
+
+            if (!partida.DuplaVencedoraId.HasValue)
+            {
+                throw new RegraNegocioException("Informe qual dupla venceu a partida.");
+            }
+
+            if (partida.DuplaVencedoraId != partida.DuplaAId && partida.DuplaVencedoraId != partida.DuplaBId)
+            {
+                throw new RegraNegocioException("A dupla vencedora deve ser uma das duplas da partida.");
+            }
+
+            if (!partida.DataPartida.HasValue)
+            {
+                throw new RegraNegocioException("Informe a data da partida encerrada.");
+            }
+
+            return;
+        }
+
+        if (!partida.PlacarDuplaA.HasValue || !partida.PlacarDuplaB.HasValue)
+        {
+            throw new RegraNegocioException("Informe o placar das duas duplas para encerrar a partida.");
+        }
+
+        if (partida.PlacarDuplaA.Value < 0 || partida.PlacarDuplaB.Value < 0)
         {
             throw new RegraNegocioException("Placar não pode ser negativo.");
         }
@@ -2528,8 +2606,8 @@ public class PartidaServico(
         Guid? duplaOriginalBId,
         string? faseOriginal,
         StatusPartida statusOriginal,
-        int placarOriginalA,
-        int placarOriginalB,
+        int? placarOriginalA,
+        int? placarOriginalB,
         Guid? vencedorOriginalId,
         string? faseAtualizada,
         StatusPartida statusAtualizado,
@@ -2564,8 +2642,8 @@ public class PartidaServico(
         }
 
         var mudouResultado = statusOriginal != statusAtualizado ||
-                            placarOriginalA != (placarAtualizadoA ?? 0) ||
-                            placarOriginalB != (placarAtualizadoB ?? 0) ||
+                            placarOriginalA != placarAtualizadoA ||
+                            placarOriginalB != placarAtualizadoB ||
                             vencedorOriginalId != CalcularVencedorPorPlacar(partida, placarAtualizadoA, placarAtualizadoB, statusAtualizado);
 
         if (statusOriginal == StatusPartida.Encerrada && statusAtualizado != StatusPartida.Encerrada)
@@ -3421,16 +3499,26 @@ public class PartidaServico(
 
                 desempenhoA = desempenhoA with
                 {
-                    Jogos = desempenhoA.Jogos + 1,
-                    PontosMarcados = desempenhoA.PontosMarcados + partida.Partida.PlacarDuplaA,
-                    PontosSofridos = desempenhoA.PontosSofridos + partida.Partida.PlacarDuplaB
+                    Jogos = desempenhoA.Jogos + 1
                 };
                 desempenhoB = desempenhoB with
                 {
-                    Jogos = desempenhoB.Jogos + 1,
-                    PontosMarcados = desempenhoB.PontosMarcados + partida.Partida.PlacarDuplaB,
-                    PontosSofridos = desempenhoB.PontosSofridos + partida.Partida.PlacarDuplaA
+                    Jogos = desempenhoB.Jogos + 1
                 };
+
+                if (partida.Partida.PossuiPlacarDetalhado())
+                {
+                    desempenhoA = desempenhoA with
+                    {
+                        PontosMarcados = desempenhoA.PontosMarcados + partida.Partida.PlacarDuplaA!.Value,
+                        PontosSofridos = desempenhoA.PontosSofridos + partida.Partida.PlacarDuplaB!.Value
+                    };
+                    desempenhoB = desempenhoB with
+                    {
+                        PontosMarcados = desempenhoB.PontosMarcados + partida.Partida.PlacarDuplaB!.Value,
+                        PontosSofridos = desempenhoB.PontosSofridos + partida.Partida.PlacarDuplaA!.Value
+                    };
+                }
 
                 if (partida.Partida.DuplaVencedoraId == partida.Partida.DuplaAId)
                 {

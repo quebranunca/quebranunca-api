@@ -413,6 +413,9 @@ internal static class MapeadorEntidades
             partida.PlacarDuplaB,
             partida.DuplaVencedoraId,
             partida.DuplaVencedora?.Nome,
+            ObterNumeroDuplaVencedora(partida),
+            partida.TipoRegistroResultado,
+            partida.PossuiPlacarDetalhado(),
             partida.StatusAprovacao,
             partida.CategoriaCompeticao?.PesoRanking ?? 1m,
             partida.CalcularPontosRankingVitoria(),
@@ -457,6 +460,26 @@ internal static class MapeadorEntidades
             pendencia.Partida?.CriadoPorUsuarioId,
             pendencia.Partida?.CriadoPorUsuario?.Nome
         );
+
+    private static int? ObterNumeroDuplaVencedora(Partida partida)
+    {
+        if (!partida.DuplaVencedoraId.HasValue)
+        {
+            return null;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaAId)
+        {
+            return 1;
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaBId)
+        {
+            return 2;
+        }
+
+        return null;
+    }
 
     private static PrioridadePendenciaUsuario ObterPrioridadePendencia(TipoPendenciaUsuario tipo)
         => tipo switch

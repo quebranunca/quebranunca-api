@@ -82,3 +82,70 @@ public record GrupoDashboardItemDto(
     DateTime? UltimaAtividade,
     IReadOnlyList<GrupoResumoRankingAtletaDto> RankingTop3
 );
+
+public record GrupoDashboardDetalheDto(
+    GrupoDashboardCabecalhoDto Grupo,
+    GrupoDashboardResumoDto Resumo,
+    IReadOnlyList<GrupoDashboardRankingAtletaDto> Ranking,
+    IReadOnlyList<GrupoDashboardPartidaDto> UltimasPartidas,
+    IReadOnlyList<GrupoDashboardMembroAtivoDto> MembrosMaisAtivos
+);
+
+public record GrupoDashboardCabecalhoDto(
+    Guid Id,
+    string Nome,
+    string? ImagemUrl,
+    bool Publico,
+    string Privacidade,
+    int TotalMembros,
+    int TotalPartidas,
+    DateTime? UltimaPartidaEm,
+    bool PodeEditar
+);
+
+public record GrupoDashboardResumoDto(
+    int TotalMembros,
+    int TotalPartidas,
+    int TotalAtletasAtivos,
+    int TotalPartidasSemPlacar,
+    DateTime? UltimaPartidaEm
+);
+
+public record GrupoDashboardRankingAtletaDto(
+    int Posicao,
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string? AvatarUrl,
+    decimal Pontos,
+    int Jogos,
+    int Vitorias
+);
+
+public record GrupoDashboardAtletaPartidaDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string? AvatarUrl
+);
+
+public record GrupoDashboardPartidaDto(
+    Guid Id,
+    DateTime? Data,
+    IReadOnlyList<GrupoDashboardAtletaPartidaDto> Dupla1,
+    IReadOnlyList<GrupoDashboardAtletaPartidaDto> Dupla2,
+    int? PlacarDupla1,
+    int? PlacarDupla2,
+    int? DuplaVencedora,
+    string TipoRegistroResultado,
+    string Status,
+    bool PossuiPlacarDetalhado
+);
+
+public record GrupoDashboardMembroAtivoDto(
+    Guid AtletaId,
+    string Nome,
+    string? Apelido,
+    string? AvatarUrl,
+    int TotalPartidas
+);

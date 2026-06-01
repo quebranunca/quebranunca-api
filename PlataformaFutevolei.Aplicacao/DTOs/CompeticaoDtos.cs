@@ -132,8 +132,8 @@ public record GrupoResumoUltimoJogoDto(
     DateTime Data,
     IReadOnlyList<GrupoResumoAtletaDto> Dupla1,
     IReadOnlyList<GrupoResumoAtletaDto> Dupla2,
-    int PlacarDupla1,
-    int PlacarDupla2,
+    int? PlacarDupla1,
+    int? PlacarDupla2,
     int Status,
     int StatusAprovacao
 );

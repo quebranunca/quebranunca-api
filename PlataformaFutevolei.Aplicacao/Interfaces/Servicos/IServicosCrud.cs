@@ -141,6 +141,7 @@ public interface IGrupoServico
     Task<IReadOnlyList<GrupoSelecaoDto>> ListarParaSelecaoAsync(CancellationToken cancellationToken = default);
     Task<GrupoVerificacaoNomeDto> VerificarNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<GrupoDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<GrupoDashboardDetalheDto> ObterDashboardAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default);
     Task<GrupoDto> AtualizarAsync(Guid id, AtualizarGrupoDto dto, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);

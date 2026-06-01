@@ -115,12 +115,13 @@ public class DashboardPublicoServico(
     {
         var maiorSequencia = ranking.Count == 0 ? 0 : ranking.Max(x => x.SequenciaAtual);
         var mediaPartidasDia = CalcularMediaPartidasDia(partidas);
-        var partidaMaisDisputada = partidas
-            .OrderBy(x => Math.Abs(x.PlacarDuplaA - x.PlacarDuplaB))
+        var partidasComPlacar = partidas.Where(x => x.PossuiPlacarDetalhado()).ToList();
+        var partidaMaisDisputada = partidasComPlacar
+            .OrderBy(x => Math.Abs(x.PlacarDuplaA!.Value - x.PlacarDuplaB!.Value))
             .ThenByDescending(ObterDataPartida)
             .FirstOrDefault();
-        var placarMaisElastico = partidas
-            .OrderByDescending(x => Math.Abs(x.PlacarDuplaA - x.PlacarDuplaB))
+        var placarMaisElastico = partidasComPlacar
+            .OrderByDescending(x => Math.Abs(x.PlacarDuplaA!.Value - x.PlacarDuplaB!.Value))
             .FirstOrDefault();
 
         return

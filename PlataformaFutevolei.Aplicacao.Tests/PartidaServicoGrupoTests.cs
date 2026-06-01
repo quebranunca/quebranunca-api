@@ -146,6 +146,8 @@ public class PartidaServicoGrupoTests
                 Status: StatusPartida.Encerrada,
                 PlacarDuplaA: 21,
                 PlacarDuplaB: 18,
+                DuplaVencedora: null,
+                TipoRegistroResultado: TipoRegistroResultado.PlacarDetalhado,
                 DataPartida: DateTime.UtcNow,
                 Observacoes: null);
     }
