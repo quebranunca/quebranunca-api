@@ -15,6 +15,7 @@ public class RankingServico(
     ILigaRepositorio ligaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
     IGrupoRepositorio grupoRepositorio,
+    IGrupoAtletaRepositorio grupoAtletaRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico
 ) : IRankingServico
@@ -168,13 +169,20 @@ public class RankingServico(
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
+        var membros = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
+        var atletasBase = membros
+            .Select(x => x.Atleta)
+            .Where(x => x is not null)
+            .DistinctBy(x => x.Id)
+            .ToList();
         var partidas = await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId, cancellationToken);
         var ranking = MontarRankingConsolidado(
             grupo.Id,
             grupo.Id,
             grupo.Nome,
             "Ranking do grupo",
-            partidas);
+            partidas,
+            atletasBase);
         return ranking is null ? [] : [ranking];
     }
 
@@ -225,14 +233,20 @@ public class RankingServico(
         Guid competicaoId,
         string nomeCompeticao,
         string nomeCategoria,
-        IReadOnlyList<Partida> partidas)
+        IReadOnlyList<Partida> partidas,
+        IReadOnlyList<Atleta>? atletasBase = null)
     {
-        if (partidas.Count == 0)
+        var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
+        foreach (var atleta in atletasBase ?? [])
+        {
+            atletas.TryAdd(atleta.Id, CriarRankingAtletaAcumulado(atleta));
+        }
+
+        if (partidas.Count == 0 && atletas.Count == 0)
         {
             return null;
         }
 
-        var atletas = new Dictionary<Guid, RankingAtletaAcumulado>();
         var participacoesOficiaisAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
         var participacoesPendentesAplicadas = new HashSet<(Guid AtletaId, Guid ReferenciaId)>();
 
@@ -486,6 +500,11 @@ public class RankingServico(
         foreach (var partida in OrdenarPartidasParaPontuacao(partidas))
         {
             var categoria = partida.CategoriaCompeticao;
+            if (categoria is null)
+            {
+                continue;
+            }
+
             var competicao = categoria.Competicao;
             var dataPartida = partida.DataPartida ?? partida.DataCriacao;
             var pontuacaoPendente = PontuacaoDaPartidaPendente(partida);
