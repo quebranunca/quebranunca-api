@@ -9,13 +9,17 @@ public record CriarGrupoDto(
     Guid? LocalId,
     string? Privacidade = null,
     string? ImagemUrl = null,
-    Guid? ArenaId = null
+    Guid? ArenaId = null,
+    string? LocalPrincipal = null,
+    IReadOnlyList<string>? DiasDaSemana = null
 );
 
 public record AtualizarGrupoDto(
     string Nome,
     bool? Publico = null,
-    string? Privacidade = null
+    string? Privacidade = null,
+    string? LocalPrincipal = null,
+    IReadOnlyList<string>? DiasDaSemana = null
 );
 
 public record GrupoImagemRespostaDto(
@@ -38,7 +42,9 @@ public record GrupoDto(
     DateTime DataCriacao,
     DateTime DataAtualizacao,
     Guid? ArenaId,
-    string? NomeArena
+    string? NomeArena,
+    string? LocalPrincipal,
+    IReadOnlyList<string> DiasDaSemana
 );
 
 public record GrupoSelecaoDto(

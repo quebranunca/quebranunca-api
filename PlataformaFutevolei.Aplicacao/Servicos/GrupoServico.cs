@@ -164,6 +164,8 @@ public class GrupoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             ArenaId = arenaId,
+            LocalPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal),
+            DiasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana),
             UsuarioOrganizadorId = usuario.Id,
             Publico = publico,
             ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl)
@@ -201,6 +203,8 @@ public class GrupoServico(
 
         grupo.Nome = nome;
         grupo.Publico = ResolverPublico(dto, grupo.Publico);
+        grupo.LocalPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal);
+        grupo.DiasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana);
         grupo.AtualizarDataModificacao();
 
         grupoRepositorio.Atualizar(grupo);
@@ -309,6 +313,53 @@ public class GrupoServico(
 
     private static string? NormalizarLink(string? link)
         => string.IsNullOrWhiteSpace(link) ? null : link.Trim();
+
+    private static string? NormalizarLocalPrincipal(string? localPrincipal)
+    {
+        var local = localPrincipal?.Trim();
+        if (string.IsNullOrWhiteSpace(local))
+        {
+            return null;
+        }
+
+        if (local.Length > 200)
+        {
+            throw new RegraNegocioException("Local principal deve ter no máximo 200 caracteres.");
+        }
+
+        return local;
+    }
+
+    private static string[]? NormalizarDiasDaSemana(IReadOnlyList<string>? diasDaSemana)
+    {
+        if (diasDaSemana is null || diasDaSemana.Count == 0)
+        {
+            return null;
+        }
+
+        string[] ordem = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+        var porBusca = ordem.ToDictionary(NormalizarParaBusca, x => x);
+        var selecionados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dia in diasDaSemana)
+        {
+            if (string.IsNullOrWhiteSpace(dia))
+            {
+                continue;
+            }
+
+            var chave = NormalizarParaBusca(dia);
+            if (!porBusca.TryGetValue(chave, out var diaPadrao))
+            {
+                throw new RegraNegocioException("Dia da semana do grupo inválido.");
+            }
+
+            selecionados.Add(diaPadrao);
+        }
+
+        var normalizados = ordem.Where(selecionados.Contains).ToArray();
+        return normalizados.Length == 0 ? null : normalizados;
+    }
 
     private static DateTime NormalizarParaUtc(DateTime data)
     {

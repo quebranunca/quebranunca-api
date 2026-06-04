@@ -799,6 +799,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("descricao");
 
+                    b.Property<string[]>("DiasDaSemana")
+                        .HasColumnType("text[]")
+                        .HasColumnName("dias_da_semana");
+
                     b.Property<bool>("DisputaTerceiroLugar")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -900,6 +904,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("link");
+
+                    b.Property<string>("LocalPrincipal")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("local_principal");
 
                     b.Property<string>("Nome")
                         .IsRequired()

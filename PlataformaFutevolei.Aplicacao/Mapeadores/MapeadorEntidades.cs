@@ -271,7 +271,9 @@ internal static class MapeadorEntidades
             grupo.DataCriacao,
             grupo.DataAtualizacao,
             grupo.ArenaId,
-            grupo.Arena?.Nome
+            grupo.Arena?.Nome,
+            grupo.LocalPrincipal,
+            grupo.DiasDaSemana ?? []
         );
 
     public static GrupoAtletaDto ParaDto(this GrupoAtleta grupoAtleta)

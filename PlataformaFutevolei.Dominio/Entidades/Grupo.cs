@@ -8,6 +8,8 @@ public class Grupo : EntidadeBase
     public DateTime DataInicio { get; set; }
     public DateTime? DataFim { get; set; }
     public Guid? ArenaId { get; set; }
+    public string? LocalPrincipal { get; set; }
+    public string[]? DiasDaSemana { get; set; }
     public Guid? UsuarioOrganizadorId { get; set; }
     public bool Publico { get; set; }
     public string? ImagemUrl { get; set; }
