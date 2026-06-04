@@ -144,6 +144,8 @@ public interface IGrupoServico
     Task<GrupoDashboardDetalheDto> ObterDashboardAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default);
     Task<GrupoDto> AtualizarAsync(Guid id, AtualizarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoImagemRespostaDto> AtualizarImagemAsync(Guid id, ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
+    Task RemoverImagemAsync(Guid id, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -376,6 +378,7 @@ public interface IUsuarioServico
 public interface IFotoPerfilService
 {
     Task<FotoPerfilUploadDto> EnviarAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
+    Task<FotoPerfilUploadDto> EnviarGrupoAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
     Task RemoverAsync(string publicId, CancellationToken cancellationToken = default);
 }
 

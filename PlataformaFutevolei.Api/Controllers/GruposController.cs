@@ -95,6 +95,32 @@ public class GruposController(
         return Ok(grupo);
     }
 
+    [HttpPost("{id:guid}/imagem")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(GrupoImagemRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarImagem(Guid id, [FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    {
+        await using var stream = arquivo?.OpenReadStream();
+        var resposta = await grupoServico.AtualizarImagemAsync(
+            id,
+            new ArquivoFotoPerfilDto(
+                stream!,
+                arquivo?.FileName ?? string.Empty,
+                arquivo?.ContentType,
+                arquivo?.Length ?? 0),
+            cancellationToken);
+
+        return Ok(resposta);
+    }
+
+    [HttpDelete("{id:guid}/imagem")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoverImagem(Guid id, CancellationToken cancellationToken)
+    {
+        await grupoServico.RemoverImagemAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)

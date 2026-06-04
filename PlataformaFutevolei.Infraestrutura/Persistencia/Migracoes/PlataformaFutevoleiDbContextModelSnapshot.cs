@@ -891,6 +891,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(500)")
                         .HasColumnName("imagem_url");
 
+                    b.Property<string>("ImagemPublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("imagem_public_id");
+
                     b.Property<string>("Link")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")

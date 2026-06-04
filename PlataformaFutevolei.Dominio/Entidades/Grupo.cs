@@ -11,6 +11,7 @@ public class Grupo : EntidadeBase
     public Guid? UsuarioOrganizadorId { get; set; }
     public bool Publico { get; set; }
     public string? ImagemUrl { get; set; }
+    public string? ImagemPublicId { get; set; }
 
     public Arena? Arena { get; set; }
     public Usuario? UsuarioOrganizador { get; set; }

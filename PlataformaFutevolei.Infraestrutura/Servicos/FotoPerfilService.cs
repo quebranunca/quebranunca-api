@@ -16,6 +16,7 @@ public class FotoPerfilService(
 {
     private const long TamanhoMaximoBytes = 2 * 1024 * 1024;
     private const string PastaPerfis = "quebranunca/perfis";
+    private const string PastaGrupos = "quebranunca/grupos";
     private static readonly HashSet<string> ExtensoesPermitidas = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg",
@@ -27,14 +28,43 @@ public class FotoPerfilService(
     public async Task<FotoPerfilUploadDto> EnviarAsync(
         ArquivoFotoPerfilDto arquivo,
         CancellationToken cancellationToken = default)
+        => await EnviarAsync(
+            arquivo,
+            PastaPerfis,
+            "foto de perfil",
+            "Arquivo da foto de perfil é obrigatório.",
+            "A foto de perfil deve ter no máximo 2MB.",
+            "Não foi possível enviar a foto de perfil. Tente novamente.",
+            cancellationToken);
+
+    public async Task<FotoPerfilUploadDto> EnviarGrupoAsync(
+        ArquivoFotoPerfilDto arquivo,
+        CancellationToken cancellationToken = default)
+        => await EnviarAsync(
+            arquivo,
+            PastaGrupos,
+            "foto do grupo",
+            "Arquivo da foto do grupo é obrigatório.",
+            "A foto do grupo deve ter no máximo 2MB.",
+            "Não foi possível enviar a foto do grupo. Tente novamente.",
+            cancellationToken);
+
+    private async Task<FotoPerfilUploadDto> EnviarAsync(
+        ArquivoFotoPerfilDto arquivo,
+        string pasta,
+        string descricaoLog,
+        string mensagemObrigatoria,
+        string mensagemTamanho,
+        string mensagemFalha,
+        CancellationToken cancellationToken)
     {
-        ValidarArquivo(arquivo);
+        ValidarArquivo(arquivo, mensagemObrigatoria, mensagemTamanho);
 
         var cloudinary = CriarClienteConfigurado();
         var upload = new ImageUploadParams
         {
             File = new FileDescription(arquivo.NomeArquivo, arquivo.Conteudo),
-            Folder = PastaPerfis,
+            Folder = pasta,
             UseFilename = false,
             UniqueFilename = true,
             Overwrite = true,
@@ -48,14 +78,14 @@ public class FotoPerfilService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Falha ao enviar foto de perfil para o Cloudinary.");
-            throw new RegraNegocioException("Não foi possível enviar a foto de perfil. Tente novamente.");
+            logger.LogWarning(ex, "Falha ao enviar {DescricaoLog} para o Cloudinary.", descricaoLog);
+            throw new RegraNegocioException(mensagemFalha);
         }
 
         if (resultado.Error is not null || string.IsNullOrWhiteSpace(resultado.PublicId))
         {
-            logger.LogWarning("Cloudinary retornou erro ao enviar foto de perfil: {Erro}", resultado.Error?.Message);
-            throw new RegraNegocioException("Não foi possível enviar a foto de perfil. Tente novamente.");
+            logger.LogWarning("Cloudinary retornou erro ao enviar {DescricaoLog}: {Erro}", descricaoLog, resultado.Error?.Message);
+            throw new RegraNegocioException(mensagemFalha);
         }
 
         var url = cloudinary.Api.UrlImgUp
@@ -87,16 +117,16 @@ public class FotoPerfilService(
         }
     }
 
-    private static void ValidarArquivo(ArquivoFotoPerfilDto arquivo)
+    private static void ValidarArquivo(ArquivoFotoPerfilDto arquivo, string mensagemObrigatoria, string mensagemTamanho)
     {
         if (arquivo.Conteudo is null || arquivo.TamanhoBytes <= 0)
         {
-            throw new RegraNegocioException("Arquivo da foto de perfil é obrigatório.");
+            throw new RegraNegocioException(mensagemObrigatoria);
         }
 
         if (arquivo.TamanhoBytes > TamanhoMaximoBytes)
         {
-            throw new RegraNegocioException("A foto de perfil deve ter no máximo 2MB.");
+            throw new RegraNegocioException(mensagemTamanho);
         }
 
         var extensao = Path.GetExtension(arquivo.NomeArquivo);

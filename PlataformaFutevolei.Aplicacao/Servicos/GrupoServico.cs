@@ -20,7 +20,8 @@ public class GrupoServico(
     IRankingServico rankingServico,
     IGrupoPadraoServico grupoPadraoServico,
     IUnidadeTrabalho unidadeTrabalho,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    IFotoPerfilService fotoPerfilService
 ) : IGrupoServico
 {
     public async Task<IReadOnlyList<GrupoDto>> ListarAsync(CancellationToken cancellationToken = default)
@@ -195,14 +196,68 @@ public class GrupoServico(
         return atualizado!.ParaDto();
     }
 
+    public async Task<GrupoImagemRespostaDto> AtualizarImagemAsync(
+        Guid id,
+        ArquivoFotoPerfilDto arquivo,
+        CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
+        var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+
+        var publicIdAnterior = grupo.ImagemPublicId;
+        var imagem = await fotoPerfilService.EnviarGrupoAsync(arquivo, cancellationToken);
+
+        grupo.ImagemUrl = imagem.Url;
+        grupo.ImagemPublicId = imagem.PublicId;
+        grupo.AtualizarDataModificacao();
+
+        grupoRepositorio.Atualizar(grupo);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(publicIdAnterior) &&
+            !string.Equals(publicIdAnterior, imagem.PublicId, StringComparison.Ordinal))
+        {
+            await fotoPerfilService.RemoverAsync(publicIdAnterior, cancellationToken);
+        }
+
+        return new GrupoImagemRespostaDto(grupo.ImagemUrl);
+    }
+
+    public async Task RemoverImagemAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
+        var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+
+        var publicIdAnterior = grupo.ImagemPublicId;
+        grupo.ImagemUrl = null;
+        grupo.ImagemPublicId = null;
+        grupo.AtualizarDataModificacao();
+
+        grupoRepositorio.Atualizar(grupo);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(publicIdAnterior))
+        {
+            await fotoPerfilService.RemoverAsync(publicIdAnterior, cancellationToken);
+        }
+    }
+
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
 
+        var publicIdAnterior = grupo.ImagemPublicId;
         grupoRepositorio.Remover(grupo);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(publicIdAnterior))
+        {
+            await fotoPerfilService.RemoverAsync(publicIdAnterior, cancellationToken);
+        }
     }
 
     private async Task ValidarArenaAsync(Guid? arenaId, CancellationToken cancellationToken)

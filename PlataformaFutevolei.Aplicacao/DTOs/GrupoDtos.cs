@@ -18,6 +18,10 @@ public record AtualizarGrupoDto(
     string? Privacidade = null
 );
 
+public record GrupoImagemRespostaDto(
+    string? ImagemUrl
+);
+
 public record GrupoDto(
     Guid Id,
     string Nome,
@@ -73,6 +77,7 @@ public record GrupoDashboardTotaisDto(
 public record GrupoDashboardItemDto(
     Guid GrupoId,
     string Nome,
+    string? ImagemUrl,
     string Privacidade,
     Guid? UsuarioOrganizadorId,
     string? NomeUsuarioOrganizador,

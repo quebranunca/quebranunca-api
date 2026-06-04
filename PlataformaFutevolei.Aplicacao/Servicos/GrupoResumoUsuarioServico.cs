@@ -66,6 +66,7 @@ public class GrupoResumoUsuarioServico(
             itens.Add(new GrupoDashboardItemDto(
                 grupo.Id,
                 grupo.Nome,
+                grupo.ImagemUrl,
                 grupo.Publico ? "Público" : "Privado",
                 grupo.UsuarioOrganizadorId,
                 grupo.UsuarioOrganizador?.Nome,
