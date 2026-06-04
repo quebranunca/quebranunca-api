@@ -1,6 +1,7 @@
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
 public record CriarGrupoAtletaDto(
+    Guid? AtletaId,
     string NomeAtleta,
     string? ApelidoAtleta,
     string? Email

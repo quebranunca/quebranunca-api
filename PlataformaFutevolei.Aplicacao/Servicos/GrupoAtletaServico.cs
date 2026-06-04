@@ -93,7 +93,7 @@ public class GrupoAtletaServico(
         CancellationToken cancellationToken = default)
     {
         var nomeOuApelido = NormalizadorNomeAtleta.NormalizarTexto(dto.NomeAtleta);
-        if (string.IsNullOrWhiteSpace(nomeOuApelido))
+        if (!dto.AtletaId.HasValue && string.IsNullOrWhiteSpace(nomeOuApelido))
         {
             throw new RegraNegocioException("Nome ou apelido é obrigatório.");
         }
@@ -103,10 +103,22 @@ public class GrupoAtletaServico(
         var emailNormalizado = NormalizarEmailOpcional(dto.Email);
         var atletasDoGrupo = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
 
-        GarantirEmailUnicoNoGrupo(atletasDoGrupo, emailNormalizado);
-        GarantirNomeDisponivelParaNovoAtleta(atletasDoGrupo, nomeOuApelido);
+        if (dto.AtletaId.HasValue && atletasDoGrupo.Any(x => x.AtletaId == dto.AtletaId.Value))
+        {
+            throw new RegraNegocioException("Este atleta já faz parte do grupo.");
+        }
 
-        var atleta = await ObterOuCriarAtletaGrupoAsync(nomeOuApelido, emailNormalizado, cancellationToken);
+        GarantirEmailUnicoNoGrupo(atletasDoGrupo, emailNormalizado, dto.AtletaId);
+
+        if (!dto.AtletaId.HasValue)
+        {
+            GarantirNomeDisponivelParaNovoAtleta(atletasDoGrupo, nomeOuApelido);
+        }
+
+        var atleta = dto.AtletaId.HasValue
+            ? await atletaRepositorio.ObterPorIdAsync(dto.AtletaId.Value, cancellationToken)
+                ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.")
+            : await ObterOuCriarAtletaGrupoAsync(nomeOuApelido, emailNormalizado, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(emailNormalizado))
         {
