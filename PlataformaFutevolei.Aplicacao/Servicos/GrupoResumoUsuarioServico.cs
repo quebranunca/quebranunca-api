@@ -126,10 +126,14 @@ public class GrupoResumoUsuarioServico(
             return [];
         }
 
-        return [
-            new GrupoResumoAtletaDto(dupla.Atleta1.Id, dupla.Atleta1.Nome, dupla.Atleta1.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(dupla.Atleta1)),
-            new GrupoResumoAtletaDto(dupla.Atleta2.Id, dupla.Atleta2.Nome, dupla.Atleta2.Apelido, FotoPerfilAtletaUtil.ObterUrlPublica(dupla.Atleta2))
-        ];
+        return new[] { dupla.Atleta1, dupla.Atleta2 }
+            .Where(x => x is not null)
+            .Select(x => new GrupoResumoAtletaDto(
+                x.Id,
+                x.Nome,
+                x.Apelido,
+                FotoPerfilAtletaUtil.ObterUrlPublica(x)))
+            .ToList();
     }
 
     private static int ContarPendenciasGrupo(Grupo grupo)

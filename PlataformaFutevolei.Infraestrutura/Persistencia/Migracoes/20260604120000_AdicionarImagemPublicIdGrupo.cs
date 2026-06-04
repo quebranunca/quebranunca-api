@@ -7,6 +7,7 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [DbContext(typeof(PlataformaFutevoleiDbContext))]
+    [Migration("20260604120000_AdicionarImagemPublicIdGrupo")]
     public partial class AdicionarImagemPublicIdGrupo : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

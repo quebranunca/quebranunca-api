@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -14,7 +15,8 @@ public class DashboardAtletaServico(
     IAtletaRepositorio atletaRepositorio,
     IPartidaRepositorio partidaRepositorio,
     IRankingServico rankingServico,
-    IAutorizacaoUsuarioServico autorizacaoUsuarioServico
+    IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
+    ILogger<DashboardAtletaServico> logger
 ) : IDashboardAtletaServico
 {
     private const int QuantidadeMesesEvolucao = 6;
@@ -23,6 +25,7 @@ public class DashboardAtletaServico(
     private const int QuantidadeRelacoes = 8;
 
     private sealed record DashboardAtletaContexto(
+        Guid UsuarioId,
         Atleta Atleta,
         IReadOnlyList<Partida> PartidasValidas);
 
@@ -42,8 +45,8 @@ public class DashboardAtletaServico(
         var rivalMaisFrequente = rivais.FirstOrDefault();
         var resumoComNomes = resumo with
         {
-            MelhorParceiro = ObterNomeExibicao(melhorParceiro?.Nome, melhorParceiro?.Apelido),
-            RivalMaisFrequente = ObterNomeExibicao(rivalMaisFrequente?.Nome, rivalMaisFrequente?.Apelido)
+            MelhorParceiro = melhorParceiro is null ? null : ObterNomeExibicao(melhorParceiro.Nome, melhorParceiro.Apelido),
+            RivalMaisFrequente = rivalMaisFrequente is null ? null : ObterNomeExibicao(rivalMaisFrequente.Nome, rivalMaisFrequente.Apelido)
         };
 
         return new DashboardAtletaDto(
@@ -89,16 +92,36 @@ public class DashboardAtletaServico(
 
     public async Task<DashboardAtletaResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default)
     {
-        var contexto = await CarregarContextoAsync(cancellationToken);
-        var resumo = MontarResumo(contexto.Atleta.Id, contexto.PartidasValidas);
-        var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
-        var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
+        Guid? usuarioIdLog = null;
+        Guid? atletaIdLog = null;
 
-        return resumo with
+        try
         {
-            MelhorParceiro = ObterNomeExibicao(parceiros.FirstOrDefault()?.Nome, parceiros.FirstOrDefault()?.Apelido),
-            RivalMaisFrequente = ObterNomeExibicao(rivais.FirstOrDefault()?.Nome, rivais.FirstOrDefault()?.Apelido)
-        };
+            var contexto = await CarregarContextoAsync(cancellationToken, "/api/dashboard/atleta/resumo");
+            usuarioIdLog = contexto.UsuarioId;
+            atletaIdLog = contexto.Atleta.Id;
+            var resumo = MontarResumo(contexto.Atleta.Id, contexto.PartidasValidas);
+            var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
+            var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
+            var melhorParceiro = parceiros.FirstOrDefault();
+            var rivalMaisFrequente = rivais.FirstOrDefault();
+
+            return resumo with
+            {
+                MelhorParceiro = melhorParceiro is null ? null : ObterNomeExibicao(melhorParceiro.Nome, melhorParceiro.Apelido),
+                RivalMaisFrequente = rivalMaisFrequente is null ? null : ObterNomeExibicao(rivalMaisFrequente.Nome, rivalMaisFrequente.Apelido)
+            };
+        }
+        catch (Exception ex) when (ex is not RegraNegocioException and not EntidadeNaoEncontradaException)
+        {
+            logger.LogError(
+                ex,
+                "Erro ao montar resumo do dashboard do atleta. Endpoint: {Endpoint}. UsuarioId: {UsuarioId}. AtletaId: {AtletaId}.",
+                "/api/dashboard/atleta/resumo",
+                usuarioIdLog,
+                atletaIdLog);
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<string>> ObterInsightsAsync(CancellationToken cancellationToken = default)
@@ -109,8 +132,12 @@ public class DashboardAtletaServico(
         var rivais = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: false);
         var resumoComNomes = resumo with
         {
-            MelhorParceiro = ObterNomeExibicao(parceiros.FirstOrDefault()?.Nome, parceiros.FirstOrDefault()?.Apelido),
-            RivalMaisFrequente = ObterNomeExibicao(rivais.FirstOrDefault()?.Nome, rivais.FirstOrDefault()?.Apelido)
+            MelhorParceiro = parceiros.FirstOrDefault() is { } melhorParceiro
+                ? ObterNomeExibicao(melhorParceiro.Nome, melhorParceiro.Apelido)
+                : null,
+            RivalMaisFrequente = rivais.FirstOrDefault() is { } rivalMaisFrequente
+                ? ObterNomeExibicao(rivalMaisFrequente.Nome, rivalMaisFrequente.Apelido)
+                : null
         };
 
         return MontarInsights(resumoComNomes, parceiros.FirstOrDefault(), rivais.FirstOrDefault(), contexto.PartidasValidas);
@@ -144,11 +171,17 @@ public class DashboardAtletaServico(
         return MontarHeatmap(contexto.PartidasValidas);
     }
 
-    private async Task<DashboardAtletaContexto> CarregarContextoAsync(CancellationToken cancellationToken)
+    private async Task<DashboardAtletaContexto> CarregarContextoAsync(
+        CancellationToken cancellationToken,
+        string? endpoint = null)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (!usuario.AtletaId.HasValue)
         {
+            logger.LogWarning(
+                "Dashboard do atleta solicitado por usuário sem atleta vinculado. Endpoint: {Endpoint}. UsuarioId: {UsuarioId}.",
+                endpoint ?? "dashboard-atleta",
+                usuario.Id);
             throw new RegraNegocioException("Seu usuário precisa estar vinculado a um atleta para visualizar o dashboard.");
         }
 
@@ -156,21 +189,50 @@ public class DashboardAtletaServico(
             ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
         var partidas = await partidaRepositorio.ListarPorAtletaAsync(atleta.Id, cancellationToken);
         var partidasValidas = partidas
-            .Where(PartidaContaParaDashboard)
+            .Where(partida => PartidaContaParaDashboard(atleta.Id, partida, endpoint))
             .OrderByDescending(ObterDataReferencia)
             .ThenByDescending(x => x.DataCriacao)
             .ToList();
 
-        return new DashboardAtletaContexto(atleta, partidasValidas);
+        return new DashboardAtletaContexto(usuario.Id, atleta, partidasValidas);
     }
 
-    private static bool PartidaContaParaDashboard(Partida partida)
+    private bool PartidaContaParaDashboard(Guid atletaId, Partida partida, string? endpoint)
     {
-        return partida.Status == StatusPartida.Encerrada &&
+        var partidaTemDadosBasicos = partida.Status == StatusPartida.Encerrada &&
             partida.StatusAprovacao != StatusAprovacaoPartida.Contestada &&
             partida.DuplaVencedoraId.HasValue &&
             partida.DuplaA is not null &&
             partida.DuplaB is not null;
+
+        if (!partidaTemDadosBasicos)
+        {
+            return false;
+        }
+
+        var duplaAtleta = ObterDuplaDoAtleta(atletaId, partida);
+        if (duplaAtleta is null)
+        {
+            logger.LogWarning(
+                "Partida ignorada no dashboard porque o atleta não foi encontrado nas duplas carregadas. Endpoint: {Endpoint}. AtletaId: {AtletaId}. PartidaId: {PartidaId}.",
+                endpoint ?? "dashboard-atleta",
+                atletaId,
+                partida.Id);
+            return false;
+        }
+
+        var duplaAdversaria = ReferenceEquals(duplaAtleta, partida.DuplaA) ? partida.DuplaB : partida.DuplaA;
+        if (ObterAtletas(duplaAtleta).Count != 2 || duplaAdversaria is null || ObterAtletas(duplaAdversaria).Count != 2)
+        {
+            logger.LogWarning(
+                "Partida ignorada no dashboard por dados incompletos de atletas nas duplas. Endpoint: {Endpoint}. AtletaId: {AtletaId}. PartidaId: {PartidaId}.",
+                endpoint ?? "dashboard-atleta",
+                atletaId,
+                partida.Id);
+            return false;
+        }
+
+        return true;
     }
 
     private static DashboardAtletaResumoDto MontarResumo(Guid atletaId, IReadOnlyList<Partida> partidas)
@@ -180,7 +242,14 @@ public class DashboardAtletaServico(
         var derrotas = total - vitorias;
         var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
         var partidasComPlacar = partidas.Where(x => x.PossuiPlacarDetalhado()).ToList();
-        var saldoPontos = partidasComPlacar.Sum(x => ObterPontosAtleta(atletaId, x)!.Value - ObterPontosAdversario(atletaId, x)!.Value);
+        var saldoPontos = partidasComPlacar.Sum(x =>
+        {
+            var pontosAtleta = ObterPontosAtleta(atletaId, x);
+            var pontosAdversario = ObterPontosAdversario(atletaId, x);
+            return pontosAtleta.HasValue && pontosAdversario.HasValue
+                ? pontosAtleta.Value - pontosAdversario.Value
+                : 0;
+        });
         var sequenciaAtual = CalcularSequenciaAtual(atletaId, partidas);
 
         return new DashboardAtletaResumoDto(

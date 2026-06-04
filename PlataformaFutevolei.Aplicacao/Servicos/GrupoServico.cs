@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -21,13 +22,25 @@ public class GrupoServico(
     IGrupoPadraoServico grupoPadraoServico,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
-    IFotoPerfilService fotoPerfilService
+    IFotoPerfilService fotoPerfilService,
+    ILogger<GrupoServico> logger
 ) : IGrupoServico
 {
     public async Task<IReadOnlyList<GrupoDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
-        var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
-        return grupos.Select(x => x.ParaDto()).ToList();
+        try
+        {
+            var grupos = await grupoRepositorio.ListarAsync(cancellationToken);
+            return grupos.Select(x => x.ParaDto()).ToList();
+        }
+        catch (Exception ex) when (ex is not RegraNegocioException and not EntidadeNaoEncontradaException)
+        {
+            logger.LogError(
+                ex,
+                "Erro ao listar grupos. Endpoint: {Endpoint}.",
+                "/api/grupos");
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<GrupoSelecaoDto>> ListarParaSelecaoAsync(CancellationToken cancellationToken = default)
@@ -432,10 +445,10 @@ public class GrupoServico(
             return [];
         }
 
-        return [
-            MontarAtletaPartida(dupla.Atleta1),
-            MontarAtletaPartida(dupla.Atleta2)
-        ];
+        return new[] { dupla.Atleta1, dupla.Atleta2 }
+            .Where(x => x is not null)
+            .Select(MontarAtletaPartida)
+            .ToList();
     }
 
     private static GrupoDashboardAtletaPartidaDto MontarAtletaPartida(Atleta atleta)
@@ -445,15 +458,26 @@ public class GrupoServico(
     {
         if (partida.DuplaA is not null)
         {
-            yield return partida.DuplaA.Atleta1;
-            yield return partida.DuplaA.Atleta2;
+            foreach (var atleta in ObterAtletas(partida.DuplaA))
+            {
+                yield return atleta;
+            }
         }
 
         if (partida.DuplaB is not null)
         {
-            yield return partida.DuplaB.Atleta1;
-            yield return partida.DuplaB.Atleta2;
+            foreach (var atleta in ObterAtletas(partida.DuplaB))
+            {
+                yield return atleta;
+            }
         }
+    }
+
+    private static IReadOnlyList<Atleta> ObterAtletas(Dupla dupla)
+    {
+        return new[] { dupla.Atleta1, dupla.Atleta2 }
+            .Where(x => x is not null)
+            .ToList();
     }
 
     private static int? ObterNumeroDuplaVencedora(Partida partida)
