@@ -167,6 +167,7 @@ public static class InjecaoDependenciaInfraestrutura
         services.AddScoped<IGeracaoLinkConviteCadastroServico, GeracaoLinkConviteCadastroServico>();
         services.AddScoped<IFotoPerfilService, FotoPerfilService>();
         services.AddScoped<IMidiaPartidaService, MidiaPartidaService>();
+        services.AddScoped<ISaneamentoAtletasEmailServico, SaneamentoAtletasEmailServico>();
         services.AddHttpClient<IEnvioEmailCodigoLoginServico, ResendEmailCodigoLoginServico>((serviceProvider, client) =>
         {
             var configuracaoEmail = serviceProvider.GetRequiredService<IOptions<ConfiguracaoEmailCodigoLogin>>().Value;

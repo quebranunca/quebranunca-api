@@ -25,11 +25,23 @@ public interface IAtletaServico
     Task<AtletaDto> CriarAsync(CriarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaDto> SalvarMeuAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken = default);
     Task<AtletaDto> AtualizarAsync(Guid id, AtualizarAtletaDto dto, CancellationToken cancellationToken = default);
+    Task<AtletaMedidasDto> AtualizarMinhasMedidasAsync(
+        AtualizarAtletaMedidasDto dto,
+        CancellationToken cancellationToken = default);
+    Task<AtletaEmailDisponibilidadeDto> VerificarEmailAsync(
+        string email,
+        Guid? atletaIgnoradoId = null,
+        CancellationToken cancellationToken = default);
     Task<AtletaPendenciaDto> InformarEmailPendenteAsync(
         Guid atletaId,
         AtualizarEmailAtletaPendenteDto dto,
         CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface ISaneamentoAtletasEmailServico
+{
+    Task<SaneamentoAtletasEmailResumoDto> UnificarDuplicadosPorEmailAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IDashboardAtletaServico

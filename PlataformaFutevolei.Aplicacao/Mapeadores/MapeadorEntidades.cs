@@ -122,6 +122,13 @@ internal static class MapeadorEntidades
             atleta.UsuarioCriadorId,
             atleta.UsuarioCriador?.Nome,
             FotoPerfilAtletaUtil.ObterUrlPublica(atleta),
+            atleta.Sexo,
+            atleta.PeDominante,
+            atleta.TempoPratica,
+            atleta.ArenaPrincipalId,
+            atleta.ArenaPrincipal?.Nome,
+            atleta.ObjetivoAtual,
+            atleta.Medidas?.ParaDto(),
             atleta.DataCriacao,
             atleta.DataAtualizacao
         );
@@ -148,6 +155,18 @@ internal static class MapeadorEntidades
             atleta.DataAtualizacao
         );
     }
+
+    public static AtletaMedidasDto ParaDto(this AtletaMedidas medidas)
+        => new(
+            medidas.AtletaId,
+            medidas.Camiseta,
+            medidas.Regata,
+            medidas.Short,
+            medidas.Sunga,
+            medidas.Top,
+            medidas.Biquini,
+            medidas.AtualizadoEm
+        );
 
     public static DuplaDto ParaDto(this Dupla dupla)
         => new(

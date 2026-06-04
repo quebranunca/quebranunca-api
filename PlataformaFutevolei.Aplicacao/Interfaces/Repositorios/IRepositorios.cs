@@ -65,11 +65,14 @@ public interface IAtletaRepositorio
     Task<IDictionary<Guid, int>> ContarPartidasPorAtletasAsync(IEnumerable<Guid> atletaIds, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> BuscarSugestoesPorCompeticaoAsync(Guid competicaoId, string termo, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Atleta?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarPorEmailAsync(string email, CancellationToken cancellationToken = default);
     Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default);
+    Task AdicionarMedidasAsync(AtletaMedidas medidas, CancellationToken cancellationToken = default);
     void Atualizar(Atleta atleta);
+    void AtualizarMedidas(AtletaMedidas medidas);
     void Remover(Atleta atleta);
 }
 

@@ -15,7 +15,12 @@ public record CriarAtletaDto(
     bool CadastroPendente,
     NivelAtleta? Nivel,
     LadoAtleta Lado,
-    DateTime? DataNascimento
+    DateTime? DataNascimento,
+    SexoAtleta? Sexo = null,
+    PeDominanteAtleta? PeDominante = null,
+    TempoPraticaAtleta? TempoPratica = null,
+    Guid? ArenaPrincipalId = null,
+    ObjetivoAtualAtleta? ObjetivoAtual = null
 );
 
 public record AtualizarAtletaDto(
@@ -31,7 +36,12 @@ public record AtualizarAtletaDto(
     bool CadastroPendente,
     NivelAtleta? Nivel,
     LadoAtleta Lado,
-    DateTime? DataNascimento
+    DateTime? DataNascimento,
+    SexoAtleta? Sexo = null,
+    PeDominanteAtleta? PeDominante = null,
+    TempoPraticaAtleta? TempoPratica = null,
+    Guid? ArenaPrincipalId = null,
+    ObjetivoAtualAtleta? ObjetivoAtual = null
 );
 
 public record AtletaResumoDto(
@@ -76,6 +86,13 @@ public record AtletaDto(
     Guid? UsuarioCriadorId,
     string? NomeUsuarioCriador,
     string? FotoPerfilUrl,
+    SexoAtleta? Sexo,
+    PeDominanteAtleta? PeDominante,
+    TempoPraticaAtleta? TempoPratica,
+    Guid? ArenaPrincipalId,
+    string? ArenaPrincipalNome,
+    ObjetivoAtualAtleta? ObjetivoAtual,
+    AtletaMedidasDto? Medidas,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -113,4 +130,63 @@ public record AtletaPendenciaDto(
 
 public record AtualizarEmailAtletaPendenteDto(
     string Email
+);
+
+public record AtletaMedidasDto(
+    Guid AtletaId,
+    string? Camiseta,
+    string? Regata,
+    string? Short,
+    string? Sunga,
+    string? Top,
+    string? Biquini,
+    DateTime? AtualizadoEm
+);
+
+public record AtualizarAtletaMedidasDto(
+    string? Camiseta,
+    string? Regata,
+    string? Short,
+    string? Sunga,
+    string? Top,
+    string? Biquini
+);
+
+public record AtletaEmailDisponibilidadeDto(
+    string Email,
+    bool Disponivel,
+    Guid? AtletaId,
+    string? Nome,
+    string? Apelido,
+    string? Mensagem
+);
+
+public record SaneamentoAtletasEmailResumoDto(
+    int EmailsAnalisados,
+    int GruposDuplicados,
+    int AtletasDuplicadosUnificados,
+    IReadOnlyList<SaneamentoAtletasEmailGrupoDto> Grupos
+);
+
+public record SaneamentoAtletasEmailGrupoDto(
+    string Email,
+    Guid AtletaPrincipalId,
+    IReadOnlyList<Guid> AtletasDuplicadosIds,
+    SaneamentoAtletasEmailContadoresDto RegistrosMigrados
+);
+
+public record SaneamentoAtletasEmailContadoresDto(
+    int DuplasAtualizadas,
+    int DuplasConsolidadas,
+    int PartidasAtualizadas,
+    int InscricoesAtualizadas,
+    int InscricoesConsolidadas,
+    int GruposAtualizados,
+    int GruposConsolidados,
+    int AprovacoesAtualizadas,
+    int AprovacoesConsolidadas,
+    int PendenciasAtualizadas,
+    int ConvitesAtualizados,
+    int UsuariosAtualizados,
+    int AtletasRemovidos
 );

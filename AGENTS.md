@@ -15,6 +15,8 @@
 - Conteúdo HTML de e-mail deve priorizar layout simples, responsivo e compatível com clientes de e-mail, com estilos inline e versão em texto equivalente
 - Templates de e-mail devem usar estrutura compatível com clientes mobile/desktop, com `body` e container externo com fundo explícito e estilos principais inline
 - Dados pessoais devem ser coletados e expostos apenas quando necessários ao fluxo; e-mail público, localização e imagem/foto precisam respeitar consentimentos e preferências de privacidade
+- Perfil Esportivo e Medidas/Uniformes do atleta pertencem ao cadastro esportivo; medidas devem usar estrutura própria, com campos opcionais e incompatíveis mantidos como nulos conforme sexo/gênero.
+- Arena principal do atleta deve ser vínculo opcional com Arena existente, sem texto livre.
 - Política de Privacidade e Termos de Uso são consentimentos obrigatórios; localização e imagem/foto são consentimentos separados e não devem bloquear uso básico quando recusados
 - Fotos de perfil devem ser armazenadas em serviço externo; o banco deve guardar apenas URL e PublicId, sem arquivos locais no Railway/Vercel e sem binário no PostgreSQL. Cloudinary é o padrão atual para imagens de usuário.
 - Fotos/avatar de grupo são opcionais e devem seguir o padrão existente de mídia externa, persistindo apenas URL e identificador público necessários para troca/remoção.

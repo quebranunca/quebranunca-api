@@ -222,11 +222,14 @@ public class PendenciaServicoContatoTests
         public Task<IDictionary<Guid, int>> ContarPartidasPorAtletasAsync(IEnumerable<Guid> atletaIds, CancellationToken cancellationToken = default) => Task.FromResult<IDictionary<Guid, int>>(new Dictionary<Guid, int>());
         public Task<IReadOnlyList<Atleta>> BuscarSugestoesPorCompeticaoAsync(Guid competicaoId, string termo, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Atleta>>([]);
         public Task<Atleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(atletas.FirstOrDefault(x => x.Id == id));
+        public Task<Atleta?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default) => ObterPorIdAsync(id, cancellationToken);
         public Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult(atletas.FirstOrDefault(x => x.Nome == nome));
         public Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Atleta>>(atletas.Where(x => x.Nome == nome).ToList());
         public Task<IReadOnlyList<Atleta>> ListarPorEmailAsync(string email, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Atleta>>(atletas.Where(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)).ToList());
         public Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default) { atletas.Add(atleta); return Task.CompletedTask; }
+        public Task AdicionarMedidasAsync(AtletaMedidas medidas, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Atualizar(Atleta atleta) { }
+        public void AtualizarMedidas(AtletaMedidas medidas) { }
         public void Remover(Atleta atleta) => atletas.Remove(atleta);
     }
 

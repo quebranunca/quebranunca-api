@@ -15,6 +15,8 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
             .AsNoTracking()
             .Include(x => x.Usuario)
             .Include(x => x.UsuarioCriador)
+            .Include(x => x.ArenaPrincipal)
+            .Include(x => x.Medidas)
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
     }
@@ -65,6 +67,8 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         return await dbContext.Atletas
             .AsNoTracking()
             .Include(x => x.Usuario)
+            .Include(x => x.ArenaPrincipal)
+            .Include(x => x.Medidas)
             .Where(x => atleta1Ids.Contains(x.Id) || atleta2Ids.Contains(x.Id))
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
@@ -187,6 +191,18 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         return dbContext.Atletas
             .Include(x => x.Usuario)
             .Include(x => x.UsuarioCriador)
+            .Include(x => x.ArenaPrincipal)
+            .Include(x => x.Medidas)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public Task<Atleta?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Atletas
+            .Include(x => x.Usuario)
+            .Include(x => x.UsuarioCriador)
+            .Include(x => x.ArenaPrincipal)
+            .Include(x => x.Medidas)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
@@ -217,7 +233,7 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
 
         return await dbContext.Atletas
             .Include(x => x.Usuario)
-            .Where(x => x.Email != null && x.Email.ToLower() == emailNormalizado)
+            .Where(x => x.Email != null && x.Email.Trim().ToLower() == emailNormalizado)
             .OrderBy(x => x.DataCriacao)
             .ToListAsync(cancellationToken);
     }
@@ -227,9 +243,19 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         await dbContext.Atletas.AddAsync(atleta, cancellationToken);
     }
 
+    public async Task AdicionarMedidasAsync(AtletaMedidas medidas, CancellationToken cancellationToken = default)
+    {
+        await dbContext.AtletasMedidas.AddAsync(medidas, cancellationToken);
+    }
+
     public void Atualizar(Atleta atleta)
     {
         dbContext.Atletas.Update(atleta);
+    }
+
+    public void AtualizarMedidas(AtletaMedidas medidas)
+    {
+        dbContext.AtletasMedidas.Update(medidas);
     }
 
     public void Remover(Atleta atleta)

@@ -9,7 +9,10 @@ namespace PlataformaFutevolei.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/atletas")]
-public class AtletasController(IAtletaServico atletaServico) : ControllerBase
+public class AtletasController(
+    IAtletaServico atletaServico,
+    ISaneamentoAtletasEmailServico saneamentoAtletasEmailServico
+) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
@@ -59,6 +62,17 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
         return Ok(pendencias);
     }
 
+    [HttpGet("email/disponibilidade")]
+    [ProducesResponseType(typeof(AtletaEmailDisponibilidadeDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> VerificarEmail(
+        [FromQuery] string email,
+        [FromQuery] Guid? atletaIgnoradoId,
+        CancellationToken cancellationToken)
+    {
+        var disponibilidade = await atletaServico.VerificarEmailAsync(email, atletaIgnoradoId, cancellationToken);
+        return Ok(disponibilidade);
+    }
+
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AtletaPublicoDto), StatusCodes.Status200OK)]
@@ -98,6 +112,16 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
         return Ok(atleta);
     }
 
+    [HttpPut("me/medidas")]
+    [ProducesResponseType(typeof(AtletaMedidasDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarMinhasMedidas(
+        [FromBody] AtualizarAtletaMedidasDto dto,
+        CancellationToken cancellationToken)
+    {
+        var medidas = await atletaServico.AtualizarMinhasMedidasAsync(dto, cancellationToken);
+        return Ok(medidas);
+    }
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(AtletaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarAtletaDto dto, CancellationToken cancellationToken)
@@ -124,5 +148,14 @@ public class AtletasController(IAtletaServico atletaServico) : ControllerBase
     {
         await atletaServico.RemoverAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("saneamento/duplicados-email")]
+    [Authorize(Roles = nameof(PerfilUsuario.Administrador))]
+    [ProducesResponseType(typeof(SaneamentoAtletasEmailResumoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SanearDuplicadosPorEmail(CancellationToken cancellationToken)
+    {
+        var resultado = await saneamentoAtletasEmailServico.UnificarDuplicadosPorEmailAsync(cancellationToken);
+        return Ok(resultado);
     }
 }

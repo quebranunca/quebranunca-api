@@ -19,6 +19,7 @@ public class AtletaServico(
     IGrupoRepositorio grupoRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
     ICompeticaoRepositorio competicaoRepositorio,
+    IArenaRepositorio arenaRepositorio,
     IUsuarioRepositorio usuarioRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
@@ -219,11 +220,17 @@ public class AtletaServico(
             ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado)
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
+        await ValidarPerfilEsportivoAsync(dto, cancellationToken);
 
         var criandoMeuProprioAtleta = usuarioComum &&
             !usuario.AtletaId.HasValue &&
             !string.IsNullOrWhiteSpace(dados.Email) &&
             string.Equals(dados.Email, usuario.Email, StringComparison.OrdinalIgnoreCase);
+
+        if (!criandoMeuProprioAtleta)
+        {
+            await GarantirEmailDisponivelAsync(dados.Email, null, cancellationToken);
+        }
 
         Atleta atleta;
         if (criandoMeuProprioAtleta)
@@ -249,9 +256,14 @@ public class AtletaServico(
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = criandoMeuProprioAtleta ? false : dto.CadastroPendente;
+        atleta.Sexo = dto.Sexo;
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
+        atleta.PeDominante = dto.PeDominante;
+        atleta.TempoPratica = dto.TempoPratica;
+        atleta.ArenaPrincipalId = dto.ArenaPrincipalId;
+        atleta.ObjetivoAtual = dto.ObjetivoAtual;
         atleta.UsuarioCriadorId ??= usuario.Id;
         atleta.AtualizarDataModificacao();
 
@@ -277,12 +289,13 @@ public class AtletaServico(
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         var dados = Normalizar(dto.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, false, dados.PossuiIdentificador);
+        await ValidarPerfilEsportivoAsync(dto, cancellationToken);
 
         Atleta atleta;
         var atletaExistente = true;
         if (usuario.AtletaId.HasValue)
         {
-            var atletaAtual = await atletaRepositorio.ObterPorIdAsync(usuario.AtletaId.Value, cancellationToken);
+            var atletaAtual = await atletaRepositorio.ObterPorIdParaAtualizacaoAsync(usuario.AtletaId.Value, cancellationToken);
             atleta = atletaAtual ?? new Atleta();
             if (atletaAtual is null)
             {
@@ -292,9 +305,17 @@ public class AtletaServico(
         }
         else
         {
-            atleta = new Atleta();
-            atletaExistente = false;
-            await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+            var atletaPorEmail = await ObterAtletaDisponivelParaVinculoAsync(usuario.Email, cancellationToken);
+            if (atletaPorEmail is not null)
+            {
+                atleta = atletaPorEmail;
+            }
+            else
+            {
+                atleta = new Atleta();
+                atletaExistente = false;
+                await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
+            }
         }
 
         atleta.Nome = dados.Nome;
@@ -307,9 +328,14 @@ public class AtletaServico(
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = false;
+        atleta.Sexo = dto.Sexo;
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
+        atleta.PeDominante = dto.PeDominante;
+        atleta.TempoPratica = dto.TempoPratica;
+        atleta.ArenaPrincipalId = dto.ArenaPrincipalId;
+        atleta.ObjetivoAtual = dto.ObjetivoAtual;
         atleta.UsuarioCriadorId ??= usuario.Id;
         atleta.AtualizarDataModificacao();
 
@@ -359,6 +385,8 @@ public class AtletaServico(
             ? Normalizar(usuario.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado)
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
+        await ValidarPerfilEsportivoAsync(dto, cancellationToken);
+        await GarantirEmailDisponivelAsync(dados.Email, atleta.Id, cancellationToken);
 
         atleta.Nome = dados.Nome;
         atleta.Apelido = dados.Apelido;
@@ -370,14 +398,77 @@ public class AtletaServico(
         atleta.Cidade = dados.Cidade;
         atleta.Estado = dados.Estado;
         atleta.CadastroPendente = dto.CadastroPendente;
+        atleta.Sexo = dto.Sexo;
         atleta.Nivel = dto.Nivel;
         atleta.Lado = dto.Lado;
         atleta.DataNascimento = dataNascimento;
+        atleta.PeDominante = dto.PeDominante;
+        atleta.TempoPratica = dto.TempoPratica;
+        atleta.ArenaPrincipalId = dto.ArenaPrincipalId;
+        atleta.ObjetivoAtual = dto.ObjetivoAtual;
         atleta.AtualizarDataModificacao();
 
         atletaRepositorio.Atualizar(atleta);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         return atleta.ParaDto();
+    }
+
+    public async Task<AtletaMedidasDto> AtualizarMinhasMedidasAsync(
+        AtualizarAtletaMedidasDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("Crie ou complete o seu atleta antes de informar medidas.");
+        }
+
+        var atleta = await atletaRepositorio.ObterPorIdParaAtualizacaoAsync(usuario.AtletaId.Value, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
+
+        var medidas = atleta.Medidas;
+        if (medidas is null)
+        {
+            medidas = new AtletaMedidas
+            {
+                AtletaId = atleta.Id
+            };
+            await atletaRepositorio.AdicionarMedidasAsync(medidas, cancellationToken);
+        }
+
+        AplicarMedidas(medidas, dto, atleta.Sexo);
+        medidas.AtualizadoEm = DateTime.UtcNow;
+        medidas.AtualizarDataModificacao();
+        atleta.AtualizarDataModificacao();
+
+        atletaRepositorio.AtualizarMedidas(medidas);
+        atletaRepositorio.Atualizar(atleta);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return medidas.ParaDto();
+    }
+
+    public async Task<AtletaEmailDisponibilidadeDto> VerificarEmailAsync(
+        string email,
+        Guid? atletaIgnoradoId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var emailNormalizado = NormalizarEmailOpcional(email);
+        if (emailNormalizado is null)
+        {
+            return new AtletaEmailDisponibilidadeDto(string.Empty, true, null, null, null, null);
+        }
+
+        var atleta = await ObterAtletaComEmailAsync(emailNormalizado, atletaIgnoradoId, cancellationToken);
+        return atleta is null
+            ? new AtletaEmailDisponibilidadeDto(emailNormalizado, true, null, null, null, null)
+            : new AtletaEmailDisponibilidadeDto(
+                emailNormalizado,
+                false,
+                atleta.Id,
+                atleta.Nome,
+                atleta.Apelido,
+                MontarMensagemEmailDuplicado(atleta));
     }
 
     public async Task<AtletaPendenciaDto> InformarEmailPendenteAsync(
@@ -412,6 +503,8 @@ public class AtletaServico(
         {
             throw new RegraNegocioException("Você só pode informar e-mail para atletas pendentes de partidas registradas por você.");
         }
+
+        await GarantirEmailDisponivelAsync(emailNormalizado, atleta.Id, cancellationToken);
 
         atleta.Email = emailNormalizado;
         atleta.AtualizarDataModificacao();
@@ -743,6 +836,182 @@ public class AtletaServico(
                 || !string.IsNullOrWhiteSpace(cpfNormalizado)
         );
     }
+
+    private async Task GarantirEmailDisponivelAsync(
+        string? email,
+        Guid? atletaIgnoradoId,
+        CancellationToken cancellationToken)
+    {
+        var emailNormalizado = NormalizarEmailOpcional(email);
+        if (emailNormalizado is null)
+        {
+            return;
+        }
+
+        var atleta = await ObterAtletaComEmailAsync(emailNormalizado, atletaIgnoradoId, cancellationToken);
+        if (atleta is not null)
+        {
+            throw new RegraNegocioException(MontarMensagemEmailDuplicado(atleta));
+        }
+    }
+
+    private async Task<Atleta?> ObterAtletaComEmailAsync(
+        string emailNormalizado,
+        Guid? atletaIgnoradoId,
+        CancellationToken cancellationToken)
+    {
+        var atletas = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        return atletas.FirstOrDefault(x => !atletaIgnoradoId.HasValue || x.Id != atletaIgnoradoId.Value);
+    }
+
+    private async Task<Atleta?> ObterAtletaDisponivelParaVinculoAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var emailNormalizado = NormalizarEmailOpcional(email);
+        if (emailNormalizado is null)
+        {
+            return null;
+        }
+
+        var atletas = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        if (atletas.Count == 0)
+        {
+            return null;
+        }
+
+        var atletasDisponiveis = atletas.Where(x => x.Usuario is null).ToList();
+        if (atletasDisponiveis.Count == 1)
+        {
+            return atletasDisponiveis[0];
+        }
+
+        throw new RegraNegocioException(MontarMensagemEmailDuplicado(atletas[0]));
+    }
+
+    private static string? NormalizarEmailOpcional(string? email)
+    {
+        var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(emailNormalizado) ? null : emailNormalizado;
+    }
+
+    private static string MontarMensagemEmailDuplicado(Atleta atleta)
+    {
+        return "Já existe um atleta cadastrado com este e-mail.\n\n" +
+               "Atleta encontrado:\n\n" +
+               $"* Nome: {atleta.Nome}\n" +
+               $"* Apelido: {atleta.Apelido ?? "Não informado"}\n\n" +
+               "Utilize outro e-mail ou edite o cadastro existente.";
+    }
+
+    private async Task ValidarPerfilEsportivoAsync(AtualizarAtletaDto dto, CancellationToken cancellationToken)
+    {
+        ValidarEnumOpcional(dto.Sexo, "Sexo/gênero inválido.");
+        ValidarEnumOpcional(dto.PeDominante, "Pé dominante inválido.");
+        ValidarEnumOpcional(dto.TempoPratica, "Tempo de prática inválido.");
+        ValidarEnumOpcional(dto.ObjetivoAtual, "Objetivo atual inválido.");
+
+        if (dto.ArenaPrincipalId.HasValue)
+        {
+            var arena = await arenaRepositorio.ObterPorIdAsync(dto.ArenaPrincipalId.Value, cancellationToken);
+            if (arena is null)
+            {
+                throw new RegraNegocioException("Arena principal não encontrada.");
+            }
+        }
+    }
+
+    private async Task ValidarPerfilEsportivoAsync(CriarAtletaDto dto, CancellationToken cancellationToken)
+    {
+        await ValidarPerfilEsportivoAsync(
+            new AtualizarAtletaDto(
+                dto.Nome,
+                dto.Apelido,
+                dto.Telefone,
+                dto.Email,
+                dto.Instagram,
+                dto.Cpf,
+                dto.Bairro,
+                dto.Cidade,
+                dto.Estado,
+                dto.CadastroPendente,
+                dto.Nivel,
+                dto.Lado,
+                dto.DataNascimento,
+                dto.Sexo,
+                dto.PeDominante,
+                dto.TempoPratica,
+                dto.ArenaPrincipalId,
+                dto.ObjetivoAtual),
+            cancellationToken);
+    }
+
+    private static void ValidarEnumOpcional<TEnum>(TEnum? valor, string mensagem)
+        where TEnum : struct, Enum
+    {
+        if (valor.HasValue && !Enum.IsDefined(valor.Value))
+        {
+            throw new RegraNegocioException(mensagem);
+        }
+    }
+
+    private static void AplicarMedidas(AtletaMedidas medidas, AtualizarAtletaMedidasDto dto, SexoAtleta? sexo)
+    {
+        medidas.Camiseta = NormalizarTamanhoOpcional(dto.Camiseta, TamanhosRoupa, "Tamanho de camiseta inválido.");
+        medidas.Regata = NormalizarTamanhoOpcional(dto.Regata, TamanhosRoupa, "Tamanho de regata inválido.");
+        medidas.Short = NormalizarTamanhoOpcional(dto.Short, TamanhosShort, "Tamanho de short inválido.");
+
+        medidas.Sunga = sexo == SexoAtleta.Masculino
+            ? NormalizarTamanhoOpcional(dto.Sunga, TamanhosRoupa, "Tamanho de sunga inválido.")
+            : null;
+        medidas.Top = sexo == SexoAtleta.Feminino
+            ? NormalizarTamanhoOpcional(dto.Top, TamanhosRoupa, "Tamanho de top inválido.")
+            : null;
+        medidas.Biquini = sexo == SexoAtleta.Feminino
+            ? NormalizarTamanhoOpcional(dto.Biquini, TamanhosRoupa, "Tamanho de biquíni inválido.")
+            : null;
+    }
+
+    private static string? NormalizarTamanhoOpcional(
+        string? valor,
+        IReadOnlySet<string> opcoesValidas,
+        string mensagemErro)
+    {
+        var normalizado = NormalizadorNomeAtleta.NormalizarTexto(valor).ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(normalizado))
+        {
+            return null;
+        }
+
+        if (!opcoesValidas.Contains(normalizado))
+        {
+            throw new RegraNegocioException(mensagemErro);
+        }
+
+        return normalizado;
+    }
+
+    private static readonly IReadOnlySet<string> TamanhosRoupa = new HashSet<string>
+    {
+        "PP",
+        "P",
+        "M",
+        "G",
+        "GG",
+        "XGG"
+    };
+
+    private static readonly IReadOnlySet<string> TamanhosShort = new HashSet<string>
+    {
+        "36",
+        "38",
+        "40",
+        "42",
+        "44",
+        "46",
+        "48",
+        "50"
+    };
 
     private static DateTime? Validar(
         string nome,

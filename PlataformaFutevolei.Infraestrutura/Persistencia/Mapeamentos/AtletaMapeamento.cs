@@ -23,10 +23,15 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
         builder.Property(x => x.Cidade).HasColumnName("cidade").HasMaxLength(120);
         builder.Property(x => x.Estado).HasColumnName("estado").HasMaxLength(60);
         builder.Property(x => x.CadastroPendente).HasColumnName("cadastro_pendente").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.Sexo).HasColumnName("sexo").HasConversion<int>();
         builder.Property(x => x.Nivel).HasColumnName("nivel").HasConversion<int>();
         builder.Property(x => x.Lado).HasColumnName("lado").HasConversion<int>().HasDefaultValue(LadoAtleta.Ambos).IsRequired();
         builder.Property(x => x.DataNascimento).HasColumnName("data_nascimento").HasColumnType("date");
         builder.Property(x => x.UsuarioCriadorId).HasColumnName("usuario_criador_id");
+        builder.Property(x => x.PeDominante).HasColumnName("pe_dominante").HasConversion<int>();
+        builder.Property(x => x.TempoPratica).HasColumnName("tempo_pratica").HasConversion<int>();
+        builder.Property(x => x.ArenaPrincipalId).HasColumnName("arena_principal_id");
+        builder.Property(x => x.ObjetivoAtual).HasColumnName("objetivo_atual").HasConversion<int>();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
@@ -35,8 +40,14 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
             .HasForeignKey(x => x.UsuarioCriadorId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(x => x.ArenaPrincipal)
+            .WithMany()
+            .HasForeignKey(x => x.ArenaPrincipalId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.Cpf);
         builder.HasIndex(x => x.Nome);
         builder.HasIndex(x => x.UsuarioCriadorId);
+        builder.HasIndex(x => x.ArenaPrincipalId);
     }
 }
