@@ -1,15 +1,13 @@
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
-    [DbContext(typeof(PlataformaFutevoleiDbContext))]
-    [Migration("20260604153000_AdicionarLocalPrincipalEDiasGrupo")]
+    /// <inheritdoc />
     public partial class AdicionarLocalPrincipalEDiasGrupo : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string[]>(
@@ -26,6 +24,7 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                 nullable: true);
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
