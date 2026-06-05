@@ -3,9 +3,11 @@ using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Json;
 using PlataformaFutevolei.Aplicacao.Servicos;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
+using System.Text.Json;
 using Xunit;
 
 namespace PlataformaFutevolei.Aplicacao.Tests;
@@ -72,6 +74,83 @@ public class PartidaServicoGrupoTests
 
         Assert.Equal(cenario.GrupoGeral.Id, partida.GrupoId);
         Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultado_PermiteRegistrarSemPlacar()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = null,
+            PlacarDuplaB = null,
+            DuplaVencedora = 1,
+            TipoRegistroResultado = TipoRegistroResultado.ApenasResultado
+        };
+
+        var partida = await cenario.Servico.CriarAsync(dto);
+
+        Assert.Equal(StatusPartida.Encerrada, partida.Status);
+        Assert.Null(partida.PlacarDuplaA);
+        Assert.Null(partida.PlacarDuplaB);
+        Assert.Equal(1, partida.DuplaVencedora);
+        Assert.Equal(TipoRegistroResultado.ApenasResultado, partida.TipoRegistroResultado);
+        Assert.False(partida.PossuiPlacarDetalhado);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultado_ExigeDuplaVencedora()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = null,
+            PlacarDuplaB = null,
+            DuplaVencedora = null,
+            TipoRegistroResultado = TipoRegistroResultado.ApenasResultado
+        };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal("Informe qual dupla venceu a partida.", excecao.Message);
+    }
+
+    [Fact]
+    public void CriarPartidaDto_AceitaTipoRegistroResultadoComoTexto()
+    {
+        var opcoes = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        opcoes.Converters.Add(new TipoRegistroResultadoJsonConverter());
+
+        var dto = JsonSerializer.Deserialize<CriarPartidaDto>(
+            """
+            {
+              "competicaoId": null,
+              "grupoId": "1cc97d33-8fec-49ef-afd4-599a5ae9745c",
+              "categoriaCompeticaoId": null,
+              "duplaAAtleta1Id": "b7c07a7d-e248-460c-b8fe-0198812f94a5",
+              "duplaAAtleta2Id": "3048af30-806e-40d6-ab88-3d721f692e64",
+              "duplaBAtleta1Id": "7c8e8e8d-9a3e-4d5a-8508-ecd92a9a9478",
+              "duplaBAtleta2Id": "9d1324bf-8f2b-4dd5-a7c4-51f256842714",
+              "status": 2,
+              "placarDuplaA": null,
+              "placarDuplaB": null,
+              "duplaVencedora": 1,
+              "tipoRegistroResultado": "ApenasResultado",
+              "dataPartida": "2026-06-05T15:24:31.220Z",
+              "confirmarDuplicidade": false
+            }
+            """,
+            opcoes);
+
+        Assert.NotNull(dto);
+        Assert.Equal(TipoRegistroResultado.ApenasResultado, dto.TipoRegistroResultado);
+        Assert.Null(dto.PlacarDuplaA);
+        Assert.Null(dto.PlacarDuplaB);
+        Assert.Equal(1, dto.DuplaVencedora);
     }
 
     private sealed class Cenario

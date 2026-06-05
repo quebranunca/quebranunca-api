@@ -12,6 +12,7 @@ using PlataformaFutevolei.Api.Middlewares;
 using PlataformaFutevolei.Api.Seguranca;
 using PlataformaFutevolei.Aplicacao.Dependencias;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
+using PlataformaFutevolei.Aplicacao.Json;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
 using PlataformaFutevolei.Infraestrutura.Dependencias;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
@@ -71,7 +72,11 @@ if (string.IsNullOrWhiteSpace(configuracaoJwt.Chave))
         "A configuração JWT está incompleta. Defina Jwt:Chave (ou a variável de ambiente Jwt__Chave).");
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new TipoRegistroResultadoJsonConverter());
+    });
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = LimiteUploadMidiaPartidaBytes;
