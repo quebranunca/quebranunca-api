@@ -1116,7 +1116,11 @@ public class PartidaServico(
         if (grupo is not null)
         {
             var grupoEspecificoSelecionado = grupoEspecificoExistenteInformado && !EhGrupoGeral(grupo);
-            var grupoPrivadoEspecificoSelecionado = grupoEspecificoSelecionado && !grupo.Publico;
+            if (grupoEspecificoSelecionado)
+            {
+                await GarantirUsuarioPertenceAoGrupoAsync(grupo.Id, cancellationToken);
+            }
+
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
             var atletaDuplaA2 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta2Id, duplaAAtleta2Nome, cancellationToken);
             var atletaDuplaB1 = await ResolverAtletaPartidaGrupoAsync(duplaBAtleta1Id, duplaBAtleta1Nome, cancellationToken);
@@ -1126,14 +1130,7 @@ public class PartidaServico(
 
             foreach (var atleta in new[] { atletaDuplaA1, atletaDuplaA2, atletaDuplaB1, atletaDuplaB2 }.DistinctBy(x => x.Id))
             {
-                if (grupoPrivadoEspecificoSelecionado)
-                {
-                    await GarantirAtletaPertenceAoGrupoAsync(grupo.Id, atleta.Id, cancellationToken);
-                }
-                else
-                {
-                    await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(grupo.Id, atleta, cancellationToken);
-                }
+                await resolvedorAtletaDuplaServico.GarantirAtletaNoGrupoAsync(grupo.Id, atleta, cancellationToken);
             }
 
             duplaA = await resolvedorAtletaDuplaServico.ObterOuCriarDuplaAsync(atletaDuplaA1, atletaDuplaA2, cancellationToken);
@@ -1262,15 +1259,24 @@ public class PartidaServico(
         }
     }
 
-    private async Task GarantirAtletaPertenceAoGrupoAsync(
+    private async Task GarantirUsuarioPertenceAoGrupoAsync(
         Guid grupoId,
-        Guid atletaId,
         CancellationToken cancellationToken)
     {
-        var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(grupoId, atletaId, cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!usuario.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("Você precisa fazer parte deste grupo para registrar partidas nele.");
+        }
+
+        var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(
+            grupoId,
+            usuario.AtletaId.Value,
+            cancellationToken);
+
         if (grupoAtleta is null)
         {
-            throw new RegraNegocioException("Todos os atletas da partida precisam pertencer ao grupo selecionado.");
+            throw new RegraNegocioException("Você precisa fazer parte deste grupo para registrar partidas nele.");
         }
     }
 

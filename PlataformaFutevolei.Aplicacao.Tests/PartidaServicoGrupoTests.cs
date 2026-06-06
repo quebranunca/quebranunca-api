@@ -15,45 +15,64 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class PartidaServicoGrupoTests
 {
     [Fact]
-    public async Task CriarAsync_Bloqueia_AtletasForaDoGrupoPrivado()
+    public async Task CriarAsync_UsuarioPertenceAoGrupoEAtletasJaPertencem_RegistraNormalmente()
+    {
+        var cenario = Cenario.Criar(publico: false);
+        foreach (var atleta in cenario.Atletas)
+        {
+            cenario.AdicionarMembro(atleta);
+        }
+
+        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_UsuarioPertenceAoGrupoEAlgunsAtletasNaoPertencem_RegistraEVinculaAusentes()
     {
         var cenario = Cenario.Criar(publico: false);
         cenario.AdicionarMembro(cenario.Atletas[0]);
         cenario.AdicionarMembro(cenario.Atletas[1]);
 
-        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id)));
+        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
 
-        Assert.Equal("Todos os atletas da partida precisam pertencer ao grupo selecionado.", excecao.Message);
-        Assert.Equal(2, cenario.GruposAtletas.Vinculos.Count);
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.All(cenario.Atletas, atleta =>
+            Assert.Contains(cenario.GruposAtletas.Vinculos, vinculo =>
+                vinculo.GrupoId == cenario.Grupo.Id && vinculo.AtletaId == atleta.Id));
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_Permite_AtletasForaDoGrupoPublico()
+    public async Task CriarAsync_UsuarioPertenceAoGrupoENenhumAtletaPertence_RegistraEVinculaTodos()
     {
-        var cenario = Cenario.Criar(publico: true);
+        var cenario = Cenario.Criar(publico: false);
 
         var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
-        Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
-    }
-
-    [Fact]
-    public async Task CriarAsync_GrupoPublico_AdicionaAutomaticamenteAtletasAusentes()
-    {
-        var cenario = Cenario.Criar(publico: true);
-        cenario.AdicionarMembro(cenario.Atletas[0]);
-
-        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
-
         Assert.All(cenario.Atletas, atleta =>
             Assert.Contains(cenario.GruposAtletas.Vinculos, vinculo =>
                 vinculo.GrupoId == cenario.Grupo.Id && vinculo.AtletaId == atleta.Id));
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_GrupoPublico_NaoDuplicaMembroExistente()
+    public async Task CriarAsync_UsuarioNaoPertenceAoGrupo_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id)));
+
+        Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
+        Assert.Empty(cenario.GruposAtletas.Vinculos);
+    }
+
+    [Fact]
+    public async Task CriarAsync_NaoDuplicaMembroExistente()
     {
         var cenario = Cenario.Criar(publico: true);
         cenario.AdicionarMembro(cenario.Atletas[0]);
@@ -61,14 +80,14 @@ public class PartidaServicoGrupoTests
 
         await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
 
-        Assert.Equal(4, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
-        Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
     public async Task CriarAsync_SemGrupoSelecionado_MantemFluxoAvulso()
     {
-        var cenario = Cenario.Criar(publico: true);
+        var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
 
         var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(grupoId: null));
 
@@ -155,7 +174,7 @@ public class PartidaServicoGrupoTests
 
     private sealed class Cenario
     {
-        private Cenario(bool publico)
+        private Cenario(bool publico, bool usuarioMembro)
         {
             Usuario = new Usuario
             {
@@ -165,6 +184,8 @@ public class PartidaServicoGrupoTests
             };
             Grupo = new Grupo { Nome = "AD7", Publico = publico, DataInicio = DateTime.UtcNow };
             GrupoGeral = new Grupo { Nome = "Geral", Publico = true, DataInicio = DateTime.UtcNow };
+            AtletaUsuario = new Atleta { Nome = "Usuário Teste" };
+            Usuario.AtletaId = AtletaUsuario.Id;
             Atletas =
             [
                 new Atleta { Nome = "Alan Silva" },
@@ -174,6 +195,11 @@ public class PartidaServicoGrupoTests
             ];
 
             GruposAtletas = new GrupoAtletaRepositorioMemoria();
+            if (usuarioMembro)
+            {
+                AdicionarMembro(AtletaUsuario);
+            }
+
             var partidaRepositorio = new PartidaRepositorioMemoria();
             var resolvedor = new ResolvedorAtletaDuplaMemoria(Atletas, GruposAtletas);
 
@@ -196,11 +222,12 @@ public class PartidaServicoGrupoTests
         public Usuario Usuario { get; }
         public Grupo Grupo { get; }
         public Grupo GrupoGeral { get; }
+        public Atleta AtletaUsuario { get; }
         public IReadOnlyList<Atleta> Atletas { get; }
         public GrupoAtletaRepositorioMemoria GruposAtletas { get; }
         public PartidaServico Servico { get; }
 
-        public static Cenario Criar(bool publico) => new(publico);
+        public static Cenario Criar(bool publico, bool usuarioMembro = true) => new(publico, usuarioMembro);
 
         public void AdicionarMembro(Atleta atleta)
             => GruposAtletas.Vinculos.Add(new GrupoAtleta { GrupoId = Grupo.Id, AtletaId = atleta.Id, Atleta = atleta });
