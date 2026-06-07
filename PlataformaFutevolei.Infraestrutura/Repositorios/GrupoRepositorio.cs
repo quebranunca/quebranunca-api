@@ -17,6 +17,9 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .Include(x => x.Arena)
             .Include(x => x.UsuarioOrganizador)
             .Include(x => x.Atletas)
+                .ThenInclude(x => x.Atleta)
+                    .ThenInclude(x => x.Usuario)
+            .Include(x => x.Partidas)
             .OrderByDescending(x => x.DataInicio)
             .ThenBy(x => x.Nome)
             .ToListAsync(cancellationToken);

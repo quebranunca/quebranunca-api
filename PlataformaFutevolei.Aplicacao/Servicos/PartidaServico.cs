@@ -965,20 +965,13 @@ public class PartidaServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (partida is null)
         {
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        var podeRemoverComoCriador = partida.CriadoPorUsuarioId == usuarioAtual.Id;
-        var podeRemoverComoAdministrador = usuarioAtual.Perfil == PerfilUsuario.Administrador;
-
-        if (!podeRemoverComoCriador && !podeRemoverComoAdministrador)
-        {
-            throw new AcessoNegadoException("Você só pode excluir partidas registradas por você.");
-        }
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
         {

@@ -4,6 +4,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
+using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
@@ -19,10 +20,12 @@ public class GrupoResumoUsuarioServico(
     public async Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupo = await grupoRepositorio.ObterResumoUsuarioAsync(
-            usuario.Id,
-            usuario.AtletaId,
-            cancellationToken);
+        var grupo = usuario.Perfil == PerfilUsuario.Administrador
+            ? (await grupoRepositorio.ListarAsync(cancellationToken)).FirstOrDefault()
+            : await grupoRepositorio.ObterResumoUsuarioAsync(
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
 
         if (grupo is null)
         {
@@ -36,11 +39,13 @@ public class GrupoResumoUsuarioServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupos = await grupoRepositorio.ListarResumosUsuarioAsync(
-            usuario.Id,
-            usuario.AtletaId,
-            LimiteGruposResumoHome,
-            cancellationToken);
+        var grupos = usuario.Perfil == PerfilUsuario.Administrador
+            ? (await grupoRepositorio.ListarAsync(cancellationToken)).Take(LimiteGruposResumoHome).ToList()
+            : await grupoRepositorio.ListarResumosUsuarioAsync(
+                usuario.Id,
+                usuario.AtletaId,
+                LimiteGruposResumoHome,
+                cancellationToken);
 
         var resumos = new List<GrupoResumoUsuarioDto>(grupos.Count);
         foreach (var grupo in grupos)
@@ -54,10 +59,12 @@ public class GrupoResumoUsuarioServico(
     public async Task<GrupoDashboardUsuarioDto> ObterDashboardAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupos = await grupoRepositorio.ListarDashboardUsuarioAsync(
-            usuario.Id,
-            usuario.AtletaId,
-            cancellationToken);
+        var grupos = usuario.Perfil == PerfilUsuario.Administrador
+            ? await grupoRepositorio.ListarAsync(cancellationToken)
+            : await grupoRepositorio.ListarDashboardUsuarioAsync(
+                usuario.Id,
+                usuario.AtletaId,
+                cancellationToken);
 
         var itens = new List<GrupoDashboardItemDto>(grupos.Count);
         foreach (var grupo in grupos)

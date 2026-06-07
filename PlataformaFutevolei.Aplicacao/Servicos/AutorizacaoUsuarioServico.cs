@@ -45,7 +45,7 @@ public class AutorizacaoUsuarioServico(
         var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (usuario.Perfil != PerfilUsuario.Administrador)
         {
-            throw new RegraNegocioException("Apenas administradores podem executar esta operação.");
+            throw new AcessoNegadoException("Apenas administradores podem executar esta operação.");
         }
     }
 
