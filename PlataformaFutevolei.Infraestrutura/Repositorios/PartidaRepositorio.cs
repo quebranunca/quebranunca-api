@@ -85,6 +85,14 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Partida>> ListarAdministracaoAsync(CancellationToken cancellationToken = default)
+    {
+        return await CriarConsultaDetalhadaPartidas()
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Partida>> ListarFeedAsync(
         int skip,
         int take,

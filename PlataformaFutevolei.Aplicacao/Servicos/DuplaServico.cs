@@ -20,11 +20,7 @@ public class DuplaServico(
         bool somenteInscritasMinhasCompeticoes = false,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
-        }
+        var usuario = await autorizacaoUsuarioServico.ObterAdminOuOrganizadorAtualObrigatorioAsync(cancellationToken);
 
         var duplas = somenteInscritasMinhasCompeticoes && usuario.Perfil == PerfilUsuario.Organizador
             ? await duplaRepositorio.ListarInscritasPorOrganizadorAsync(usuario.Id, cancellationToken)
@@ -142,9 +138,9 @@ public class DuplaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static void GarantirPerfilGestor(Usuario usuario)
+    private void GarantirPerfilGestor(Usuario usuario)
     {
-        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
+        if (!autorizacaoUsuarioServico.EhAdminOuOrganizador(usuario))
         {
             throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
         }

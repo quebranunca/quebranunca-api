@@ -33,7 +33,7 @@ public class GrupoAtletaServico(
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var grupo = await ObterGrupoValidoAsync(grupoId, cancellationToken);
         var atletas = await grupoAtletaRepositorio.ListarPorGrupoAsync(grupo.Id, cancellationToken);
-        var podeVerDadosGerenciais = usuario?.Perfil == PerfilUsuario.Administrador ||
+        var podeVerDadosGerenciais = autorizacaoUsuarioServico.EhAdministrador(usuario) ||
             (usuario is not null && grupo.UsuarioOrganizadorId == usuario.Id);
 
         return atletas

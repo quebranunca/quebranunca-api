@@ -38,11 +38,7 @@ public class AtletaServico(
         bool somenteInscritosMinhasCompeticoes = false,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
-        }
+        var usuario = await autorizacaoUsuarioServico.ObterAdminOuOrganizadorAtualObrigatorioAsync(cancellationToken);
 
         var atletas = somenteInscritosMinhasCompeticoes && usuario.Perfil == PerfilUsuario.Organizador
             ? await atletaRepositorio.ListarInscritosPorOrganizadorAsync(usuario.Id, cancellationToken)
@@ -372,7 +368,7 @@ public class AtletaServico(
             throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
         }
 
-        var podeEditar = usuario.Perfil == PerfilUsuario.Administrador ||
+        var podeEditar = autorizacaoUsuarioServico.EhAdministrador(usuario) ||
             usuario.AtletaId == atleta.Id ||
             atleta.UsuarioCriadorId == usuario.Id;
 
@@ -495,10 +491,11 @@ public class AtletaServico(
             throw new RegraNegocioException("Este atleta já possui usuário vinculado.");
         }
 
-        var podeEditar = await partidaRepositorio.ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
-            usuario.Id,
-            atletaId,
-            cancellationToken);
+        var podeEditar = autorizacaoUsuarioServico.EhAdministrador(usuario) ||
+            await partidaRepositorio.ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(
+                usuario.Id,
+                atletaId,
+                cancellationToken);
         if (!podeEditar)
         {
             throw new RegraNegocioException("Você só pode informar e-mail para atletas pendentes de partidas registradas por você.");

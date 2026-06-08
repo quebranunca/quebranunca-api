@@ -46,7 +46,7 @@ public class GrupoServico(
     public async Task<IReadOnlyList<GrupoSelecaoDto>> ListarParaSelecaoAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var incluirPrivadosDeTerceiros = usuario.Perfil == PerfilUsuario.Administrador;
+        var incluirPrivadosDeTerceiros = autorizacaoUsuarioServico.EhAdministrador(usuario);
         var grupos = await grupoRepositorio.ListarParaSelecaoAsync(
             usuario.Id,
             usuario.AtletaId,
@@ -424,14 +424,14 @@ public class GrupoServico(
     private static string ObterPrivacidade(Grupo grupo)
         => grupo.Publico ? "Público" : "Privado";
 
-    private static bool PodeEditarGrupo(Usuario? usuario, Grupo grupo)
+    private bool PodeEditarGrupo(Usuario? usuario, Grupo grupo)
     {
         if (usuario is null)
         {
             return false;
         }
 
-        return usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id;
+        return autorizacaoUsuarioServico.EhAdministrador(usuario) || grupo.UsuarioOrganizadorId == usuario.Id;
     }
 
     private static IReadOnlyList<GrupoDashboardRankingAtletaDto> MontarRankingDashboard(

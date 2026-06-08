@@ -20,7 +20,7 @@ public class GrupoResumoUsuarioServico(
     public async Task<GrupoResumoUsuarioDto?> ObterMeuResumoAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupo = usuario.Perfil == PerfilUsuario.Administrador
+        var grupo = autorizacaoUsuarioServico.EhAdministrador(usuario)
             ? (await grupoRepositorio.ListarAsync(cancellationToken)).FirstOrDefault()
             : await grupoRepositorio.ObterResumoUsuarioAsync(
                 usuario.Id,
@@ -39,7 +39,7 @@ public class GrupoResumoUsuarioServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupos = usuario.Perfil == PerfilUsuario.Administrador
+        var grupos = autorizacaoUsuarioServico.EhAdministrador(usuario)
             ? (await grupoRepositorio.ListarAsync(cancellationToken)).Take(LimiteGruposResumoHome).ToList()
             : await grupoRepositorio.ListarResumosUsuarioAsync(
                 usuario.Id,
@@ -59,7 +59,7 @@ public class GrupoResumoUsuarioServico(
     public async Task<GrupoDashboardUsuarioDto> ObterDashboardAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var grupos = usuario.Perfil == PerfilUsuario.Administrador
+        var grupos = autorizacaoUsuarioServico.EhAdministrador(usuario)
             ? await grupoRepositorio.ListarAsync(cancellationToken)
             : await grupoRepositorio.ListarDashboardUsuarioAsync(
                 usuario.Id,

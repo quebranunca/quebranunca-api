@@ -215,6 +215,7 @@ public interface IPartidaServico
     Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PartidaDto>> ListarRegistradasPorMimAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PartidaDto>> ListarAdministracaoAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);
     Task<ChaveamentoCategoriaDto> ObterChaveamentoPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default);

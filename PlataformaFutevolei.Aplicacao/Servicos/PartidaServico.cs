@@ -84,6 +84,13 @@ public class PartidaServico(
         return partidas.Select(x => x.ParaDto()).ToList();
     }
 
+    public async Task<IReadOnlyList<PartidaDto>> ListarAdministracaoAsync(CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+        var partidas = await partidaRepositorio.ListarAdministracaoAsync(cancellationToken);
+        return partidas.Select(x => x.ParaDto()).ToList();
+    }
+
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
         await ObterGrupoParaConsultaPublicaAsync(competicaoId, cancellationToken);
@@ -965,13 +972,13 @@ public class PartidaServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+
         var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (partida is null)
         {
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
-
-        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
         {
@@ -982,11 +989,11 @@ public class PartidaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    private static bool PodeEditarPartida(Usuario usuario, Partida partida)
+    private bool PodeEditarPartida(Usuario usuario, Partida partida)
         => partida.CriadoPorUsuarioId == usuario.Id ||
-           usuario.Perfil == PerfilUsuario.Administrador;
+           autorizacaoUsuarioServico.EhAdministrador(usuario);
 
-    private static void GarantirPermissaoEdicaoPartida(Usuario usuario, Partida partida)
+    private void GarantirPermissaoEdicaoPartida(Usuario usuario, Partida partida)
     {
         if (!PodeEditarPartida(usuario, partida))
         {
@@ -1257,6 +1264,11 @@ public class PartidaServico(
         CancellationToken cancellationToken)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (autorizacaoUsuarioServico.EhAdministrador(usuario))
+        {
+            return;
+        }
+
         if (!usuario.AtletaId.HasValue)
         {
             throw new RegraNegocioException("Você precisa fazer parte deste grupo para registrar partidas nele.");
@@ -1849,7 +1861,7 @@ public class PartidaServico(
         if (competicao.Tipo == TipoCompeticao.Grupo)
         {
             var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-            if (usuarioAtual.Perfil == PerfilUsuario.Administrador)
+            if (autorizacaoUsuarioServico.EhAdministrador(usuarioAtual))
             {
                 return;
             }
@@ -1878,7 +1890,7 @@ public class PartidaServico(
         }
 
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (autorizacaoUsuarioServico.EhAdministrador(usuario))
         {
             return;
         }

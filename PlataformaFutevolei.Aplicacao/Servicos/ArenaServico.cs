@@ -164,7 +164,7 @@ public class ArenaServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var incluirTodas = usuario.Perfil == PerfilUsuario.Administrador;
+        var incluirTodas = autorizacaoUsuarioServico.EhAdministrador(usuario);
         var arenas = await arenaRepositorio.ListarAdministradasAsync(usuario.Id, incluirTodas, cancellationToken);
 
         return arenas.Select(x => new ArenaAdminResumoResponse(
@@ -444,7 +444,7 @@ public class ArenaServico(
 
     private async Task GarantirGestaoPermitidaAsync(Usuario usuario, Guid arenaId, CancellationToken cancellationToken)
     {
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (autorizacaoUsuarioServico.EhAdministrador(usuario))
         {
             return;
         }

@@ -136,7 +136,10 @@ public class GrupoPadraoServico(
         Usuario usuario,
         CancellationToken cancellationToken)
     {
-        if (EhGrupoGeral(grupo) || grupo.Publico || usuario.Perfil == PerfilUsuario.Administrador || grupo.UsuarioOrganizadorId == usuario.Id)
+        if (EhGrupoGeral(grupo) ||
+            grupo.Publico ||
+            autorizacaoUsuarioServico.EhAdministrador(usuario) ||
+            grupo.UsuarioOrganizadorId == usuario.Id)
         {
             return true;
         }

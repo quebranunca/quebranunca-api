@@ -146,13 +146,7 @@ public class RegraCompeticaoServico(
 
     private async Task<Usuario> ObterUsuarioGestorAsync(CancellationToken cancellationToken)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
-        }
-
-        return usuario;
+        return await autorizacaoUsuarioServico.ObterAdminOuOrganizadorAtualObrigatorioAsync(cancellationToken);
     }
 
     private async Task GarantirRegrasPadraoAsync(CancellationToken cancellationToken)
@@ -191,9 +185,9 @@ public class RegraCompeticaoServico(
         }
     }
 
-    private static void GarantirGestaoPermitida(Usuario usuario, Guid? usuarioCriadorId, string mensagem)
+    private void GarantirGestaoPermitida(Usuario usuario, Guid? usuarioCriadorId, string mensagem)
     {
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (autorizacaoUsuarioServico.EhAdministrador(usuario))
         {
             return;
         }

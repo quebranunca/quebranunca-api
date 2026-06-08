@@ -30,14 +30,14 @@ public class ConviteCadastroServico(
 
     public async Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convites = await conviteCadastroRepositorio.ListarAsync(cancellationToken);
         return convites.Select(x => x.ParaDto()).ToList();
     }
 
     public async Task<IReadOnlyList<AtletaElegivelConviteCadastroDto>> ListarAtletasElegiveisAsync(CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
 
         var atletas = await atletaRepositorio.ListarComEmailEmPartidasSemUsuarioAsync(cancellationToken);
         var agoraUtc = DateTime.UtcNow;
@@ -60,7 +60,7 @@ public class ConviteCadastroServico(
 
     public async Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convite = await conviteCadastroRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (convite is null)
         {
@@ -72,7 +72,7 @@ public class ConviteCadastroServico(
 
     public async Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
         if (convite is null)
         {
@@ -107,7 +107,7 @@ public class ConviteCadastroServico(
 
     public async Task<ConviteCadastroDto> CriarAsync(CriarConviteCadastroDto dto, CancellationToken cancellationToken = default)
     {
-        var usuario = await GarantirAdministradorAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterAdministradorAtualObrigatorioAsync(cancellationToken);
         var emailNormalizado = NormalizarEmail(dto.Email);
 
         var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
@@ -228,7 +228,7 @@ public class ConviteCadastroServico(
 
     public async Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
         if (convite is null)
         {
@@ -242,7 +242,7 @@ public class ConviteCadastroServico(
 
     public async Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
         if (convite is null)
         {
@@ -256,7 +256,7 @@ public class ConviteCadastroServico(
 
     public async Task DesativarAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await GarantirAdministradorAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
         var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken);
         if (convite is null)
         {
@@ -271,17 +271,6 @@ public class ConviteCadastroServico(
         convite.Desativar();
         conviteCadastroRepositorio.Atualizar(convite);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-    }
-
-    private async Task<Usuario> GarantirAdministradorAsync(CancellationToken cancellationToken)
-    {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil != PerfilUsuario.Administrador)
-        {
-            throw new RegraNegocioException("Apenas administradores podem executar esta operação.");
-        }
-
-        return usuario;
     }
 
     private static string NormalizarEmail(string email)

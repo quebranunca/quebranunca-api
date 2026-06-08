@@ -13,6 +13,12 @@ public class AutorizacaoUsuarioServico(
     IUsuarioContexto usuarioContexto
 ) : IAutorizacaoUsuarioServico
 {
+    public bool EhAdministrador(Usuario? usuario)
+        => usuario?.Perfil == PerfilUsuario.Administrador;
+
+    public bool EhAdminOuOrganizador(Usuario? usuario)
+        => usuario?.Perfil is PerfilUsuario.Administrador or PerfilUsuario.Organizador;
+
     public async Task<Usuario?> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
     {
         if (usuarioContexto.UsuarioId is null)
@@ -40,28 +46,47 @@ public class AutorizacaoUsuarioServico(
         return usuario;
     }
 
-    public async Task GarantirAdministradorAsync(CancellationToken cancellationToken = default)
+    public async Task<Usuario> ObterAdministradorAtualObrigatorioAsync(CancellationToken cancellationToken = default)
     {
-        var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil != PerfilUsuario.Administrador)
+        if (usuarioContexto.UsuarioId is null)
         {
             throw new AcessoNegadoException("Apenas administradores podem executar esta operação.");
         }
+
+        var usuario = await ObterUsuarioAtualAsync(cancellationToken);
+        if (!EhAdministrador(usuario))
+        {
+            throw new AcessoNegadoException("Apenas administradores podem executar esta operação.");
+        }
+
+        return usuario!;
+    }
+
+    public async Task<Usuario> ObterAdminOuOrganizadorAtualObrigatorioAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        if (!EhAdminOuOrganizador(usuario))
+        {
+            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
+        }
+
+        return usuario;
+    }
+
+    public async Task GarantirAdministradorAsync(CancellationToken cancellationToken = default)
+    {
+        await ObterAdministradorAtualObrigatorioAsync(cancellationToken);
     }
 
     public async Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default)
     {
-        var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Apenas administradores ou organizadores podem executar esta operação.");
-        }
+        await ObterAdminOuOrganizadorAtualObrigatorioAsync(cancellationToken);
     }
 
     public async Task GarantirAcessoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
     {
         var usuario = await ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (EhAdministrador(usuario))
         {
             return;
         }
@@ -81,7 +106,7 @@ public class AutorizacaoUsuarioServico(
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
         }
 
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (EhAdministrador(usuario))
         {
             return;
         }
@@ -123,7 +148,7 @@ public class AutorizacaoUsuarioServico(
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
-        if (usuario.Perfil == PerfilUsuario.Administrador)
+        if (EhAdministrador(usuario))
         {
             return;
         }

@@ -148,15 +148,7 @@ public class CompeticaoServico(
 
     public async Task<CompeticaoDto> CriarAsync(CriarCompeticaoDto dto, CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (usuario.Perfil == PerfilUsuario.Atleta)
-        {
-            throw new RegraNegocioException("Usuário com perfil atleta deve criar grupos pelo endpoint de grupos.");
-        }
-        else if (usuario.Perfil is not PerfilUsuario.Administrador and not PerfilUsuario.Organizador)
-        {
-            throw new RegraNegocioException("Apenas administradores ou organizadores podem criar competições.");
-        }
+        var usuario = await autorizacaoUsuarioServico.ObterAdminOuOrganizadorAtualObrigatorioAsync(cancellationToken);
 
         if (dto.Tipo == TipoCompeticao.Grupo)
         {

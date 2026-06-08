@@ -251,11 +251,7 @@ public class UsuarioServico(
 
     public async Task ExcluirPorAdministradorAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var executor = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (executor.Perfil != PerfilUsuario.Administrador)
-        {
-            throw new RegraNegocioException("Apenas administradores podem executar esta operação.");
-        }
+        var executor = await autorizacaoUsuarioServico.ObterAdministradorAtualObrigatorioAsync(cancellationToken);
 
         if (executor.Id == id)
         {

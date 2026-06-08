@@ -20,8 +20,15 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         [FromQuery] Guid? grupoId,
         [FromQuery] Guid? categoriaId,
         [FromQuery] bool minhas,
+        [FromQuery] bool administracao,
         CancellationToken cancellationToken)
     {
+        if (administracao)
+        {
+            var partidasAdministracao = await partidaServico.ListarAdministracaoAsync(cancellationToken);
+            return Ok(partidasAdministracao);
+        }
+
         if (minhas)
         {
             var minhasPartidas = await partidaServico.ListarMinhasAsync(cancellationToken);
