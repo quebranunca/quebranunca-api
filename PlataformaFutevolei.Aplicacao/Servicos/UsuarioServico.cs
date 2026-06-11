@@ -20,6 +20,7 @@ public class UsuarioServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IPendenciaServico pendenciaServico,
+    IConsolidacaoAtletaServico consolidacaoAtletaServico,
     IFotoPerfilService fotoPerfilService
 ) : IUsuarioServico
 {
@@ -113,13 +114,15 @@ public class UsuarioServico(
 
         var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioAtual.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
-        var atleta = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId, cancellationToken);
-        if (atleta is null)
+        var atletaSelecionado = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId, cancellationToken);
+        if (atletaSelecionado is null)
         {
             throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
         }
 
-        var usuarioExistente = await usuarioRepositorio.ObterPorAtletaIdAsync(dto.AtletaId, cancellationToken);
+        var atleta = await ConsolidarAtletaParaUsuarioAsync(atletaSelecionado, usuario.Email, cancellationToken);
+
+        var usuarioExistente = await usuarioRepositorio.ObterPorAtletaIdAsync(atleta.Id, cancellationToken);
         if (usuarioExistente is not null && usuarioExistente.Id != usuario.Id)
         {
             throw new RegraNegocioException("Este atleta já está vinculado a outro usuário.");
@@ -196,17 +199,21 @@ public class UsuarioServico(
 
         if (dto.AtletaId.HasValue)
         {
-            var atleta = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId.Value, cancellationToken);
-            if (atleta is null)
+            var atletaSelecionado = await atletaRepositorio.ObterPorIdAsync(dto.AtletaId.Value, cancellationToken);
+            if (atletaSelecionado is null)
             {
                 throw new EntidadeNaoEncontradaException("Atleta não encontrado.");
             }
 
-            var usuarioComAtleta = await usuarioRepositorio.ObterPorAtletaIdAsync(dto.AtletaId.Value, cancellationToken);
+            var atleta = await ConsolidarAtletaParaUsuarioAsync(atletaSelecionado, emailNormalizado, cancellationToken);
+
+            var usuarioComAtleta = await usuarioRepositorio.ObterPorAtletaIdAsync(atleta.Id, cancellationToken);
             if (usuarioComAtleta is not null && usuarioComAtleta.Id != usuario.Id)
             {
                 throw new RegraNegocioException("Este atleta já está vinculado a outro usuário.");
             }
+
+            dto = dto with { AtletaId = atleta.Id };
         }
 
         usuario.Nome = dto.Nome.Trim();
@@ -444,6 +451,25 @@ public class UsuarioServico(
         {
             throw new RegraNegocioException("Este atleta já está vinculado a outro usuário.");
         }
+    }
+
+    private async Task<Atleta> ConsolidarAtletaParaUsuarioAsync(
+        Atleta atletaSelecionado,
+        string emailUsuario,
+        CancellationToken cancellationToken)
+    {
+        var emailNormalizado = emailUsuario.Trim().ToLowerInvariant();
+        var candidatos = (await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken)).ToList();
+        if (candidatos.All(x => x.Id != atletaSelecionado.Id))
+        {
+            candidatos.Add(atletaSelecionado);
+        }
+
+        return await consolidacaoAtletaServico.ConsolidarCandidatosAsync(
+            candidatos,
+            atletaVinculadoConfiavelId: null,
+            emailNormalizado,
+            cancellationToken);
     }
 
     private async Task SincronizarPendenciasAposVinculoAsync(Guid atletaId, CancellationToken cancellationToken)

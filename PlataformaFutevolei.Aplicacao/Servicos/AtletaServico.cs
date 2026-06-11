@@ -24,6 +24,7 @@ public class AtletaServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IConsolidacaoAtletaServico consolidacaoAtletaServico,
     IPendenciaServico pendenciaServico,
     IConviteCadastroServico conviteCadastroServico
 ) : IAtletaServico
@@ -301,7 +302,7 @@ public class AtletaServico(
         }
         else
         {
-            var atletaPorEmail = await ObterAtletaDisponivelParaVinculoAsync(usuario.Email, cancellationToken);
+            var atletaPorEmail = await ObterAtletaDisponivelParaVinculoAsync(usuario.Email, usuario.AtletaId, cancellationToken);
             if (atletaPorEmail is not null)
             {
                 atleta = atletaPorEmail;
@@ -501,31 +502,43 @@ public class AtletaServico(
             throw new RegraNegocioException("Você só pode informar e-mail para atletas pendentes de partidas registradas por você.");
         }
 
-        await GarantirEmailDisponivelAsync(emailNormalizado, atleta.Id, cancellationToken);
+        var candidatos = (await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken)).ToList();
+        if (candidatos.All(x => x.Id != atleta.Id))
+        {
+            candidatos.Add(atleta);
+        }
 
-        atleta.Email = emailNormalizado;
-        atleta.AtualizarDataModificacao();
-        atletaRepositorio.Atualizar(atleta);
+        var atletaConsolidado = candidatos.Count > 1 || candidatos.Any(x => x.Id != atleta.Id)
+            ? await consolidacaoAtletaServico.ConsolidarCandidatosAsync(
+                candidatos,
+                atletaVinculadoConfiavelId: null,
+                emailNormalizado,
+                cancellationToken)
+            : atleta;
+
+        atletaConsolidado.Email = emailNormalizado;
+        atletaConsolidado.AtualizarDataModificacao();
+        atletaRepositorio.Atualizar(atletaConsolidado);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         await conviteCadastroServico.CriarParaPendenciaAtletaAsync(
             new CriarConvitePendenciaAtletaDto(
                 emailNormalizado,
-                atleta.Telefone,
+                atletaConsolidado.Telefone,
                 usuario.Id,
-                atleta.Id,
+                atletaConsolidado.Id,
                 null),
             cancellationToken);
 
         return new AtletaPendenciaDto(
-            atleta.Id,
-            atleta.Nome,
-            atleta.Apelido,
-            atleta.Email,
-            atleta.CadastroPendente,
+            atletaConsolidado.Id,
+            atletaConsolidado.Nome,
+            atletaConsolidado.Apelido,
+            atletaConsolidado.Email,
+            atletaConsolidado.CadastroPendente,
             false,
             true,
-            StatusCadastroAtletaUtil.ObterStatusPendencia(atleta),
+            StatusCadastroAtletaUtil.ObterStatusPendencia(atletaConsolidado),
             0,
             []);
     }
@@ -863,6 +876,7 @@ public class AtletaServico(
 
     private async Task<Atleta?> ObterAtletaDisponivelParaVinculoAsync(
         string email,
+        Guid? atletaAtualId,
         CancellationToken cancellationToken)
     {
         var emailNormalizado = NormalizarEmailOpcional(email);
@@ -872,18 +886,25 @@ public class AtletaServico(
         }
 
         var atletas = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        if (atletaAtualId.HasValue)
+        {
+            var atletaAtual = await atletaRepositorio.ObterPorIdAsync(atletaAtualId.Value, cancellationToken);
+            if (atletaAtual is not null && atletas.All(x => x.Id != atletaAtual.Id))
+            {
+                atletas = atletas.Concat([atletaAtual]).ToList();
+            }
+        }
+
         if (atletas.Count == 0)
         {
             return null;
         }
 
-        var atletasDisponiveis = atletas.Where(x => x.Usuario is null).ToList();
-        if (atletasDisponiveis.Count == 1)
-        {
-            return atletasDisponiveis[0];
-        }
-
-        throw new RegraNegocioException(MontarMensagemEmailDuplicado(atletas[0]));
+        return await consolidacaoAtletaServico.ConsolidarCandidatosAsync(
+            atletas,
+            atletaVinculadoConfiavelId: null,
+            emailNormalizado,
+            cancellationToken);
     }
 
     private static string? NormalizarEmailOpcional(string? email)

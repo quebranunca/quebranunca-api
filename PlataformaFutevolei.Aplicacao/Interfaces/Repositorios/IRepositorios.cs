@@ -76,6 +76,21 @@ public interface IAtletaRepositorio
     void Remover(Atleta atleta);
 }
 
+public interface IConsolidacaoAtletaRepositorio
+{
+    Task<IDictionary<Guid, ConsolidacaoAtletaMetricasDto>> ObterMetricasAsync(
+        IEnumerable<Guid> atletaIds,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IReadOnlyList<Atleta>>> ListarDuplicadosPorEmailAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<SaneamentoAtletasEmailContadoresDto> TransferirVinculosAsync(
+        Guid atletaVencedorId,
+        Guid atletaPerdedorId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IDuplaRepositorio
 {
     Task<IReadOnlyList<Dupla>> ListarAsync(CancellationToken cancellationToken = default);

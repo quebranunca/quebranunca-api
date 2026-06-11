@@ -155,6 +155,7 @@ public class PendenciaServicoContatoTests
                 new UnidadeTrabalhoStub(),
                 new AutorizacaoUsuarioServicoStub(cenario.UsuarioAtual),
                 resolvedor,
+                new ConsolidacaoAtletaServicoMemoria(cenario.Duplas),
                 cenario.Convites);
 
             return cenario;
@@ -355,6 +356,54 @@ public class PendenciaServicoContatoTests
         public Task<GrupoAtleta?> ObterPorGrupoEAtletaAsync(Guid grupoId, Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<GrupoAtleta?>(null);
         public Task AdicionarAsync(GrupoAtleta grupoAtleta, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Remover(GrupoAtleta grupoAtleta) { }
+    }
+
+    private sealed class ConsolidacaoAtletaServicoMemoria(List<Dupla> duplas) : IConsolidacaoAtletaServico
+    {
+        public Task<Atleta> ConsolidarCandidatosAsync(
+            IEnumerable<Atleta?> candidatos,
+            Guid? atletaVinculadoConfiavelId = null,
+            string? emailNormalizado = null,
+            CancellationToken cancellationToken = default)
+        {
+            var atletas = candidatos.OfType<Atleta>().DistinctBy(x => x.Id).ToList();
+            var vencedor = atletas
+                .OrderByDescending(x => atletaVinculadoConfiavelId.HasValue && x.Id == atletaVinculadoConfiavelId.Value)
+                .ThenByDescending(x => x.Usuario is not null)
+                .ThenBy(x => x.DataCriacao)
+                .First();
+
+            if (!string.IsNullOrWhiteSpace(emailNormalizado))
+            {
+                vencedor.Email = emailNormalizado.Trim().ToLowerInvariant();
+            }
+
+            foreach (var perdedor in atletas.Where(x => x.Id != vencedor.Id))
+            {
+                foreach (var dupla in duplas)
+                {
+                    if (dupla.Atleta1Id == perdedor.Id)
+                    {
+                        dupla.Atleta1Id = vencedor.Id;
+                        dupla.Atleta1 = vencedor;
+                    }
+
+                    if (dupla.Atleta2Id == perdedor.Id)
+                    {
+                        dupla.Atleta2Id = vencedor.Id;
+                        dupla.Atleta2 = vencedor;
+                    }
+                }
+            }
+
+            return Task.FromResult(vencedor);
+        }
+
+        public Task<SaneamentoAtletasEmailResumoDto> ConsolidarDuplicadosPorEmailAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new SaneamentoAtletasEmailResumoDto(0, 0, 0, []));
+        }
     }
 
     private sealed class ConviteCadastroServicoStub : IConviteCadastroServico

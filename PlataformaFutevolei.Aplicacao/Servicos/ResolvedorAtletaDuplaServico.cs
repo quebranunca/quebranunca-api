@@ -12,7 +12,8 @@ public class ResolvedorAtletaDuplaServico(
     IAtletaRepositorio atletaRepositorio,
     IDuplaRepositorio duplaRepositorio,
     IGrupoAtletaRepositorio grupoAtletaRepositorio,
-    IUsuarioContexto usuarioContexto
+    IUsuarioContexto usuarioContexto,
+    IConsolidacaoAtletaServico consolidacaoAtletaServico
 ) : IResolvedorAtletaDuplaServico
 {
     public async Task<Atleta> ObterAtletaExistenteAsync(
@@ -121,11 +122,16 @@ public class ResolvedorAtletaDuplaServico(
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(emailInformado).ToLowerInvariant();
         var (nomeFinal, apelidoFinal) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeInformado, null);
 
-        var atletaPorEmail = await ObterCandidatoUnicoPorEmailAsync(emailNormalizado, cancellationToken);
-        if (atletaPorEmail is not null)
+        var atletasPorEmail = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        if (atletasPorEmail.Count > 0)
         {
-            PrepararAtletaParaUsuario(atletaPorEmail, nomeFinal, apelidoFinal, emailNormalizado);
-            return atletaPorEmail;
+            var atletaConsolidado = await consolidacaoAtletaServico.ConsolidarCandidatosAsync(
+                atletasPorEmail,
+                atletaVinculadoConfiavelId: null,
+                emailNormalizado,
+                cancellationToken);
+            PrepararAtletaParaUsuario(atletaConsolidado, nomeFinal, apelidoFinal, emailNormalizado);
+            return atletaConsolidado;
         }
 
         var atletaPorNome = await ObterCandidatoUnicoPorNomeAsync(nomeFinal, emailNormalizado, cancellationToken);
@@ -212,20 +218,6 @@ public class ResolvedorAtletaDuplaServico(
             : (atleta2Id, atleta1Id);
     }
 
-    private async Task<Atleta?> ObterCandidatoUnicoPorEmailAsync(
-        string emailNormalizado,
-        CancellationToken cancellationToken)
-    {
-        var candidatos = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
-        var candidatosDisponiveis = candidatos
-            .Where(x => x.Usuario is null)
-            .ToList();
-
-        return candidatosDisponiveis.Count == 1
-            ? candidatosDisponiveis[0]
-            : null;
-    }
-
     private async Task<Atleta?> ObterCandidatoUnicoPorNomeAsync(
         string nomeNormalizado,
         string emailNormalizado,
@@ -250,8 +242,12 @@ public class ResolvedorAtletaDuplaServico(
         string apelidoNormalizado,
         string emailNormalizado)
     {
-        atleta.Nome = nomeNormalizado;
-        atleta.Apelido = apelidoNormalizado;
+        if (atleta.CadastroPendente || string.IsNullOrWhiteSpace(atleta.Nome))
+        {
+            atleta.Nome = nomeNormalizado;
+            atleta.Apelido = apelidoNormalizado;
+        }
+
         atleta.Email = emailNormalizado;
         atleta.CadastroPendente = false;
         atleta.AtualizarDataModificacao();

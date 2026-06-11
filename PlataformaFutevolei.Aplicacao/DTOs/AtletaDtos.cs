@@ -190,3 +190,30 @@ public record SaneamentoAtletasEmailContadoresDto(
     int UsuariosAtualizados,
     int AtletasRemovidos
 );
+
+public record ConsolidacaoAtletaMetricasDto(
+    Guid AtletaId,
+    bool PossuiUsuarioVinculado,
+    int TotalPartidas,
+    int TotalDuplas,
+    int TotalGrupos,
+    int TotalAprovacoes,
+    int TotalPendencias,
+    int TotalConvites,
+    int TotalMedidas,
+    DateTime DataCriacao)
+{
+    public int TotalHistorico =>
+        TotalDuplas +
+        TotalGrupos +
+        TotalAprovacoes +
+        TotalPendencias +
+        TotalConvites +
+        TotalMedidas;
+}
+
+public record ConsolidacaoAtletaResultadoDto(
+    Guid AtletaVencedorId,
+    IReadOnlyList<Guid> AtletasPerdedoresIds,
+    SaneamentoAtletasEmailContadoresDto RegistrosMigrados
+);

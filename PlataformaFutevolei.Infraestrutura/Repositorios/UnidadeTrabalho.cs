@@ -14,6 +14,12 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
         Func<CancellationToken, Task> operacao,
         CancellationToken cancellationToken = default)
     {
+        if (dbContext.Database.CurrentTransaction is not null)
+        {
+            await operacao(cancellationToken);
+            return;
+        }
+
         await using var transacao = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         await operacao(cancellationToken);
         await transacao.CommitAsync(cancellationToken);

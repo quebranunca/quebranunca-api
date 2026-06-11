@@ -6,6 +6,7 @@
 - Preparação do banco deve ficar centralizada em classe própria; evitar lógica de banco espalhada no startup
 - Migrations do EF Core são a fonte oficial de evolução do schema
 - Migrations manuais precisam estar no catálogo do EF: incluir `[DbContext(typeof(PlataformaFutevoleiDbContext))]` e `using Microsoft.EntityFrameworkCore.Infrastructure;`; se faltar, a classe pode compilar, mas `dotnet ef migrations list` não mostra a migration e ela não será aplicada
+- `Atleta.email` possui unicidade por e-mail normalizado via índice funcional PostgreSQL `ix_atletas_email_normalizado_unico`, criado em migration SQL manual. Não recriar como índice literal em `Email` e não remover em baselines/recriações de migrations.
 - Não adicionar SQL estrutural em startup, middleware, controller ou serviço de aplicação para criar/alterar tabela, coluna, índice ou foreign key
 - Ao mudar entidade ou relacionamento, revisar `DbContext`, mapeamentos Fluent API, migrations, repositórios, serviços, DTOs e endpoints afetados
 - Seed operacional e validação de conexão não substituem migration

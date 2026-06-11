@@ -44,6 +44,17 @@ public interface ISaneamentoAtletasEmailServico
     Task<SaneamentoAtletasEmailResumoDto> UnificarDuplicadosPorEmailAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IConsolidacaoAtletaServico
+{
+    Task<Atleta> ConsolidarCandidatosAsync(
+        IEnumerable<Atleta?> candidatos,
+        Guid? atletaVinculadoConfiavelId = null,
+        string? emailNormalizado = null,
+        CancellationToken cancellationToken = default);
+
+    Task<SaneamentoAtletasEmailResumoDto> ConsolidarDuplicadosPorEmailAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IDashboardAtletaServico
 {
     Task<DashboardAtletaDto> ObterDashboardAsync(CancellationToken cancellationToken = default);

@@ -20,6 +20,7 @@ public class PendenciaServico(
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
+    IConsolidacaoAtletaServico consolidacaoAtletaServico,
     IConviteCadastroServico conviteCadastroServico
 ) : IPendenciaServico
 {
@@ -158,15 +159,63 @@ public class PendenciaServico(
             }
 
             var emailNormalizado = NormalizarEmail(dto.Email);
-            var atletaExistente = await ObterAtletaExistentePorEmailAsync(emailNormalizado, ct);
-            if (atletaExistente is not null)
+            var candidatos = (await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, ct)).ToList();
+            if (candidatos.All(x => x.Id != atleta.Id))
             {
-                var pendenciaVinculada = await VincularPendenciaAoAtletaExistenteAsync(
-                    pendencia,
-                    atletaExistente,
-                    usuario.Id,
+                candidatos.Add(atleta);
+            }
+
+            var atletaJaNaPartida = candidatos.FirstOrDefault(x =>
+                x.Id != atleta.Id &&
+                pendencia.Partida is not null &&
+                AtletaParticipaDaPartida(pendencia.Partida, x.Id));
+            if (atletaJaNaPartida is not null)
+            {
+                throw new RegraNegocioException("Este atleta já está participando desta partida. Não é possível vincular o mesmo atleta duas vezes.");
+            }
+
+            if (candidatos.Count > 1 || candidatos.Any(x => x.Id != atleta.Id))
+            {
+                var atletaConsolidado = await consolidacaoAtletaServico.ConsolidarCandidatosAsync(
+                    candidatos,
+                    atletaVinculadoConfiavelId: null,
+                    emailNormalizado,
                     ct);
-                resultado = new AtualizarContatoPendenciaResultadoDto(false, pendenciaVinculada, null);
+
+                atletaConviteId = atletaConsolidado.Id;
+                telefoneConvite = atletaConsolidado.Telefone;
+                if (atletaConsolidado.Usuario is null)
+                {
+                    deveCriarConvite = true;
+                    emailConvite = emailNormalizado;
+                    await ConcluirPendenciasContatoAtletaAsync(
+                        atletaConsolidado.Id,
+                        pendencia.PartidaId.HasValue
+                            ? "Contato informado. A partida continua aguardando vínculo do atleta para liberar a aprovação."
+                            : "Contato informado.",
+                        ct);
+                }
+                else
+                {
+                    await ConcluirPendenciasContatoAtletaAsync(
+                        atletaConsolidado.Id,
+                        "Pendência concluída porque o atleta já possui usuário vinculado.",
+                        ct);
+                }
+
+                if (atletaConsolidado.Id != atleta.Id)
+                {
+                    await ConcluirPendenciasContatoAtletaAsync(
+                        atleta.Id,
+                        "Pendência concluída com consolidação de atleta por e-mail.",
+                        ct);
+                }
+
+                await RecalcularStatusPartidaSeExistirAsync(pendencia.PartidaId, ct);
+                await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+                var pendenciaConsolidada = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendencia.Id, ct)
+                    ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+                resultado = new AtualizarContatoPendenciaResultadoDto(false, pendenciaConsolidada.ParaDto(), null);
                 return;
             }
 
