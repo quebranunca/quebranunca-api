@@ -632,7 +632,7 @@ public class ImportacaoServico(
                 break;
 
             case "partidas":
-                await partidaServico.CriarAsync(
+                await ImportarPartidaAsync(
                     new CriarPartidaDto(
                         null,
                         null,
@@ -661,6 +661,24 @@ public class ImportacaoServico(
 
             default:
                 throw new RegraNegocioException("Tipo de importação não suportado.");
+        }
+    }
+
+    private async Task ImportarPartidaAsync(CriarPartidaDto dto, CancellationToken cancellationToken)
+    {
+        var resultado = await partidaServico.CriarComResultadoAsync(dto, cancellationToken);
+
+        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
+        {
+            throw new RegraNegocioException(
+                resultado.Mensagem ??
+                resultado.Duplicidade?.Mensagem ??
+                "Possível partida duplicada. Revise a linha antes de importar novamente.");
+        }
+
+        if (resultado.Status != StatusCriacaoPartida.Criada || resultado.Partida is null)
+        {
+            throw new RegraNegocioException("Não foi possível importar a partida.");
         }
     }
 

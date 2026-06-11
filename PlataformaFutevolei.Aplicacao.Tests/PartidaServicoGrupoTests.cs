@@ -15,7 +15,7 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class PartidaServicoGrupoTests
 {
     [Fact]
-    public async Task CriarAsync_UsuarioPertenceAoGrupoEAtletasJaPertencem_RegistraNormalmente()
+    public async Task CriarComResultadoAsync_UsuarioPertenceAoGrupoEAtletasJaPertencem_RegistraNormalmente()
     {
         var cenario = Cenario.Criar(publico: false);
         foreach (var atleta in cenario.Atletas)
@@ -23,20 +23,20 @@ public class PartidaServicoGrupoTests
             cenario.AdicionarMembro(atleta);
         }
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_UsuarioPertenceAoGrupoEAtletasAusentes_RegistraEVinculaAusentes()
+    public async Task CriarComResultadoAsync_UsuarioPertenceAoGrupoEAtletasAusentes_RegistraEVinculaAusentes()
     {
         var cenario = Cenario.Criar(publico: false);
         cenario.AdicionarMembro(cenario.Atletas[0]);
         cenario.AdicionarMembro(cenario.Atletas[1]);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.All(cenario.Atletas, atleta =>
@@ -46,11 +46,11 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_UsuarioPertenceAoGrupoENenhumAtletaPertence_RegistraEVinculaTodos()
+    public async Task CriarComResultadoAsync_UsuarioPertenceAoGrupoENenhumAtletaPertence_RegistraEVinculaTodos()
     {
         var cenario = Cenario.Criar(publico: false);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.All(cenario.Atletas, atleta =>
@@ -60,12 +60,12 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_UsuarioNaoPertenceAoGrupo_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_UsuarioNaoPertenceAoGrupo_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id)));
+            CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id)));
 
         Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
@@ -73,24 +73,24 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_NaoDuplicaMembroExistente()
+    public async Task CriarComResultadoAsync_NaoDuplicaMembroExistente()
     {
         var cenario = Cenario.Criar(publico: true);
         cenario.AdicionarMembro(cenario.Atletas[0]);
         cenario.AdicionarMembro(cenario.Atletas[1]);
 
-        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(5, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
         Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_SemGrupoInformado_UsaGrupoGeralELiberaRegistro()
+    public async Task CriarComResultadoAsync_SemGrupoInformado_UsaGrupoGeralELiberaRegistro()
     {
         var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(grupoId: null));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(grupoId: null));
 
         Assert.Equal(cenario.GrupoGeral.Id, partida.GrupoId);
         Assert.Single(cenario.Partidas.Partidas);
@@ -98,22 +98,22 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_UsuarioCriadorNaoParticipaDaPartida_VinculaCriadorCorreto()
+    public async Task CriarComResultadoAsync_UsuarioCriadorNaoParticipaDaPartida_VinculaCriadorCorreto()
     {
         var cenario = Cenario.Criar(publico: false);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Usuario.Id, partida.CriadoPorUsuarioId);
         Assert.DoesNotContain(cenario.Atletas, atleta => atleta.Id == cenario.Usuario.AtletaId);
     }
 
     [Fact]
-    public async Task CriarAsync_SemDuplicidade_RegistraNormalmenteSemConfirmacao()
+    public async Task CriarComResultadoAsync_SemDuplicidade_RegistraNormalmenteSemConfirmacao()
     {
         var cenario = Cenario.Criar(publico: true);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Single(cenario.Partidas.Partidas);
@@ -139,17 +139,17 @@ public class PartidaServicoGrupoTests
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
         Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal(PartidaDuplicadaConfirmarException.CodigoErro, resultado.Codigo);
+        Assert.Equal(StatusCriacaoPartida.CodigoDuplicidadeConfirmar, resultado.Codigo);
         Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.NotNull(resultado.Duplicidade);
         Assert.True(resultado.Duplicidade!.RequerConfirmacao);
-        Assert.Equal(PartidaDuplicadaConfirmarException.CodigoErro, resultado.Duplicidade.Codigo);
+        Assert.Equal(StatusCriacaoPartida.CodigoDuplicidadeConfirmar, resultado.Duplicidade.Codigo);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
@@ -158,7 +158,7 @@ public class PartidaServicoGrupoTests
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dto with { ConfirmarDuplicidade = true });
 
@@ -170,28 +170,29 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_DuplicidadeSemConfirmacao_MantemWrapperLegadoComException()
+    public async Task CriarComResultadoAsync_DuplicidadeSemConfirmacao_NaoSalva()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
-            cenario.Servico.CriarAsync(dto));
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
         Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_DuplicidadeComConfirmacao_RegistraNovaPartida()
+    public async Task CriarComResultadoAsync_DuplicidadeComConfirmacao_RegistraNovaPartida()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(dto with { ConfirmarDuplicidade = true });
+        var partida = await CriarPartidaAsync(cenario, dto with { ConfirmarDuplicidade = true });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
@@ -200,23 +201,23 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_DuplicidadeComPermissaoLegada_RegistraNovaPartida()
+    public async Task CriarComResultadoAsync_DuplicidadeComPermissaoLegada_RegistraNovaPartida()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(dto with { PermitirDuplicidade = true });
+        var partida = await CriarPartidaAsync(cenario, dto with { PermitirDuplicidade = true });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_DuplicidadeComAtletasInvertidosNaMesmaDupla_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_DuplicidadeComAtletasInvertidosNaMesmaDupla_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: true);
-        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
         var dtoInvertido = cenario.CriarDto(cenario.Grupo.Id) with
         {
             DuplaAAtleta1Id = cenario.Atletas[1].Id,
@@ -225,25 +226,26 @@ public class PartidaServicoGrupoTests
             DuplaBAtleta2Id = cenario.Atletas[2].Id
         };
 
-        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
-            cenario.Servico.CriarAsync(dtoInvertido));
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dtoInvertido);
 
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_PartidaParecidaComAtletaDiferente_RegistraNormalmente()
+    public async Task CriarComResultadoAsync_PartidaParecidaComAtletaDiferente_RegistraNormalmente()
     {
         var cenario = Cenario.Criar(publico: true);
-        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
         var atletaDiferente = cenario.AdicionarAtleta("Eduardo Ramos");
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
         {
             DuplaBAtleta2Id = atletaDiferente.Id
         };
 
-        var partida = await cenario.Servico.CriarAsync(dto);
+        var partida = await CriarPartidaAsync(cenario, dto);
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
@@ -251,27 +253,28 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertido_BloqueiaDuplicidade()
+    public async Task CriarComResultadoAsync_DuplasTrocandoDeLadoComPlacarInvertido_BloqueiaDuplicidade()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
-            cenario.Servico.CriarAsync(cenario.InverterLados(dto)));
+        var resultado = await cenario.Servico.CriarComResultadoAsync(cenario.InverterLados(dto));
 
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertidoEConfirmacao_Salva()
+    public async Task CriarComResultadoAsync_DuplasTrocandoDeLadoComPlacarInvertidoEConfirmacao_Salva()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.InverterLados(dto) with { ConfirmarDuplicidade = true });
+        var partida = await CriarPartidaAsync(cenario, cenario.InverterLados(dto) with { ConfirmarDuplicidade = true });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
@@ -280,38 +283,38 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertidoEPermitirDuplicidade_Salva()
+    public async Task CriarComResultadoAsync_DuplasTrocandoDeLadoComPlacarInvertidoEPermitirDuplicidade_Salva()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(cenario.InverterLados(dto) with { PermitirDuplicidade = true });
+        var partida = await CriarPartidaAsync(cenario, cenario.InverterLados(dto) with { PermitirDuplicidade = true });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarDiferente_NaoBloqueiaDuplicidade()
+    public async Task CriarComResultadoAsync_DuplasTrocandoDeLadoComPlacarDiferente_NaoBloqueiaDuplicidade()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
         var dtoLadosInvertidosComPlacarDiferente = cenario.InverterLados(dto) with
         {
             PlacarDuplaA = dto.PlacarDuplaB + 1,
             PlacarDuplaB = dto.PlacarDuplaA
         };
 
-        var partida = await cenario.Servico.CriarAsync(dtoLadosInvertidosComPlacarDiferente);
+        var partida = await CriarPartidaAsync(cenario, dtoLadosInvertidosComPlacarDiferente);
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_MesmaPartidaEmOutroGrupo_NaoBloqueiaDuplicidade()
+    public async Task CriarComResultadoAsync_MesmaPartidaEmOutroGrupo_NaoBloqueiaDuplicidade()
     {
         var cenario = Cenario.Criar(publico: false);
         cenario.AdicionarMembro(cenario.AtletaUsuario, cenario.GrupoAlternativo);
@@ -321,69 +324,71 @@ public class PartidaServicoGrupoTests
             DataPartida = dtoGrupoA.DataPartida
         };
 
-        await cenario.Servico.CriarAsync(dtoGrupoA);
-        var partidaGrupoB = await cenario.Servico.CriarAsync(dtoGrupoB);
+        await CriarPartidaAsync(cenario, dtoGrupoA);
+        var partidaGrupoB = await CriarPartidaAsync(cenario, dtoGrupoB);
 
         Assert.Equal(cenario.GrupoAlternativo.Id, partidaGrupoB.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultadoDuplicado_RequerConfirmacaoDuplicidade()
+    public async Task CriarComResultadoAsync_ApenasResultadoDuplicado_RequerConfirmacaoDuplicidade()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
-            cenario.Servico.CriarAsync(dto));
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultadoComDuplasInvertidas_RequerConfirmacaoDuplicidade()
+    public async Task CriarComResultadoAsync_ApenasResultadoComDuplasInvertidas_RequerConfirmacaoDuplicidade()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
-            cenario.Servico.CriarAsync(cenario.InverterLados(dto)));
+        var resultado = await cenario.Servico.CriarComResultadoAsync(cenario.InverterLados(dto));
 
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultadoDuplicadoComConfirmacao_Salva()
+    public async Task CriarComResultadoAsync_ApenasResultadoDuplicadoComConfirmacao_Salva()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(dto with { ConfirmarDuplicidade = true });
+        var partida = await CriarPartidaAsync(cenario, dto with { ConfirmarDuplicidade = true });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultadoComVencedorDiferente_NaoBloqueiaDuplicidade()
+    public async Task CriarComResultadoAsync_ApenasResultadoComVencedorDiferente_NaoBloqueiaDuplicidade()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
-        await cenario.Servico.CriarAsync(dto);
+        await CriarPartidaAsync(cenario, dto);
 
-        var partida = await cenario.Servico.CriarAsync(dto with { DuplaVencedora = 2 });
+        var partida = await CriarPartidaAsync(cenario, dto with { DuplaVencedora = 2 });
 
         Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
         Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultado_PermiteRegistrarSemPlacar()
+    public async Task CriarComResultadoAsync_ApenasResultado_PermiteRegistrarSemPlacar()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -394,7 +399,7 @@ public class PartidaServicoGrupoTests
             TipoRegistroResultado = TipoRegistroResultado.ApenasResultado
         };
 
-        var partida = await cenario.Servico.CriarAsync(dto);
+        var partida = await CriarPartidaAsync(cenario, dto);
 
         Assert.Equal(StatusPartida.Encerrada, partida.Status);
         Assert.Null(partida.PlacarDuplaA);
@@ -405,7 +410,7 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultado_ExigeDuplaVencedora()
+    public async Task CriarComResultadoAsync_ApenasResultado_ExigeDuplaVencedora()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -417,14 +422,14 @@ public class PartidaServicoGrupoTests
         };
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(dto));
+            CriarPartidaAsync(cenario, dto));
 
         Assert.Equal("Informe qual dupla venceu a partida.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_ApenasResultado_DuplaVencedoraInvalida_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_ApenasResultado_DuplaVencedoraInvalida_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -436,14 +441,14 @@ public class PartidaServicoGrupoTests
         };
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(dto));
+            CriarPartidaAsync(cenario, dto));
 
         Assert.Equal("Informe qual dupla venceu a partida.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_PlacarDetalhadoEmpatado_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_PlacarDetalhadoEmpatado_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -454,14 +459,14 @@ public class PartidaServicoGrupoTests
         };
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(dto));
+            CriarPartidaAsync(cenario, dto));
 
         Assert.Equal("A partida não pode terminar empatada.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_PlacarDetalhadoSemPontosMinimos_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_PlacarDetalhadoSemPontosMinimos_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -472,14 +477,14 @@ public class PartidaServicoGrupoTests
         };
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(dto));
+            CriarPartidaAsync(cenario, dto));
 
         Assert.Equal($"A dupla vencedora deve alcançar no mínimo {Competicao.PontosMinimosPartidaPadrao} pontos.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
     }
 
     [Fact]
-    public async Task CriarAsync_PlacarDetalhadoSemDiferencaMinima_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_PlacarDetalhadoSemDiferencaMinima_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: true);
         var dto = cenario.CriarDto(cenario.Grupo.Id) with
@@ -490,7 +495,7 @@ public class PartidaServicoGrupoTests
         };
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
-            cenario.Servico.CriarAsync(dto));
+            CriarPartidaAsync(cenario, dto));
 
         Assert.Equal($"A partida deve terminar com diferença mínima de {Competicao.DiferencaMinimaPartidaPadrao} pontos.", excecao.Message);
         Assert.Empty(cenario.Partidas.Partidas);
@@ -531,6 +536,16 @@ public class PartidaServicoGrupoTests
         Assert.Null(dto.PlacarDuplaA);
         Assert.Null(dto.PlacarDuplaB);
         Assert.Equal(1, dto.DuplaVencedora);
+    }
+
+    private static async Task<PartidaDto> CriarPartidaAsync(Cenario cenario, CriarPartidaDto dto)
+    {
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
+
+        Assert.Equal(StatusCriacaoPartida.Criada, resultado.Status);
+        Assert.NotNull(resultado.Partida);
+
+        return resultado.Partida;
     }
 
     private sealed class Cenario

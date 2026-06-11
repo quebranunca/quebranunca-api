@@ -104,6 +104,7 @@ public static class StatusCriacaoPartida
 {
     public const string Criada = "Criada";
     public const string RequerConfirmacaoDuplicidade = "RequerConfirmacaoDuplicidade";
+    public const string CodigoDuplicidadeConfirmar = "PARTIDA_DUPLICADA_CONFIRMAR";
 }
 
 public record CriarPartidaResultadoDto(

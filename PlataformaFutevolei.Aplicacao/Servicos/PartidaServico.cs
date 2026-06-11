@@ -301,7 +301,7 @@ public class PartidaServico(
         return new ConfirmacaoDuplicidadePartidaDto(
             true,
             MensagemPartidaDuplicada,
-            PartidaDuplicadaConfirmarException.CodigoErro,
+            StatusCriacaoPartida.CodigoDuplicidadeConfirmar,
             partidaDuplicada.Id);
     }
 
@@ -841,23 +841,6 @@ public class PartidaServico(
             null,
             null,
             null);
-    }
-
-    public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
-    {
-        var resultado = await CriarComResultadoAsync(dto, cancellationToken);
-
-        if (resultado.Status == StatusCriacaoPartida.Criada && resultado.Partida is not null)
-        {
-            return resultado.Partida;
-        }
-
-        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
-        {
-            throw new PartidaDuplicadaConfirmarException(resultado.Mensagem ?? MensagemPartidaDuplicada);
-        }
-
-        throw new RegraNegocioException("Não foi possível criar a partida.");
     }
 
     private static void AplicarLocalizacaoRegistro(Partida partida, LocalizacaoPartidaDto? localizacao)

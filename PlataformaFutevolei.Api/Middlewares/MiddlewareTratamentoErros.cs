@@ -17,7 +17,6 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
             var (statusCode, mensagem) = ex switch
             {
                 AcessoNegadoException => (HttpStatusCode.Forbidden, ex.Message),
-                PartidaDuplicadaConfirmarException => (HttpStatusCode.Conflict, ex.Message),
                 RegraNegocioException => (HttpStatusCode.BadRequest, ex.Message),
                 EntidadeNaoEncontradaException => (HttpStatusCode.NotFound, ex.Message),
                 _ => (HttpStatusCode.InternalServerError, "Ocorreu um erro inesperado.")
@@ -39,13 +38,6 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
 
             var resposta = ex switch
             {
-                PartidaDuplicadaConfirmarException partidaDuplicada => JsonSerializer.Serialize(new
-                {
-                    erro = mensagem,
-                    mensagem,
-                    codigo = partidaDuplicada.Codigo,
-                    correlationId
-                }),
                 ConflitoGrupoAtletaException conflitoGrupoAtleta => JsonSerializer.Serialize(new
                 {
                     erro = mensagem,
