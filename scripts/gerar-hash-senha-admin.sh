@@ -1,52 +1,39 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script para gerar hash de senha para administrador usando BCrypt
-# Uso: ./gerar-hash-senha-admin.sh <senha>
+PACOTE_BCRYPT_VERSAO="4.0.3"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/qn-bcrypt.XXXXXX")"
 
-if [ $# -ne 1 ]; then
-    echo "Uso: $0 <senha>"
-    exit 1
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+
+trap cleanup EXIT
+
+read -r -s -p "Senha temporaria do ADM: " SENHA
+printf '\n' >&2
+
+if [ "${#SENHA}" -lt 8 ]; then
+  printf 'Senha precisa ter pelo menos 8 caracteres.\n' >&2
+  exit 1
 fi
 
-SENHA="$1"
+cd "$TMP_DIR"
 
-# Criar diretório temporário
-TEMP_DIR=$(mktemp -d)
+dotnet new console --force >/dev/null
+dotnet add package BCrypt.Net-Next --version "$PACOTE_BCRYPT_VERSAO" >/dev/null
 
-# Criar arquivo .csproj
-cat > "$TEMP_DIR/GerarHash.csproj" << 'EOF'
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-  </ItemGroup>
-</Project>
-EOF
+cat > Program.cs <<'CS'
+var senha = Console.In.ReadToEnd();
 
-# Criar arquivo Program.cs
-cat > "$TEMP_DIR/Program.cs" << 'EOF'
-using System;
-using BCrypt.Net;
-
-class Program {
-    static void Main(string[] args) {
-        if (args.Length != 1) {
-            Console.Error.WriteLine("Uso: dotnet run -- <senha>");
-            return;
-        }
-        string hash = BCrypt.Net.BCrypt.HashPassword(args[0]);
-        Console.WriteLine(hash);
-    }
+if (string.IsNullOrWhiteSpace(senha))
+{
+    Console.Error.WriteLine("Senha nao informada.");
+    Environment.Exit(1);
 }
-EOF
 
-# Compilar e executar
-cd "$TEMP_DIR"
-dotnet run -- "$SENHA"
+Console.WriteLine(BCrypt.Net.BCrypt.HashPassword(senha));
+CS
 
-# Limpar
-cd -
-rm -rf "$TEMP_DIR"
+printf '%s' "$SENHA" | dotnet run --no-restore
+unset SENHA

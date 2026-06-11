@@ -1,0 +1,17 @@
+SELECT *
+FROM public.atletas
+LIMIT 1000;
+
+
+
+DELETE FROM public.convites_cadastro
+WHERE email = 'albertcasilva@gmail.com';
+
+DELETE FROM public.usuarios
+WHERE email = 'albertcasilva@gmail.com';
+
+DELETE FROM public.atletas
+WHERE email = 'albertcasilva@gmail.com';
+
+DELETE from duplas
+DELETE from partidas
