@@ -100,6 +100,27 @@ public record VerificarDuplicidadePartidaResultadoDto(
     string Mensagem
 );
 
+public static class StatusCriacaoPartida
+{
+    public const string Criada = "Criada";
+    public const string RequerConfirmacaoDuplicidade = "RequerConfirmacaoDuplicidade";
+}
+
+public record CriarPartidaResultadoDto(
+    string Status,
+    PartidaDto? Partida,
+    ConfirmacaoDuplicidadePartidaDto? Duplicidade,
+    string? Mensagem,
+    string? Codigo
+);
+
+public record ConfirmacaoDuplicidadePartidaDto(
+    bool RequerConfirmacao,
+    string Mensagem,
+    string Codigo,
+    Guid? PartidaId = null
+);
+
 public record GerarTabelaCategoriaDto(
     bool SubstituirTabelaExistente = false
 );

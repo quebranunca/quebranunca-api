@@ -30,7 +30,7 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_UsuarioPertenceAoGrupoEAlgunsAtletasNaoPertencem_RegistraEVinculaAusentes()
+    public async Task CriarAsync_UsuarioPertenceAoGrupoEAtletasAusentes_RegistraEVinculaAusentes()
     {
         var cenario = Cenario.Criar(publico: false);
         cenario.AdicionarMembro(cenario.Atletas[0]);
@@ -68,6 +68,7 @@ public class PartidaServicoGrupoTests
             cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id)));
 
         Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
         Assert.Empty(cenario.GruposAtletas.Vinculos);
     }
 
@@ -85,14 +86,300 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarAsync_SemGrupoSelecionado_MantemFluxoAvulso()
+    public async Task CriarAsync_SemGrupoInformado_UsaGrupoGeralELiberaRegistro()
     {
         var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
 
         var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(grupoId: null));
 
         Assert.Equal(cenario.GrupoGeral.Id, partida.GrupoId);
+        Assert.Single(cenario.Partidas.Partidas);
         Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_UsuarioCriadorNaoParticipaDaPartida_VinculaCriadorCorreto()
+    {
+        var cenario = Cenario.Criar(publico: false);
+
+        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(cenario.Usuario.Id, partida.CriadoPorUsuarioId);
+        Assert.DoesNotContain(cenario.Atletas, atleta => atleta.Id == cenario.Usuario.AtletaId);
+    }
+
+    [Fact]
+    public async Task CriarAsync_SemDuplicidade_RegistraNormalmenteSemConfirmacao()
+    {
+        var cenario = Cenario.Criar(publico: true);
+
+        var partida = await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_SemDuplicidade_RetornaCriada()
+    {
+        var cenario = Cenario.Criar(publico: true);
+
+        var resultado = await cenario.Servico.CriarComResultadoAsync(cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(StatusCriacaoPartida.Criada, resultado.Status);
+        Assert.NotNull(resultado.Partida);
+        Assert.Null(resultado.Duplicidade);
+        Assert.Null(resultado.Codigo);
+        Assert.Equal(cenario.Grupo.Id, resultado.Partida!.GrupoId);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_DuplicidadeSemConfirmacao_RetornaRequerConfirmacaoENaoSalva()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
+
+        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Null(resultado.Partida);
+        Assert.Equal(PartidaDuplicadaConfirmarException.CodigoErro, resultado.Codigo);
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.NotNull(resultado.Duplicidade);
+        Assert.True(resultado.Duplicidade!.RequerConfirmacao);
+        Assert.Equal(PartidaDuplicadaConfirmarException.CodigoErro, resultado.Duplicidade.Codigo);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_DuplicidadeComConfirmacao_RetornaCriadaESalva()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto with { ConfirmarDuplicidade = true });
+
+        Assert.Equal(StatusCriacaoPartida.Criada, resultado.Status);
+        Assert.NotNull(resultado.Partida);
+        Assert.Null(resultado.Duplicidade);
+        Assert.Equal(cenario.Grupo.Id, resultado.Partida!.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplicidadeSemConfirmacao_MantemWrapperLegadoComException()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Single(cenario.Partidas.Partidas);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplicidadeComConfirmacao_RegistraNovaPartida()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(dto with { ConfirmarDuplicidade = true });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplicidadeComPermissaoLegada_RegistraNovaPartida()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(dto with { PermitirDuplicidade = true });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplicidadeComAtletasInvertidosNaMesmaDupla_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var dtoInvertido = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            DuplaAAtleta1Id = cenario.Atletas[1].Id,
+            DuplaAAtleta2Id = cenario.Atletas[0].Id,
+            DuplaBAtleta1Id = cenario.Atletas[3].Id,
+            DuplaBAtleta2Id = cenario.Atletas[2].Id
+        };
+
+        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
+            cenario.Servico.CriarAsync(dtoInvertido));
+
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_PartidaParecidaComAtletaDiferente_RegistraNormalmente()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        await cenario.Servico.CriarAsync(cenario.CriarDto(cenario.Grupo.Id));
+        var atletaDiferente = cenario.AdicionarAtleta("Eduardo Ramos");
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            DuplaBAtleta2Id = atletaDiferente.Id
+        };
+
+        var partida = await cenario.Servico.CriarAsync(dto);
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+        Assert.Contains(cenario.GruposAtletas.Vinculos, vinculo => vinculo.AtletaId == atletaDiferente.Id);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertido_BloqueiaDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
+            cenario.Servico.CriarAsync(cenario.InverterLados(dto)));
+
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertidoEConfirmacao_Salva()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(cenario.InverterLados(dto) with { ConfirmarDuplicidade = true });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarInvertidoEPermitirDuplicidade_Salva()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(cenario.InverterLados(dto) with { PermitirDuplicidade = true });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_DuplasTrocandoDeLadoComPlacarDiferente_NaoBloqueiaDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+        var dtoLadosInvertidosComPlacarDiferente = cenario.InverterLados(dto) with
+        {
+            PlacarDuplaA = dto.PlacarDuplaB + 1,
+            PlacarDuplaB = dto.PlacarDuplaA
+        };
+
+        var partida = await cenario.Servico.CriarAsync(dtoLadosInvertidosComPlacarDiferente);
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_MesmaPartidaEmOutroGrupo_NaoBloqueiaDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: false);
+        cenario.AdicionarMembro(cenario.AtletaUsuario, cenario.GrupoAlternativo);
+        var dtoGrupoA = cenario.CriarDto(cenario.Grupo.Id);
+        var dtoGrupoB = cenario.CriarDto(cenario.GrupoAlternativo.Id) with
+        {
+            DataPartida = dtoGrupoA.DataPartida
+        };
+
+        await cenario.Servico.CriarAsync(dtoGrupoA);
+        var partidaGrupoB = await cenario.Servico.CriarAsync(dtoGrupoB);
+
+        Assert.Equal(cenario.GrupoAlternativo.Id, partidaGrupoB.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultadoDuplicado_RequerConfirmacaoDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultadoComDuplasInvertidas_RequerConfirmacaoDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var excecao = await Assert.ThrowsAsync<PartidaDuplicadaConfirmarException>(() =>
+            cenario.Servico.CriarAsync(cenario.InverterLados(dto)));
+
+        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", excecao.Message);
+        Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultadoDuplicadoComConfirmacao_Salva()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(dto with { ConfirmarDuplicidade = true });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultadoComVencedorDiferente_NaoBloqueiaDuplicidade()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id);
+        await cenario.Servico.CriarAsync(dto);
+
+        var partida = await cenario.Servico.CriarAsync(dto with { DuplaVencedora = 2 });
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
@@ -133,6 +420,80 @@ public class PartidaServicoGrupoTests
             cenario.Servico.CriarAsync(dto));
 
         Assert.Equal("Informe qual dupla venceu a partida.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_ApenasResultado_DuplaVencedoraInvalida_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = null,
+            PlacarDuplaB = null,
+            DuplaVencedora = 3,
+            TipoRegistroResultado = TipoRegistroResultado.ApenasResultado
+        };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal("Informe qual dupla venceu a partida.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_PlacarDetalhadoEmpatado_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = 21,
+            PlacarDuplaB = 21,
+            TipoRegistroResultado = TipoRegistroResultado.PlacarDetalhado
+        };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal("A partida não pode terminar empatada.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_PlacarDetalhadoSemPontosMinimos_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = Competicao.PontosMinimosPartidaPadrao - 1,
+            PlacarDuplaB = Competicao.PontosMinimosPartidaPadrao - Competicao.DiferencaMinimaPartidaPadrao,
+            TipoRegistroResultado = TipoRegistroResultado.PlacarDetalhado
+        };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal($"A dupla vencedora deve alcançar no mínimo {Competicao.PontosMinimosPartidaPadrao} pontos.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarAsync_PlacarDetalhadoSemDiferencaMinima_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id) with
+        {
+            PlacarDuplaA = Competicao.PontosMinimosPartidaPadrao,
+            PlacarDuplaB = Competicao.PontosMinimosPartidaPadrao - 1,
+            TipoRegistroResultado = TipoRegistroResultado.PlacarDetalhado
+        };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(dto));
+
+        Assert.Equal($"A partida deve terminar com diferença mínima de {Competicao.DiferencaMinimaPartidaPadrao} pontos.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
     }
 
     [Fact]
@@ -183,6 +544,7 @@ public class PartidaServicoGrupoTests
                 Perfil = PerfilUsuario.Atleta
             };
             Grupo = new Grupo { Nome = "AD7", Publico = publico, DataInicio = DateTime.UtcNow };
+            GrupoAlternativo = new Grupo { Nome = "Arena 2", Publico = publico, DataInicio = DateTime.UtcNow };
             GrupoGeral = new Grupo { Nome = "Geral", Publico = true, DataInicio = DateTime.UtcNow };
             AtletaUsuario = new Atleta { Nome = "Usuário Teste" };
             Usuario.AtletaId = AtletaUsuario.Id;
@@ -200,15 +562,15 @@ public class PartidaServicoGrupoTests
                 AdicionarMembro(AtletaUsuario);
             }
 
-            var partidaRepositorio = new PartidaRepositorioMemoria();
+            Partidas = new PartidaRepositorioMemoria();
             var resolvedor = new ResolvedorAtletaDuplaMemoria(Atletas, GruposAtletas);
 
             Servico = new PartidaServico(
-                partidaRepositorio,
+                Partidas,
                 new CategoriaCompeticaoRepositorioStub(),
-                new GrupoRepositorioStub(Grupo),
+                new GrupoRepositorioStub([Grupo, GrupoAlternativo]),
                 GruposAtletas,
-                new GrupoPadraoServicoStub(Grupo, GrupoGeral),
+                new GrupoPadraoServicoStub([Grupo, GrupoAlternativo], GrupoGeral),
                 new DuplaRepositorioStub(),
                 new InscricaoCampeonatoRepositorioStub(),
                 new UnidadeTrabalhoStub(),
@@ -221,16 +583,28 @@ public class PartidaServicoGrupoTests
 
         public Usuario Usuario { get; }
         public Grupo Grupo { get; }
+        public Grupo GrupoAlternativo { get; }
         public Grupo GrupoGeral { get; }
         public Atleta AtletaUsuario { get; }
-        public IReadOnlyList<Atleta> Atletas { get; }
+        public List<Atleta> Atletas { get; }
+        public PartidaRepositorioMemoria Partidas { get; }
         public GrupoAtletaRepositorioMemoria GruposAtletas { get; }
         public PartidaServico Servico { get; }
 
         public static Cenario Criar(bool publico, bool usuarioMembro = true) => new(publico, usuarioMembro);
 
-        public void AdicionarMembro(Atleta atleta)
-            => GruposAtletas.Vinculos.Add(new GrupoAtleta { GrupoId = Grupo.Id, AtletaId = atleta.Id, Atleta = atleta });
+        public void AdicionarMembro(Atleta atleta, Grupo? grupo = null)
+        {
+            var grupoEfetivo = grupo ?? Grupo;
+            GruposAtletas.Vinculos.Add(new GrupoAtleta { GrupoId = grupoEfetivo.Id, AtletaId = atleta.Id, Atleta = atleta });
+        }
+
+        public Atleta AdicionarAtleta(string nome)
+        {
+            var atleta = new Atleta { Nome = nome };
+            Atletas.Add(atleta);
+            return atleta;
+        }
 
         public CriarPartidaDto CriarDto(Guid? grupoId)
             => new(
@@ -256,6 +630,36 @@ public class PartidaServicoGrupoTests
                 TipoRegistroResultado: TipoRegistroResultado.PlacarDetalhado,
                 DataPartida: DateTime.UtcNow,
                 Observacoes: null);
+
+        public CriarPartidaDto CriarDtoApenasResultado(Guid? grupoId)
+            => CriarDto(grupoId) with
+            {
+                PlacarDuplaA = null,
+                PlacarDuplaB = null,
+                DuplaVencedora = 1,
+                TipoRegistroResultado = TipoRegistroResultado.ApenasResultado
+            };
+
+        public CriarPartidaDto InverterLados(CriarPartidaDto dto)
+            => dto with
+            {
+                DuplaAAtleta1Id = dto.DuplaBAtleta1Id,
+                DuplaAAtleta1Nome = dto.DuplaBAtleta1Nome,
+                DuplaAAtleta2Id = dto.DuplaBAtleta2Id,
+                DuplaAAtleta2Nome = dto.DuplaBAtleta2Nome,
+                DuplaBAtleta1Id = dto.DuplaAAtleta1Id,
+                DuplaBAtleta1Nome = dto.DuplaAAtleta1Nome,
+                DuplaBAtleta2Id = dto.DuplaAAtleta2Id,
+                DuplaBAtleta2Nome = dto.DuplaAAtleta2Nome,
+                PlacarDuplaA = dto.PlacarDuplaB,
+                PlacarDuplaB = dto.PlacarDuplaA,
+                DuplaVencedora = dto.DuplaVencedora switch
+                {
+                    1 => 2,
+                    2 => 1,
+                    _ => dto.DuplaVencedora
+                }
+            };
     }
 
     private sealed class ResolvedorAtletaDuplaMemoria(
@@ -354,19 +758,22 @@ public class PartidaServicoGrupoTests
         public void Remover(GrupoAtleta grupoAtleta) => Vinculos.Remove(grupoAtleta);
     }
 
-    private sealed class PartidaRepositorioMemoria : IPartidaRepositorio
+    public sealed class PartidaRepositorioMemoria : IPartidaRepositorio
     {
-        private readonly List<Partida> partidas = [];
+        public List<Partida> Partidas { get; } = [];
 
         public Task<IReadOnlyList<Partida>> ListarPorDiaAsync(DateTime inicioUtc, DateTime fimUtc, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<Partida>>([]);
+            => Task.FromResult<IReadOnlyList<Partida>>(
+                Partidas
+                    .Where(x => (x.DataPartida ?? x.DataCriacao) >= inicioUtc && (x.DataPartida ?? x.DataCriacao) < fimUtc)
+                    .ToList());
 
         public Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
-            => Task.FromResult(partidas.FirstOrDefault(x => x.Id == id));
+            => Task.FromResult(Partidas.FirstOrDefault(x => x.Id == id));
 
         public Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default)
         {
-            partidas.Add(partida);
+            Partidas.Add(partida);
             return Task.CompletedTask;
         }
 
@@ -376,7 +783,7 @@ public class PartidaServicoGrupoTests
         public Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
-        public Task<IReadOnlyList<Partida>> ListarAdministracaoAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>(partidas);
+        public Task<IReadOnlyList<Partida>> ListarAdministracaoAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>(Partidas);
         public Task<IReadOnlyList<Partida>> ListarFeedAsync(int skip, int take, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarPorAtletaParaRemocaoAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarReferenciandoPartidasAsync(IReadOnlyCollection<Guid> partidaIds, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
@@ -394,21 +801,21 @@ public class PartidaServicoGrupoTests
         public Task<AtletasSugestoesPartidaDto> ObterSugestoesPartidaAsync(Guid atletaId, Guid? grupoId, int limitePorSecao, CancellationToken cancellationToken = default) => Task.FromResult(new AtletasSugestoesPartidaDto([], []));
         public Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public void Atualizar(Partida partida) { }
-        public void Remover(Partida partida) => partidas.Remove(partida);
+        public void Remover(Partida partida) => Partidas.Remove(partida);
     }
 
-    private sealed class GrupoPadraoServicoStub(Grupo grupo, Grupo grupoGeral) : IGrupoPadraoServico
+    private sealed class GrupoPadraoServicoStub(IReadOnlyList<Grupo> grupos, Grupo grupoGeral) : IGrupoPadraoServico
     {
         public string NomeGrupoGeral => "Geral";
         public Task<Grupo> ObterOuCriarGrupoGeralAsync(CancellationToken cancellationToken = default) => Task.FromResult(grupoGeral);
         public Task<Grupo> ResolverGrupoRegistroPartidaAsync(Guid? grupoId, string? nomeNovoGrupo, CancellationToken cancellationToken = default)
-            => Task.FromResult(grupoId.HasValue ? grupo : grupoGeral);
+            => Task.FromResult(grupoId.HasValue ? grupos.First(x => x.Id == grupoId.Value) : grupoGeral);
         public Task ValidarNomeDisponivelOuAcessivelAsync(string nome, Guid? grupoIgnoradoId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class GrupoRepositorioStub(Grupo grupo) : IGrupoRepositorio
+    private sealed class GrupoRepositorioStub(IReadOnlyList<Grupo> grupos) : IGrupoRepositorio
     {
-        public Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(id == grupo.Id ? grupo : null);
+        public Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(grupos.FirstOrDefault(x => x.Id == id));
         public Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(null);
         public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>([]);
         public Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(Guid usuarioId, Guid? atletaId, bool incluirPrivadosDeTerceiros, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>([]);

@@ -272,35 +272,47 @@ public class PartidaServico(
             partidaDuplicada is not null ? MensagemPartidaDuplicada : string.Empty);
     }
 
-    private async Task ValidarDuplicidadeNovaPartidaAsync(
+    private async Task<ConfirmacaoDuplicidadePartidaDto?> VerificarDuplicidadeNovaPartidaAsync(
         CriarPartidaDto dto,
         Dupla duplaA,
         Dupla duplaB,
+        Guid? grupoId,
         DateTime dataPartida,
         CancellationToken cancellationToken)
     {
         if (dto.DuplicidadeConfirmada)
         {
-            return;
+            return null;
         }
 
-        var verificacao = await VerificarDuplicidadeAsync(
-            new VerificarDuplicidadePartidaDto(
-                new VerificarDuplicidadePartidaDuplaDto(
-                    ObterNomeComparacaoAtleta(duplaA.Atleta1),
-                    ObterNomeComparacaoAtleta(duplaA.Atleta2),
-                    dto.PlacarDuplaA),
-                new VerificarDuplicidadePartidaDuplaDto(
-                    ObterNomeComparacaoAtleta(duplaB.Atleta1),
-                    ObterNomeComparacaoAtleta(duplaB.Atleta2),
-                    dto.PlacarDuplaB),
-                dataPartida),
-            cancellationToken);
+        var inicioDia = NormalizarParaUtc(dataPartida).Date;
+        var fimDia = inicioDia.AddDays(1);
+        var partidasDoDia = await partidaRepositorio.ListarPorDiaAsync(inicioDia, fimDia, cancellationToken);
 
-        if (verificacao.ExisteDuplicidade)
+        var partidaDuplicada = partidasDoDia.FirstOrDefault(partida =>
+            PartidaPossuiMesmoContexto(partida, grupoId) &&
+            PartidaPossuiMesmaAssinaturaCriacao(partida, duplaA, duplaB, dto));
+
+        if (partidaDuplicada is null)
         {
-            throw new PartidaDuplicadaConfirmarException(MensagemPartidaDuplicada);
+            return null;
         }
+
+        return new ConfirmacaoDuplicidadePartidaDto(
+            true,
+            MensagemPartidaDuplicada,
+            PartidaDuplicadaConfirmarException.CodigoErro,
+            partidaDuplicada.Id);
+    }
+
+    private static bool PartidaPossuiMesmoContexto(Partida partida, Guid? grupoId)
+    {
+        if (grupoId.HasValue)
+        {
+            return partida.GrupoId == grupoId.Value;
+        }
+
+        return true;
     }
 
     private static string ObterNomeComparacaoAtleta(Atleta atleta)
@@ -313,9 +325,77 @@ public class PartidaServico(
             return false;
         }
 
-        return PartidaPossuiMesmaDuplaEPlacar(partida.DuplaA, dto.Dupla1, partida.PlacarDuplaA) &&
+        var mesmaPosicao = PartidaPossuiMesmaDuplaEPlacar(partida.DuplaA, dto.Dupla1, partida.PlacarDuplaA) &&
             PartidaPossuiMesmaDuplaEPlacar(partida.DuplaB, dto.Dupla2, partida.PlacarDuplaB);
+        var posicaoInvertida = PartidaPossuiMesmaDuplaEPlacar(partida.DuplaA, dto.Dupla2, partida.PlacarDuplaA) &&
+            PartidaPossuiMesmaDuplaEPlacar(partida.DuplaB, dto.Dupla1, partida.PlacarDuplaB);
+
+        return mesmaPosicao || posicaoInvertida;
     }
+
+    private static bool PartidaPossuiMesmaAssinaturaCriacao(Partida partida, Dupla duplaA, Dupla duplaB, CriarPartidaDto dto)
+    {
+        if (partida.DuplaA is null || partida.DuplaB is null)
+        {
+            return false;
+        }
+
+        var mesmaPosicao = DuplasPossuemMesmosAtletas(partida.DuplaA, duplaA) &&
+            DuplasPossuemMesmosAtletas(partida.DuplaB, duplaB);
+        var posicaoInvertida = DuplasPossuemMesmosAtletas(partida.DuplaA, duplaB) &&
+            DuplasPossuemMesmosAtletas(partida.DuplaB, duplaA);
+
+        if (ResultadoPossuiPlacarDetalhado(dto))
+        {
+            return (mesmaPosicao && PlacarEquivalente(partida, dto.PlacarDuplaA, dto.PlacarDuplaB)) ||
+                (posicaoInvertida && PlacarEquivalente(partida, dto.PlacarDuplaB, dto.PlacarDuplaA));
+        }
+
+        if (ResultadoApenasVencedor(dto))
+        {
+            return (mesmaPosicao && VencedoraEquivalente(partida, dto.DuplaVencedora, inverterLados: false)) ||
+                (posicaoInvertida && VencedoraEquivalente(partida, dto.DuplaVencedora, inverterLados: true));
+        }
+
+        return false;
+    }
+
+    private static bool ResultadoPossuiPlacarDetalhado(CriarPartidaDto dto)
+        => dto.TipoRegistroResultado == TipoRegistroResultado.PlacarDetalhado ||
+            (!dto.TipoRegistroResultado.HasValue && dto.PlacarDuplaA.HasValue && dto.PlacarDuplaB.HasValue);
+
+    private static bool ResultadoApenasVencedor(CriarPartidaDto dto)
+        => dto.TipoRegistroResultado == TipoRegistroResultado.ApenasResultado ||
+            (!dto.TipoRegistroResultado.HasValue && !dto.PlacarDuplaA.HasValue && !dto.PlacarDuplaB.HasValue && dto.DuplaVencedora.HasValue);
+
+    private static bool PlacarEquivalente(Partida partida, int? placarDuplaA, int? placarDuplaB)
+        => partida.PlacarDuplaA.HasValue &&
+            partida.PlacarDuplaB.HasValue &&
+            placarDuplaA.HasValue &&
+            placarDuplaB.HasValue &&
+            partida.PlacarDuplaA.Value == placarDuplaA.Value &&
+            partida.PlacarDuplaB.Value == placarDuplaB.Value;
+
+    private static bool VencedoraEquivalente(Partida partida, int? duplaVencedora, bool inverterLados)
+    {
+        if (!duplaVencedora.HasValue || !partida.DuplaVencedoraId.HasValue)
+        {
+            return false;
+        }
+
+        var duplaVencedoraEsperadaId = duplaVencedora.Value switch
+        {
+            1 => inverterLados ? partida.DuplaBId : partida.DuplaAId,
+            2 => inverterLados ? partida.DuplaAId : partida.DuplaBId,
+            _ => null
+        };
+
+        return duplaVencedoraEsperadaId.HasValue && partida.DuplaVencedoraId.Value == duplaVencedoraEsperadaId.Value;
+    }
+
+    private static bool DuplasPossuemMesmosAtletas(Dupla primeira, Dupla segunda)
+        => (primeira.Atleta1Id == segunda.Atleta1Id && primeira.Atleta2Id == segunda.Atleta2Id) ||
+            (primeira.Atleta1Id == segunda.Atleta2Id && primeira.Atleta2Id == segunda.Atleta1Id);
 
     private static bool PartidaPossuiMesmaDuplaEPlacar(
         Dupla dupla,
@@ -674,7 +754,7 @@ public class PartidaServico(
             $"Tabela removida com {partidasExistentes.Count} jogo(s) excluído(s) da categoria {categoria.Nome}.");
     }
 
-    public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
+    public async Task<CriarPartidaResultadoDto> CriarComResultadoAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
     {
         var usuarioAtual = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var (categoria, grupo, duplaA, duplaB, metadadosLados) = await ValidarRelacionamentosAsync(
@@ -726,12 +806,23 @@ public class PartidaServico(
         AplicarStatusEResultado(partida, dto.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dto.DuplaVencedora, dto.TipoRegistroResultado, dataAtualPadraoUtc: DateTime.UtcNow);
         AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB, usuarioAtual);
         ValidarPartida(partida, categoria?.Competicao, grupo);
-        await ValidarDuplicidadeNovaPartidaAsync(
+        var duplicidade = await VerificarDuplicidadeNovaPartidaAsync(
             dto,
             duplaA,
             duplaB,
+            partida.GrupoId,
             partida.DataPartida ?? DateTime.UtcNow,
             cancellationToken);
+
+        if (duplicidade is not null)
+        {
+            return new CriarPartidaResultadoDto(
+                StatusCriacaoPartida.RequerConfirmacaoDuplicidade,
+                null,
+                duplicidade,
+                duplicidade.Mensagem,
+                duplicidade.Codigo);
+        }
 
         await partidaRepositorio.AdicionarAsync(partida, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -744,7 +835,29 @@ public class PartidaServico(
             await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         }
         var partidaCriada = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken);
-        return partidaCriada!.ParaDto();
+        return new CriarPartidaResultadoDto(
+            StatusCriacaoPartida.Criada,
+            partidaCriada!.ParaDto(),
+            null,
+            null,
+            null);
+    }
+
+    public async Task<PartidaDto> CriarAsync(CriarPartidaDto dto, CancellationToken cancellationToken = default)
+    {
+        var resultado = await CriarComResultadoAsync(dto, cancellationToken);
+
+        if (resultado.Status == StatusCriacaoPartida.Criada && resultado.Partida is not null)
+        {
+            return resultado.Partida;
+        }
+
+        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
+        {
+            throw new PartidaDuplicadaConfirmarException(resultado.Mensagem ?? MensagemPartidaDuplicada);
+        }
+
+        throw new RegraNegocioException("Não foi possível criar a partida.");
     }
 
     private static void AplicarLocalizacaoRegistro(Partida partida, LocalizacaoPartidaDto? localizacao)

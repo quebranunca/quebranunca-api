@@ -131,12 +131,23 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(CriarPartidaResultadoDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CriarPartidaResultadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Criar([FromBody] CriarPartidaDto dto, CancellationToken cancellationToken)
     {
-        var partida = await partidaServico.CriarAsync(dto, cancellationToken);
-        return CreatedAtAction(nameof(ObterPorId), new { id = partida.Id }, partida);
+        var resultado = await partidaServico.CriarComResultadoAsync(dto, cancellationToken);
+
+        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
+        {
+            return Ok(resultado);
+        }
+
+        if (resultado.Partida is null)
+        {
+            return Ok(resultado);
+        }
+
+        return CreatedAtAction(nameof(ObterPorId), new { id = resultado.Partida.Id }, resultado);
     }
 
     [HttpPost("{id:guid}/midia")]
