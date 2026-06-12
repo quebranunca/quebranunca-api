@@ -38,6 +38,68 @@ public class ArenaServicoAdminTests
     }
 
     [Fact]
+    public async Task CriarAdminAsync_NomeObrigatorio_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAdminAsync(NovoRequest("   ")));
+
+        Assert.Equal("Nome da arena é obrigatório.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task CriarAdminAsync_TipoInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var request = NovoRequest("Arena Inválida") with { TipoArena = (TipoArena)999 };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAdminAsync(request));
+
+        Assert.Equal("Tipo de arena inválido.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task CriarAdminAsync_QuantidadeEspacosNegativa_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var request = NovoRequest("Arena Inválida") with { QuantidadeEspacos = -1 };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAdminAsync(request));
+
+        Assert.Equal("Quantidade de espaços não pode ser negativa.", excecao.Message);
+    }
+
+    [Theory]
+    [InlineData(-91.0, 0.0)]
+    [InlineData(91.0, 0.0)]
+    [InlineData(0.0, -181.0)]
+    [InlineData(0.0, 181.0)]
+    [InlineData(10.0, null)]
+    public async Task CriarAdminAsync_CoordenadasInvalidas_Bloqueia(double? latitude, double? longitude)
+    {
+        var cenario = new Cenario();
+        var request = NovoRequest("Arena Inválida") with { Latitude = latitude, Longitude = longitude };
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAdminAsync(request));
+
+        Assert.Equal("Latitude e longitude da arena devem ser informadas juntas e válidas.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task CriarAdminAsync_NomeComAcentosEspacosECaracteresEspeciais_GeraSlugNormalizado()
+    {
+        var cenario = new Cenario();
+
+        var arena = await cenario.Servico.CriarAdminAsync(NovoRequest("  Árena São João!!! 2026  "));
+
+        Assert.Equal("arena-sao-joao-2026", arena.Slug);
+    }
+
+    [Fact]
     public async Task ListarMinhasAsync_RetornaSomenteArenasAdministradasPeloUsuario()
     {
         var cenario = new Cenario();
@@ -161,6 +223,63 @@ public class ArenaServicoAdminTests
         Assert.True(espaco.PossuiCobertura);
         Assert.True(espaco.Ativo);
         Assert.Equal(3, espaco.OrdemExibicao);
+    }
+
+    [Fact]
+    public async Task CriarEspacoAsync_NomeObrigatorio_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarEspacoAsync(arena.Id, new CriarArenaEspacoRequest(
+                " ",
+                TipoEspaco.QuadraCoberta,
+                null,
+                false,
+                false,
+                true,
+                1)));
+
+        Assert.Equal("Nome do espaço é obrigatório.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task CriarEspacoAsync_TipoEspacoInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarEspacoAsync(arena.Id, new CriarArenaEspacoRequest(
+                "Quadra",
+                (TipoEspaco)999,
+                null,
+                false,
+                false,
+                true,
+                1)));
+
+        Assert.Equal("Tipo de espaço inválido.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task CriarEspacoAsync_OrdemExibicaoNegativa_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Minha", "arena-minha", cenario.Usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarEspacoAsync(arena.Id, new CriarArenaEspacoRequest(
+                "Quadra",
+                TipoEspaco.QuadraCoberta,
+                null,
+                false,
+                false,
+                true,
+                -1)));
+
+        Assert.Equal("Ordem de exibição não pode ser negativa.", excecao.Message);
     }
 
     [Fact]
