@@ -999,10 +999,16 @@ public class PartidaServico(
 
         ValidarPlacarEdicaoBasica(dto.PlacarDuplaA, dto.PlacarDuplaB);
 
+        var devePersistirGrupoEdicao = dto.GrupoId.HasValue || partida.GrupoId.HasValue;
+        var grupoIdEdicao = dto.GrupoId ?? partida.GrupoId;
+        var nomeGrupoEdicao = dto.GrupoId.HasValue
+            ? null
+            : partida.Grupo?.Nome;
+
         var (categoria, grupo, duplaA, duplaB, metadadosLadosAtualizados) = await ValidarRelacionamentosAsync(
             partida.CategoriaCompeticao?.CompeticaoId,
-            partida.GrupoId,
-            partida.Grupo?.Nome,
+            grupoIdEdicao,
+            nomeGrupoEdicao,
             partida.CategoriaCompeticaoId,
             null,
             null,
@@ -1042,10 +1048,12 @@ public class PartidaServico(
                 cancellationToken);
         }
 
+        var grupoPersistido = devePersistirGrupoEdicao ? grupo : partida.Grupo;
+        partida.GrupoId = grupoPersistido?.Id;
         partida.DuplaAId = duplaA.Id;
         partida.DuplaBId = duplaB.Id;
         AplicarStatusEResultado(partida, partida.Status, dto.PlacarDuplaA, dto.PlacarDuplaB, dto.DuplaVencedora, dto.TipoRegistroResultado, partida.DataPartida ?? DateTime.UtcNow);
-        AtualizarNavegacoesPartida(partida, categoria, grupo, duplaA, duplaB);
+        AtualizarNavegacoesPartida(partida, categoria, grupoPersistido, duplaA, duplaB);
         ValidarPartida(partida, categoria?.Competicao, grupo);
         partida.AtualizarDataModificacao();
         partida.Observacoes = MontarObservacoesPartida(partida.Observacoes, metadadosChave, metadadosRodada, metadadosLadosAtualizados);

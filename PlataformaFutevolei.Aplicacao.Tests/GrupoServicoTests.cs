@@ -81,6 +81,61 @@ public class GrupoServicoTests
         Assert.All(partidaDto.Dupla1.Concat(partidaDto.Dupla2), atleta => Assert.Null(atleta.AvatarUrl));
     }
 
+    [Fact]
+    public async Task CriarAsync_PrivacidadePublica_CriaGrupoPublico()
+    {
+        var servico = CriarServico(grupos: []);
+
+        var grupo = await servico.CriarAsync(new CriarGrupoDto(
+            "Grupo Público",
+            Descricao: null,
+            Link: null,
+            DataInicio: DateTime.UtcNow,
+            DataFim: null,
+            LocalId: null,
+            Privacidade: "Público"));
+
+        Assert.Equal("Grupo Público", grupo.Nome);
+        Assert.Equal("Público", grupo.Privacidade);
+    }
+
+    [Fact]
+    public async Task CriarAsync_PrivacidadePrivada_CriaGrupoPrivado()
+    {
+        var servico = CriarServico(grupos: []);
+
+        var grupo = await servico.CriarAsync(new CriarGrupoDto(
+            "Grupo Privado",
+            Descricao: null,
+            Link: null,
+            DataInicio: DateTime.UtcNow,
+            DataFim: null,
+            LocalId: null,
+            Privacidade: "Privado"));
+
+        Assert.Equal("Grupo Privado", grupo.Nome);
+        Assert.Equal("Privado", grupo.Privacidade);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_AlteraNomeEPrivacidade()
+    {
+        var grupo = new Grupo
+        {
+            Nome = "Nome antigo",
+            DataInicio = DateTime.UtcNow,
+            Publico = true
+        };
+        var servico = CriarServico(grupos: [grupo]);
+
+        var atualizado = await servico.AtualizarAsync(grupo.Id, new AtualizarGrupoDto(
+            "Nome novo",
+            Privacidade: "Privado"));
+
+        Assert.Equal("Nome novo", atualizado.Nome);
+        Assert.Equal("Privado", atualizado.Privacidade);
+    }
+
     private static GrupoServico CriarServico(
         IReadOnlyList<Grupo> grupos,
         IReadOnlyList<Partida>? partidas = null)
@@ -136,21 +191,23 @@ public class GrupoServicoTests
 
     private sealed class GrupoRepositorioStub(IReadOnlyList<Grupo> grupos) : IGrupoRepositorio
     {
-        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult(grupos);
-        public Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(Guid usuarioId, Guid? atletaId, bool incluirPrivadosDeTerceiros, CancellationToken cancellationToken = default) => Task.FromResult(grupos);
+        private readonly List<Grupo> grupos = grupos.ToList();
+
+        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
+        public Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(Guid usuarioId, Guid? atletaId, bool incluirPrivadosDeTerceiros, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
         public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default) => Task.FromResult(grupos.Count(x => x.Publico));
         public Task<Grupo?> ObterResumoUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.FirstOrDefault());
         public Task<IReadOnlyList<Grupo>> ListarResumosUsuarioAsync(Guid usuarioId, Guid? atletaId, int limite, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Take(limite).ToList());
-        public Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos);
+        public Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
         public Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid>>(grupos.Select(x => x.Id).ToList());
         public Task<bool> AtletaPossuiAcessoAsync(Guid grupoId, Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.Any(x => x.Id == grupoId));
         public Task<Grupo?> ObterPorNomeEOrganizadorAsync(string nome, Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(null);
         public Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(grupos.FirstOrDefault(x => x.Nome == nome));
-        public Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult(grupos);
+        public Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
         public Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(grupos.FirstOrDefault(x => x.Id == id));
-        public Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default) { grupos.Add(grupo); return Task.CompletedTask; }
         public void Atualizar(Grupo grupo) { }
-        public void Remover(Grupo grupo) { }
+        public void Remover(Grupo grupo) => grupos.Remove(grupo);
     }
 
     private sealed class GrupoAtletaRepositorioStub : IGrupoAtletaRepositorio

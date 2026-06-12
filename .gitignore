@@ -37,6 +37,7 @@ logs/
 
 TestResults/
 coverage/
+coverage-report/
 *.coverage
 *.trx
 

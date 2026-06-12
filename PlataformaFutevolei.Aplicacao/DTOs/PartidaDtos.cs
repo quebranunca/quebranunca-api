@@ -68,6 +68,7 @@ public record AtualizarPartidaDto(
 );
 
 public record AtualizarPartidaBasicaDto(
+    Guid? GrupoId,
     Guid? DuplaAAtleta1Id,
     string? DuplaAAtleta1Nome,
     Guid? DuplaAAtleta2Id,

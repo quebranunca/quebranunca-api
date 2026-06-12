@@ -234,8 +234,27 @@ public class RankingServicoGrupoTests
 
         var categoria = await cenario.ObterRankingGrupoAsync();
 
-        Assert.Equal(7m, categoria.Atletas.Single(x => x.AtletaId == vencedor1.Id).Pontos);
+        Assert.Equal(9m, categoria.Atletas.Single(x => x.AtletaId == vencedor1.Id).Pontos);
         Assert.Equal(5m, categoria.Atletas.Single(x => x.AtletaId == perdedor1.Id).Pontos);
+    }
+
+    [Fact]
+    public async Task ListarAtletasPorGrupoAsync_UsaVitoriaEDerrotaDaRegraConfiguravelDaCompeticao()
+    {
+        var cenario = Cenario.Criar();
+        var vencedor1 = cenario.CriarAtleta("Vencedor Um");
+        var vencedor2 = cenario.CriarAtleta("Vencedor Dois");
+        var perdedor1 = cenario.CriarAtleta("Perdedor Um");
+        var perdedor2 = cenario.CriarAtleta("Perdedor Dois");
+        var categoriaCompeticao = Cenario.CriarCategoriaCompeticao(
+            pontosVitoria: 6m,
+            pontosDerrota: 2m);
+        cenario.AdicionarPartida(vencedor1, vencedor2, perdedor1, perdedor2, categoriaCompeticao: categoriaCompeticao);
+
+        var categoria = await cenario.ObterRankingGrupoAsync();
+
+        Assert.Equal(7m, categoria.Atletas.Single(x => x.AtletaId == vencedor1.Id).Pontos);
+        Assert.Equal(2m, categoria.Atletas.Single(x => x.AtletaId == perdedor1.Id).Pontos);
     }
 
     [Fact]
@@ -251,7 +270,7 @@ public class RankingServicoGrupoTests
 
         var categoria = await cenario.ObterRankingGrupoAsync();
 
-        Assert.Equal(2m, categoria.Atletas.Single(x => x.AtletaId == vencedor1.Id).Pontos);
+        Assert.Equal(4m, categoria.Atletas.Single(x => x.AtletaId == vencedor1.Id).Pontos);
         Assert.Equal(0m, categoria.Atletas.Single(x => x.AtletaId == perdedor1.Id).Pontos);
     }
 
@@ -343,20 +362,26 @@ public class RankingServicoGrupoTests
             return Assert.Single(ranking);
         }
 
-        public static CategoriaCompeticao CriarCategoriaCompeticao(decimal? pontosParticipacao = null)
+        public static CategoriaCompeticao CriarCategoriaCompeticao(
+            decimal? pontosParticipacao = null,
+            decimal? pontosVitoria = null,
+            decimal? pontosDerrota = null)
         {
+            var possuiRegraCustomizada = pontosParticipacao.HasValue ||
+                pontosVitoria.HasValue ||
+                pontosDerrota.HasValue;
             var competicao = new Competicao
             {
                 Nome = "Circuito QNF",
                 Tipo = TipoCompeticao.Campeonato,
                 DataInicio = DateTime.UtcNow.Date,
-                RegraCompeticao = pontosParticipacao.HasValue
+                RegraCompeticao = possuiRegraCustomizada
                     ? new RegraCompeticao
                     {
                         Nome = "Regra customizada",
-                        PontosParticipacao = pontosParticipacao.Value,
-                        PontosVitoria = Competicao.PontosVitoriaPadrao,
-                        PontosDerrota = Competicao.PontosDerrotaPadrao
+                        PontosParticipacao = pontosParticipacao ?? Competicao.PontosParticipacaoPadrao,
+                        PontosVitoria = pontosVitoria ?? Competicao.PontosVitoriaPadrao,
+                        PontosDerrota = pontosDerrota ?? Competicao.PontosDerrotaPadrao
                     }
                     : null
             };
