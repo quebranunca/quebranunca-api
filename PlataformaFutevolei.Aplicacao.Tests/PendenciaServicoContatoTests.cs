@@ -13,6 +13,84 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class PendenciaServicoContatoTests
 {
     [Fact]
+    public async Task AprovarPartidaAsync_AprovacaoDaDuplaValidanteEncerraPendenciasCorrelatasEAprovaPartida()
+    {
+        var cenario = CenarioAprovacao.Criar();
+
+        await cenario.Servico.AprovarPartidaAsync(
+            cenario.PendenciaValidante1.Id,
+            new ResponderPendenciaPartidaDto("resultado confere"));
+
+        Assert.Equal(StatusAprovacaoPartida.Aprovada, cenario.Partida.StatusAprovacao);
+        Assert.Equal(StatusPendenciaUsuario.Concluida, cenario.PendenciaValidante1.Status);
+        Assert.Equal(StatusPendenciaUsuario.Cancelada, cenario.PendenciaValidante2.Status);
+        Assert.Equal(StatusPartidaAprovacao.Aprovada, cenario.AprovacaoValidante1.Status);
+        Assert.Equal(StatusPartidaAprovacao.Pendente, cenario.AprovacaoValidante2.Status);
+    }
+
+    [Fact]
+    public async Task AprovarPartidaAsync_NaoExigeAprovacaoDeTodosQuandoDuplaValidanteJaRespondeu()
+    {
+        var cenario = CenarioAprovacao.Criar();
+
+        await cenario.Servico.AprovarPartidaAsync(
+            cenario.PendenciaValidante1.Id,
+            new ResponderPendenciaPartidaDto(null));
+
+        Assert.Equal(StatusAprovacaoPartida.Aprovada, cenario.Partida.StatusAprovacao);
+        Assert.Single(cenario.Aprovacoes.Itens.Where(x => x.Status == StatusPartidaAprovacao.Aprovada));
+        Assert.Contains(cenario.Aprovacoes.Itens, x =>
+            x.AtletaId == cenario.AtletaValidante2.Id &&
+            x.Status == StatusPartidaAprovacao.Pendente);
+    }
+
+    [Fact]
+    public async Task ContestarPartidaAsync_ContestacaoEncerraPendenciasCorrelatasEContestaPartida()
+    {
+        var cenario = CenarioAprovacao.Criar();
+
+        await cenario.Servico.ContestarPartidaAsync(
+            cenario.PendenciaValidante1.Id,
+            new ResponderPendenciaPartidaDto("placar incorreto"));
+
+        Assert.Equal(StatusAprovacaoPartida.Contestada, cenario.Partida.StatusAprovacao);
+        Assert.Equal(StatusPendenciaUsuario.Concluida, cenario.PendenciaValidante1.Status);
+        Assert.Equal(StatusPendenciaUsuario.Cancelada, cenario.PendenciaValidante2.Status);
+        Assert.Equal(StatusPartidaAprovacao.Contestada, cenario.AprovacaoValidante1.Status);
+        Assert.Equal(StatusPartidaAprovacao.Pendente, cenario.AprovacaoValidante2.Status);
+    }
+
+    [Fact]
+    public async Task AprovarPartidaAsync_AtletaForaDaDuplaValidanteNaoPodeResponder()
+    {
+        var cenario = CenarioAprovacao.CriarComUsuarioForaDaDuplaValidante();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AprovarPartidaAsync(
+                cenario.PendenciaAtletaNaoAutorizado!.Id,
+                new ResponderPendenciaPartidaDto(null)));
+
+        Assert.Equal("Apenas atletas da Dupla 2 podem validar esta partida.", excecao.Message);
+        Assert.Equal(StatusAprovacaoPartida.PendenteAprovacao, cenario.Partida.StatusAprovacao);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.PendenciaAtletaNaoAutorizado!.Status);
+    }
+
+    [Fact]
+    public async Task ContestarPartidaAsync_AtletaForaDaDuplaValidanteNaoPodeResponder()
+    {
+        var cenario = CenarioAprovacao.CriarComUsuarioForaDaDuplaValidante();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ContestarPartidaAsync(
+                cenario.PendenciaAtletaNaoAutorizado!.Id,
+                new ResponderPendenciaPartidaDto(null)));
+
+        Assert.Equal("Apenas atletas da Dupla 2 podem validar esta partida.", excecao.Message);
+        Assert.Equal(StatusAprovacaoPartida.PendenteAprovacao, cenario.Partida.StatusAprovacao);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.PendenciaAtletaNaoAutorizado!.Status);
+    }
+
+    [Fact]
     public async Task CompletarContatoAsync_VinculaPartidaAoAtletaExistentePorEmail()
     {
         var cenario = Cenario.Criar();
@@ -74,6 +152,156 @@ public class PendenciaServicoContatoTests
             partida.DuplaB?.Atleta1Id,
             partida.DuplaB?.Atleta2Id
         }.OfType<Guid>().ToList();
+    }
+
+    private sealed class CenarioAprovacao
+    {
+        private readonly List<PendenciaUsuario> pendencias = [];
+
+        public Usuario UsuarioAtual { get; private set; } = default!;
+        public Atleta AtletaCriador1 { get; private set; } = default!;
+        public Atleta AtletaCriador2 { get; private set; } = default!;
+        public Atleta AtletaValidante1 { get; private set; } = default!;
+        public Atleta AtletaValidante2 { get; private set; } = default!;
+        public Partida Partida { get; private set; } = default!;
+        public PartidaAprovacao AprovacaoValidante1 { get; private set; } = default!;
+        public PartidaAprovacao AprovacaoValidante2 { get; private set; } = default!;
+        public PendenciaUsuario PendenciaValidante1 { get; private set; } = default!;
+        public PendenciaUsuario PendenciaValidante2 { get; private set; } = default!;
+        public PendenciaUsuario? PendenciaAtletaNaoAutorizado { get; private set; }
+        public PartidaAprovacaoRepositorioMemoria Aprovacoes { get; } = new();
+        public PendenciaServico Servico { get; private set; } = default!;
+
+        public static CenarioAprovacao Criar()
+        {
+            var cenario = new CenarioAprovacao();
+            cenario.Montar();
+            cenario.UsuarioAtual = cenario.AtletaValidante1.Usuario!;
+            cenario.CriarServico();
+            return cenario;
+        }
+
+        public static CenarioAprovacao CriarComUsuarioForaDaDuplaValidante()
+        {
+            var cenario = new CenarioAprovacao();
+            cenario.Montar();
+            cenario.UsuarioAtual = cenario.AtletaCriador1.Usuario!;
+            cenario.PendenciaAtletaNaoAutorizado = cenario.CriarPendenciaAprovacao(cenario.AtletaCriador1);
+            cenario.Aprovacoes.Itens.Add(cenario.CriarAprovacao(cenario.AtletaCriador1));
+            cenario.CriarServico();
+            return cenario;
+        }
+
+        private void Montar()
+        {
+            AtletaCriador1 = CriarAtleta("Criador Um");
+            AtletaCriador2 = CriarAtleta("Criador Dois");
+            AtletaValidante1 = CriarAtleta("Validante Um");
+            AtletaValidante2 = CriarAtleta("Validante Dois");
+            var duplaA = CriarDupla(AtletaCriador1, AtletaCriador2);
+            var duplaB = CriarDupla(AtletaValidante1, AtletaValidante2);
+            Partida = new Partida
+            {
+                CriadoPorUsuarioId = AtletaCriador1.Usuario!.Id,
+                CriadoPorUsuario = AtletaCriador1.Usuario,
+                DuplaAId = duplaA.Id,
+                DuplaA = duplaA,
+                DuplaBId = duplaB.Id,
+                DuplaB = duplaB,
+                DuplaVencedoraId = duplaA.Id,
+                DuplaVencedora = duplaA,
+                PlacarDuplaA = 21,
+                PlacarDuplaB = 18,
+                Status = StatusPartida.Encerrada,
+                StatusAprovacao = StatusAprovacaoPartida.PendenteAprovacao,
+                DataPartida = DateTime.UtcNow.AddDays(-1)
+            };
+
+            AprovacaoValidante1 = CriarAprovacao(AtletaValidante1);
+            AprovacaoValidante2 = CriarAprovacao(AtletaValidante2);
+            Aprovacoes.Itens.AddRange([AprovacaoValidante1, AprovacaoValidante2]);
+            PendenciaValidante1 = CriarPendenciaAprovacao(AtletaValidante1);
+            PendenciaValidante2 = CriarPendenciaAprovacao(AtletaValidante2);
+        }
+
+        private void CriarServico()
+        {
+            var partidas = new PartidaRepositorioMemoria([Partida]);
+            var usuarios = new UsuarioRepositorioMemoria(ObterAtletas().Select(x => x.Usuario!).ToList());
+            var atletas = new AtletaRepositorioMemoria(ObterAtletas().ToList());
+            var resolvedor = new ResolvedorAtletaDuplaMemoria([Partida.DuplaA!, Partida.DuplaB!]);
+
+            Servico = new PendenciaServico(
+                partidas,
+                Aprovacoes,
+                new PendenciaUsuarioRepositorioMemoria(pendencias),
+                usuarios,
+                atletas,
+                new GrupoAtletaRepositorioStub(),
+                new UnidadeTrabalhoStub(),
+                new AutorizacaoUsuarioServicoStub(UsuarioAtual),
+                resolvedor,
+                new ConsolidacaoAtletaServicoMemoria([Partida.DuplaA!, Partida.DuplaB!]),
+                new ConviteCadastroServicoStub());
+        }
+
+        private IReadOnlyList<Atleta> ObterAtletas()
+            => [AtletaCriador1, AtletaCriador2, AtletaValidante1, AtletaValidante2];
+
+        private static Atleta CriarAtleta(string nome)
+        {
+            var atleta = new Atleta { Nome = nome, Apelido = nome.Split(' ')[0], Email = $"{nome.Replace(" ", ".").ToLowerInvariant()}@teste.com" };
+            var usuario = new Usuario
+            {
+                Nome = nome,
+                Email = atleta.Email,
+                Ativo = true,
+                AtletaId = atleta.Id,
+                Atleta = atleta
+            };
+            atleta.Usuario = usuario;
+            return atleta;
+        }
+
+        private static Dupla CriarDupla(Atleta atleta1, Atleta atleta2)
+            => new()
+            {
+                Nome = $"{atleta1.Nome} / {atleta2.Nome}",
+                Atleta1Id = atleta1.Id,
+                Atleta1 = atleta1,
+                Atleta2Id = atleta2.Id,
+                Atleta2 = atleta2
+            };
+
+        private PartidaAprovacao CriarAprovacao(Atleta atleta)
+            => new()
+            {
+                PartidaId = Partida.Id,
+                Partida = Partida,
+                AtletaId = atleta.Id,
+                Atleta = atleta,
+                UsuarioId = atleta.Usuario!.Id,
+                Usuario = atleta.Usuario,
+                Status = StatusPartidaAprovacao.Pendente,
+                DataSolicitacao = DateTime.UtcNow.AddMinutes(-10)
+            };
+
+        private PendenciaUsuario CriarPendenciaAprovacao(Atleta atleta)
+        {
+            var pendencia = new PendenciaUsuario
+            {
+                Tipo = TipoPendenciaUsuario.AprovarPartida,
+                UsuarioId = atleta.Usuario!.Id,
+                Usuario = atleta.Usuario,
+                AtletaId = atleta.Id,
+                Atleta = atleta,
+                PartidaId = Partida.Id,
+                Partida = Partida,
+                Status = StatusPendenciaUsuario.Pendente
+            };
+            pendencias.Add(pendencia);
+            return pendencia;
+        }
     }
 
     private sealed class Cenario
