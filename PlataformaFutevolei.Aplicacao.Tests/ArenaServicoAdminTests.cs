@@ -296,6 +296,82 @@ public class ArenaServicoAdminTests
         Assert.False(atualizados[0].Ativo);
     }
 
+    [Fact]
+    public async Task CriarAsync_CriaArenaComResponsavelESlug()
+    {
+        var cenario = new Cenario();
+
+        var arena = await cenario.Servico.CriarAsync(NovoCriarDto("Arena Legado"));
+
+        Assert.Equal("Arena Legado", arena.Nome);
+        Assert.Equal("arena-legado", arena.Slug);
+        Assert.True(arena.Publica);
+        Assert.True(arena.Ativa);
+        var criada = await cenario.Servico.ObterPorIdAsync(arena.Id);
+        Assert.Equal(cenario.Usuario.Id, criada.UsuarioResponsavelId);
+    }
+
+    [Fact]
+    public async Task CriarAsync_NomeDuplicado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.AdicionarArena("Arena Existente", "arena-existente", cenario.Usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarAsync(NovoCriarDto("Arena Existente")));
+
+        Assert.Equal("Já existe uma arena cadastrada com este nome.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_ComResponsavel_AtualizaDadosERegeneraSlug()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Antiga", "arena-antiga", cenario.Usuario);
+
+        var atualizada = await cenario.Servico.AtualizarAsync(arena.Id, NovoAtualizarDto("Arena Nova"));
+
+        Assert.Equal("Arena Nova", atualizada.Nome);
+        Assert.Equal("arena-nova", atualizada.Slug);
+        Assert.Equal(TipoArena.Clube, atualizada.TipoArena);
+        Assert.Equal(4, atualizada.QuantidadeEspacos);
+        Assert.False(atualizada.Publica);
+        Assert.False(atualizada.Ativa);
+        Assert.Equal("logo-public-id", atualizada.LogoPublicId);
+        Assert.Equal("capa-public-id", atualizada.CapaPublicId);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_SemPermissao_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Alheia", "arena-alheia");
+
+        await Assert.ThrowsAsync<AcessoNegadoException>(() =>
+            cenario.Servico.AtualizarAsync(arena.Id, NovoAtualizarDto("Arena Nova")));
+    }
+
+    [Fact]
+    public async Task ObterPorIdAsync_ArenaInexistente_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.ObterPorIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task RemoverAsync_ComResponsavel_RemoveArena()
+    {
+        var cenario = new Cenario();
+        var arena = cenario.AdicionarArena("Arena Remover", "arena-remover", cenario.Usuario);
+
+        await cenario.Servico.RemoverAsync(arena.Id);
+
+        await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.ObterAdminAsync(arena.Id));
+    }
+
     private static CriarArenaRequest NovoRequest(string nome)
         => new(
             nome, "Descrição", TipoArena.ArenaPrivada, "Rua 1", "Centro", "Santos", "SP",
@@ -307,6 +383,50 @@ public class ArenaServicoAdminTests
             nome, "Nova descrição", TipoArena.Clube, "Rua 2", "Bairro", "Santos", "SP",
             null, null, null, null, null, 3, true,
             true, true, true, true, true, true, true);
+
+    private static CriarArenaDto NovoCriarDto(string nome)
+        => new(
+            nome,
+            "Descrição",
+            TipoArena.Praia,
+            2,
+            "Rua 1",
+            "Canal 1",
+            "Santos",
+            "SP",
+            null,
+            null,
+            "13999990000",
+            "@arena",
+            "https://arena.test",
+            "https://cdn.test/logo.jpg",
+            "logo-public-id",
+            "https://cdn.test/capa.jpg",
+            "capa-public-id",
+            Publica: true,
+            Ativa: true);
+
+    private static AtualizarArenaDto NovoAtualizarDto(string nome)
+        => new(
+            nome,
+            "Atualizada",
+            TipoArena.Clube,
+            4,
+            "Rua 2",
+            "Canal 2",
+            "Guarujá",
+            "SP",
+            null,
+            null,
+            "13888880000",
+            "@nova",
+            "https://nova.test",
+            "https://cdn.test/logo-novo.jpg",
+            "logo-public-id",
+            "https://cdn.test/capa-nova.jpg",
+            "capa-public-id",
+            Publica: false,
+            Ativa: false);
 
     private sealed class Cenario
     {
