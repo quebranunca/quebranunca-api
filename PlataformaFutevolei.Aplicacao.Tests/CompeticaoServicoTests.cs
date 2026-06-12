@@ -14,6 +14,17 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class CompeticaoServicoTests
 {
     [Fact]
+    public async Task ListarAsync_SemCompeticoes_RetornaVazio()
+    {
+        var admin = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
+        var cenario = new Cenario(usuario: admin);
+
+        var resultado = await cenario.Servico.ListarAsync();
+
+        Assert.Empty(resultado);
+    }
+
+    [Fact]
     public async Task ListarAsync_SemAutenticacao_RetornaApenasCampeonatosEEventosOrdenados()
     {
         var cenario = new Cenario(
@@ -69,6 +80,35 @@ public class CompeticaoServicoTests
 
         Assert.Single(resultado);
         Assert.Equal(organizador.Id, resultado.Single().UsuarioOrganizadorId);
+    }
+
+    [Fact]
+    public async Task ObterPorIdAsync_AdminConsegueVisualizarCompeticao_ComRelacionamentos()
+    {
+        var admin = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
+        var liga = new Liga { Nome = "Liga Sul", Descricao = "l" };
+        var arena = new Arena { Nome = "Arena Sul" };
+        var regra = new RegraCompeticao { Nome = "Regra Gold" };
+        var competicao = Novo(
+            "Campeonato Completo",
+            TipoCompeticao.Campeonato,
+            DateTime.UtcNow,
+            liga: liga,
+            arena: arena,
+            regra: regra);
+
+        var cenario = new Cenario(
+            usuario: admin,
+            competicoes: [competicao],
+            ligas: [liga],
+            arenas: [arena],
+            regras: [regra]);
+
+        var resultado = await cenario.Servico.ObterPorIdAsync(competicao.Id);
+
+        Assert.Equal("Liga Sul", resultado.NomeLiga);
+        Assert.Equal("Arena Sul", resultado.NomeArena);
+        Assert.Equal("Regra Gold", resultado.NomeRegraCompeticao);
     }
 
     [Fact]
@@ -324,13 +364,53 @@ public class CompeticaoServicoTests
         await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() => cenario.Servico.RemoverAsync(Guid.NewGuid()));
     }
 
+    [Fact]
+    public async Task ObterCampeonatoPorIdAsync_AdminConsegueVisualizarCategoria()
+    {
+        var admin = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
+        var categoriaA = new CategoriaCompeticao
+        {
+            Nome = "Feminino",
+            Genero = GeneroCategoria.Misto,
+            Nivel = NivelCategoria.Profissional,
+        };
+        var categoriaB = new CategoriaCompeticao
+        {
+            Nome = "Masculino",
+            Genero = GeneroCategoria.Masculino,
+            Nivel = NivelCategoria.Intermediario,
+        };
+        var competicao = Novo(
+            "Campeonato Regional",
+            TipoCompeticao.Campeonato,
+            DateTime.UtcNow.AddHours(1),
+            categorias: [categoriaA, categoriaB]);
+
+        categoriaA.Competicao = competicao;
+        categoriaA.CompeticaoId = competicao.Id;
+        categoriaB.Competicao = competicao;
+        categoriaB.CompeticaoId = competicao.Id;
+
+        var cenario = new Cenario(
+            usuario: admin,
+            competicoes: [competicao]);
+
+        var resultado = await cenario.Servico.ObterCampeonatoPorIdAsync(competicao.Id);
+
+        Assert.Equal(2, resultado.Categorias.Count);
+        Assert.Contains("Feminino", resultado.Categorias.Select(x => x.Nome));
+        Assert.Contains("Masculino", resultado.Categorias.Select(x => x.Nome));
+    }
+
     private static Competicao Novo(
         string nome,
         TipoCompeticao tipo,
         DateTime dataInicio,
         Guid? usuarioOrganizadorId = null,
         Liga? liga = null,
-        Arena? arena = null)
+        Arena? arena = null,
+        RegraCompeticao? regra = null,
+        IReadOnlyList<CategoriaCompeticao>? categorias = null)
         => new()
         {
             Nome = nome,
@@ -342,7 +422,11 @@ public class CompeticaoServicoTests
             LigaId = liga?.Id,
             Arena = arena,
             ArenaId = arena?.Id,
+            RegraCompeticao = regra,
+            RegraCompeticaoId = regra?.Id,
             UsuarioOrganizadorId = usuarioOrganizadorId
+,
+            Categorias = categorias?.ToList() ?? []
         };
 
     private static CriarCompeticaoDto CriarDto(
