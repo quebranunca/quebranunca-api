@@ -95,6 +95,7 @@ public class PendenciaServicoContatoTests
     {
         var cenario = Cenario.Criar();
         var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
+        cenario.AdicionarAoGrupo(atletaExistente);
 
         var resultado = await cenario.Servico.CompletarContatoAsync(
             cenario.Pendencia.Id,
@@ -110,7 +111,86 @@ public class PendenciaServicoContatoTests
     }
 
     [Fact]
-    public async Task CompletarContatoAsync_EmailInexistente_MantemFluxoAtualComConvite()
+    public async Task CompletarContatoAsync_AtletaIdValidoDoGrupo_VinculaPartidaAoAtleta()
+    {
+        var cenario = Cenario.Criar();
+        var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
+        cenario.AdicionarAoGrupo(atletaExistente);
+
+        await cenario.Servico.CompletarContatoAsync(
+            cenario.Pendencia.Id,
+            new AtualizarContatoPendenciaDto(null, atletaExistente.Id));
+
+        Assert.Equal(StatusPendenciaUsuario.Concluida, cenario.Pendencia.Status);
+        Assert.Contains(atletaExistente.Id, ObterAtletasPartida(cenario.Partida));
+        Assert.DoesNotContain(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
+        Assert.Single(cenario.Partidas.ListarPorAtleta(atletaExistente.Id));
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_AtletaIdForaDoGrupo_Rejeita()
+    {
+        var cenario = Cenario.Criar();
+        var atletaForaDoGrupo = cenario.CriarAtleta("Atleta Fora", "fora@teste.com", possuiUsuario: true);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, atletaForaDoGrupo.Id)));
+
+        Assert.Equal("Selecione um atleta cadastrado e ativo no grupo desta partida.", excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+        Assert.Contains(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_AtletaIdSemCadastroAtivo_Rejeita()
+    {
+        var cenario = Cenario.Criar();
+        var atletaSemUsuario = cenario.CriarAtleta("Atleta Sem Usuario", "semusuario@teste.com", possuiUsuario: false);
+        cenario.AdicionarAoGrupo(atletaSemUsuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, atletaSemUsuario.Id)));
+
+        Assert.Equal("Selecione um atleta cadastrado e ativo no grupo desta partida.", excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_SemAtletaIdESemEmail_Rejeita()
+    {
+        var cenario = Cenario.Criar();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, null)));
+
+        Assert.Equal("Informe atletaId ou e-mail, mas não os dois.", excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_ComAtletaIdEEmail_Rejeita()
+    {
+        var cenario = Cenario.Criar();
+        var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
+        cenario.AdicionarAoGrupo(atletaExistente);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto("existente@teste.com", atletaExistente.Id)));
+
+        Assert.Equal("Informe atletaId ou e-mail, mas não os dois.", excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_EmailInexistente_DeixaAguardandoCadastroComConvite()
     {
         var cenario = Cenario.Criar();
 
@@ -119,10 +199,12 @@ public class PendenciaServicoContatoTests
             new AtualizarContatoPendenciaDto(" novo@teste.com "));
 
         Assert.Equal("novo@teste.com", cenario.AtletaPendente.Email);
-        Assert.Equal(StatusPendenciaUsuario.Concluida, cenario.Pendencia.Status);
+        Assert.Equal(StatusPendenciaUsuario.AguardandoCadastro, cenario.Pendencia.Status);
         Assert.Single(cenario.Convites.Criados);
         Assert.Equal(cenario.AtletaPendente.Id, cenario.Convites.Criados[0].AtletaId);
         Assert.Contains(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
+        Assert.Single(cenario.Partidas.ListarPorAtleta(cenario.AtletaPendente.Id));
+        Assert.Equal("Pendente Sem Email", cenario.AtletaPendente.Nome);
     }
 
     [Fact]
@@ -322,6 +404,8 @@ public class PendenciaServicoContatoTests
         public List<Atleta> Atletas { get; } = [];
         public List<Usuario> Usuarios { get; } = [];
         public List<Dupla> Duplas { get; } = [];
+        public Guid GrupoId { get; } = Guid.NewGuid();
+        public GrupoAtletaRepositorioStub GruposAtletas { get; } = new();
         public PartidaRepositorioMemoria Partidas { get; private set; } = default!;
         public PartidaAprovacaoRepositorioMemoria Aprovacoes { get; } = new();
         public ConviteCadastroServicoStub Convites { get; } = new();
@@ -336,6 +420,9 @@ public class PendenciaServicoContatoTests
             cenario.AtletaParceiro = cenario.CriarAtleta("Parceiro", "parceiro@teste.com", possuiUsuario: true);
             cenario.AtletaOponente1 = cenario.CriarAtleta("Oponente Um", "oponente1@teste.com", possuiUsuario: true);
             cenario.AtletaOponente2 = cenario.CriarAtleta("Oponente Dois", "oponente2@teste.com", possuiUsuario: true);
+            cenario.AdicionarAoGrupo(cenario.AtletaParceiro);
+            cenario.AdicionarAoGrupo(cenario.AtletaOponente1);
+            cenario.AdicionarAoGrupo(cenario.AtletaOponente2);
 
             var duplaA = cenario.CriarDupla(cenario.AtletaPendente, cenario.AtletaParceiro);
             var duplaB = cenario.CriarDupla(cenario.AtletaOponente1, cenario.AtletaOponente2);
@@ -352,6 +439,7 @@ public class PendenciaServicoContatoTests
                 PlacarDuplaB = 18,
                 Status = StatusPartida.Encerrada,
                 StatusAprovacao = StatusAprovacaoPartida.PendenteDeVinculos,
+                GrupoId = cenario.GrupoId,
                 DataPartida = DateTime.UtcNow.AddDays(-1)
             };
 
@@ -379,7 +467,7 @@ public class PendenciaServicoContatoTests
                 pendencias,
                 usuarios,
                 atletas,
-                new GrupoAtletaRepositorioStub(),
+                cenario.GruposAtletas,
                 new UnidadeTrabalhoStub(),
                 new AutorizacaoUsuarioServicoStub(cenario.UsuarioAtual),
                 resolvedor,
@@ -387,6 +475,16 @@ public class PendenciaServicoContatoTests
                 cenario.Convites);
 
             return cenario;
+        }
+
+        public void AdicionarAoGrupo(Atleta atleta)
+        {
+            GruposAtletas.Vinculos.Add(new GrupoAtleta
+            {
+                GrupoId = GrupoId,
+                AtletaId = atleta.Id,
+                Atleta = atleta
+            });
         }
 
         public Atleta CriarAtleta(string nome, string? email, bool possuiUsuario)
@@ -575,15 +673,17 @@ public class PendenciaServicoContatoTests
 
     private sealed class GrupoAtletaRepositorioStub : IGrupoAtletaRepositorio
     {
-        public Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>([]);
-        public Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoParaAtualizacaoAsync(Guid grupoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>([]);
-        public Task<IReadOnlyList<GrupoAtleta>> BuscarPorGrupoAsync(Guid grupoId, string termo, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>([]);
-        public Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>([]);
-        public Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>([]);
+        public List<GrupoAtleta> Vinculos { get; } = [];
+
+        public Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>(Vinculos.Where(x => x.GrupoId == grupoId).ToList());
+        public Task<IReadOnlyList<GrupoAtleta>> ListarPorGrupoParaAtualizacaoAsync(Guid grupoId, CancellationToken cancellationToken = default) => ListarPorGrupoAsync(grupoId, cancellationToken);
+        public Task<IReadOnlyList<GrupoAtleta>> BuscarPorGrupoAsync(Guid grupoId, string termo, CancellationToken cancellationToken = default) => ListarPorGrupoAsync(grupoId, cancellationToken);
+        public Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<GrupoAtleta>>(Vinculos.Where(x => x.AtletaId == atletaId).ToList());
+        public Task<IReadOnlyList<GrupoAtleta>> ListarPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default) => ListarPorAtletaAsync(atletaId, cancellationToken);
         public Task<GrupoAtleta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<GrupoAtleta?>(null);
-        public Task<GrupoAtleta?> ObterPorGrupoEAtletaAsync(Guid grupoId, Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<GrupoAtleta?>(null);
-        public Task AdicionarAsync(GrupoAtleta grupoAtleta, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Remover(GrupoAtleta grupoAtleta) { }
+        public Task<GrupoAtleta?> ObterPorGrupoEAtletaAsync(Guid grupoId, Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult(Vinculos.FirstOrDefault(x => x.GrupoId == grupoId && x.AtletaId == atletaId));
+        public Task AdicionarAsync(GrupoAtleta grupoAtleta, CancellationToken cancellationToken = default) { Vinculos.Add(grupoAtleta); return Task.CompletedTask; }
+        public void Remover(GrupoAtleta grupoAtleta) => Vinculos.Remove(grupoAtleta);
     }
 
     private sealed class ConsolidacaoAtletaServicoMemoria(List<Dupla> duplas) : IConsolidacaoAtletaServico

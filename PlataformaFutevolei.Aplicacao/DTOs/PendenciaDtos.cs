@@ -28,7 +28,9 @@ public record PendenciaUsuarioDto(
     int? PlacarDuplaA,
     int? PlacarDuplaB,
     Guid? CriadoPorUsuarioId,
-    string? NomeCriadoPorUsuario
+    string? NomeCriadoPorUsuario,
+    Guid? GrupoId,
+    string? NomeGrupo
 );
 
 public record PendenciasResumoDto(
@@ -43,7 +45,8 @@ public record ResponderPendenciaPartidaDto(
 );
 
 public record AtualizarContatoPendenciaDto(
-    string Email
+    string? Email,
+    Guid? AtletaId = null
 );
 
 public record UsuarioAtletaPendenciaDto(

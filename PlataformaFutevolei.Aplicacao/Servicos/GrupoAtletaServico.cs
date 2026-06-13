@@ -73,7 +73,9 @@ public class GrupoAtletaServico(
         }
 
         var atletas = await grupoAtletaRepositorio.BuscarPorGrupoAsync(grupo.Id, termoNormalizado, cancellationToken);
-        return atletas.Select(x =>
+        return atletas
+            .Where(x => AtletaTemCadastroAtivo(x.Atleta))
+            .Select(x =>
         {
             var nome = x.Atleta?.Nome ?? string.Empty;
             var apelido = x.Atleta?.Apelido;
@@ -349,6 +351,13 @@ public class GrupoAtletaServico(
         {
             throw new RegraNegocioException(MensagemEmailDuplicado);
         }
+    }
+
+    private static bool AtletaTemCadastroAtivo(Atleta? atleta)
+    {
+        return atleta is not null &&
+               !atleta.CadastroPendente &&
+               atleta.Usuario is { Ativo: true, DadosAnonimizados: false };
     }
 
     private static void GarantirNomeDisponivelParaNovoAtleta(

@@ -13,7 +13,10 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
         CancellationToken cancellationToken = default)
     {
         return await CriarConsultaDetalhada(usarNoTracking: true)
-            .Where(x => x.UsuarioId == usuarioId && x.Status == StatusPendenciaUsuario.Pendente)
+            .Where(x =>
+                x.UsuarioId == usuarioId &&
+                (x.Status == StatusPendenciaUsuario.Pendente ||
+                 x.Status == StatusPendenciaUsuario.AguardandoCadastro))
             .OrderByDescending(x => x.DataCriacao)
             .ToListAsync(cancellationToken);
     }
@@ -96,6 +99,8 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
                 .ThenInclude(x => x!.Usuario)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.CriadoPorUsuario)
+            .Include(x => x.Partida)
+                .ThenInclude(x => x!.Grupo)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.DuplaA)
                     .ThenInclude(x => x.Atleta1)

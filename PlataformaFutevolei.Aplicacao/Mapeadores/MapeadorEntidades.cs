@@ -479,7 +479,9 @@ internal static class MapeadorEntidades
             pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaA : null,
             pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaB : null,
             pendencia.Partida?.CriadoPorUsuarioId,
-            pendencia.Partida?.CriadoPorUsuario?.Nome
+            pendencia.Partida?.CriadoPorUsuario?.Nome,
+            pendencia.Partida?.GrupoId,
+            pendencia.Partida?.Grupo?.Nome
         );
 
     private static int? ObterNumeroDuplaVencedora(Partida partida)

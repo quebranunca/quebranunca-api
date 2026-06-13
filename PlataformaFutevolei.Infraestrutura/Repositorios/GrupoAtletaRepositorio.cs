@@ -45,6 +45,11 @@ public class GrupoAtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IG
                 .ThenInclude(x => x.Usuario)
             .Where(x => x.GrupoId == grupoId)
             .Where(x =>
+                !x.Atleta.CadastroPendente &&
+                x.Atleta.Usuario != null &&
+                x.Atleta.Usuario.Ativo &&
+                !x.Atleta.Usuario.DadosAnonimizados)
+            .Where(x =>
                 x.Atleta.Nome.ToLower().StartsWith(termoNormalizado) ||
                 (x.Atleta.Apelido != null && x.Atleta.Apelido.ToLower().StartsWith(termoNormalizado)))
             .OrderBy(x => x.Atleta.Apelido ?? x.Atleta.Nome)
