@@ -464,7 +464,7 @@ internal static class MapeadorEntidades
             pendencia.UsuarioId,
             pendencia.AtletaId,
             pendencia.Atleta?.Nome,
-            pendencia.Atleta?.Email,
+            pendencia.EmailInformado ?? pendencia.Atleta?.Email,
             pendencia.Atleta is null ? null : StatusCadastroAtletaUtil.PossuiUsuarioVinculado(pendencia.Atleta),
             pendencia.PartidaId,
             pendencia.Partida?.DataPartida,

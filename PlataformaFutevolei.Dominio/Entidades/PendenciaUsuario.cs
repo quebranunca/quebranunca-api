@@ -11,6 +11,7 @@ public class PendenciaUsuario : EntidadeBase
     public StatusPendenciaUsuario Status { get; set; } = StatusPendenciaUsuario.Pendente;
     public DateTime? DataConclusao { get; set; }
     public string? Observacao { get; set; }
+    public string? EmailInformado { get; set; }
 
     public Usuario Usuario { get; set; } = default!;
     public Atleta? Atleta { get; set; }

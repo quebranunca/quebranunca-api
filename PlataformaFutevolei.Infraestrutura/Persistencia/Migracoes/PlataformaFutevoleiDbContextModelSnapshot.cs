@@ -1454,6 +1454,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("observacao");
 
+                    b.Property<string>("EmailInformado")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("email_informado");
+
                     b.Property<Guid?>("PartidaId")
                         .HasColumnType("uuid")
                         .HasColumnName("partida_id");

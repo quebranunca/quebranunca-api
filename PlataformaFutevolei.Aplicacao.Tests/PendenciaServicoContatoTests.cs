@@ -194,17 +194,61 @@ public class PendenciaServicoContatoTests
     {
         var cenario = Cenario.Criar();
 
-        await cenario.Servico.CompletarContatoAsync(
+        var resultado = await cenario.Servico.CompletarContatoAsync(
             cenario.Pendencia.Id,
             new AtualizarContatoPendenciaDto(" novo@teste.com "));
 
-        Assert.Equal("novo@teste.com", cenario.AtletaPendente.Email);
+        Assert.Null(cenario.AtletaPendente.Email);
+        Assert.Equal("novo@teste.com", cenario.Pendencia.EmailInformado);
+        Assert.Equal("novo@teste.com", resultado.Pendencia.EmailAtleta);
         Assert.Equal(StatusPendenciaUsuario.AguardandoCadastro, cenario.Pendencia.Status);
         Assert.Single(cenario.Convites.Criados);
         Assert.Equal(cenario.AtletaPendente.Id, cenario.Convites.Criados[0].AtletaId);
         Assert.Contains(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
         Assert.Single(cenario.Partidas.ListarPorAtleta(cenario.AtletaPendente.Id));
         Assert.Equal("Pendente Sem Email", cenario.AtletaPendente.Nome);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_EmailExistenteSemCadastroAtivo_DeixaAguardandoCadastroSemAlterarEmailDoAtleta()
+    {
+        var cenario = Cenario.Criar();
+        _ = cenario.CriarAtleta("Atleta Incompleto", "duplicado@teste.com", possuiUsuario: false);
+
+        await cenario.Servico.CompletarContatoAsync(
+            cenario.Pendencia.Id,
+            new AtualizarContatoPendenciaDto("duplicado@teste.com"));
+
+        Assert.Null(cenario.AtletaPendente.Email);
+        Assert.Equal("duplicado@teste.com", cenario.Pendencia.EmailInformado);
+        Assert.Equal(StatusPendenciaUsuario.AguardandoCadastro, cenario.Pendencia.Status);
+        Assert.Single(cenario.Convites.Criados);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_AguardandoCadastro_PermiteAlterarEmail()
+    {
+        var cenario = Cenario.Criar();
+
+        await cenario.Servico.CompletarContatoAsync(
+            cenario.Pendencia.Id,
+            new AtualizarContatoPendenciaDto("primeiro@teste.com"));
+
+        await cenario.Servico.CompletarContatoAsync(
+            cenario.Pendencia.Id,
+            new AtualizarContatoPendenciaDto("segundo@teste.com"));
+
+        Assert.Null(cenario.AtletaPendente.Email);
+        Assert.Equal("segundo@teste.com", cenario.Pendencia.EmailInformado);
+        Assert.Equal(StatusPendenciaUsuario.AguardandoCadastro, cenario.Pendencia.Status);
+        Assert.Equal(2, cenario.Convites.Criados.Count);
+        Assert.Equal("segundo@teste.com", cenario.Convites.Criados[1].Email);
+    }
+
+    [Fact]
+    public void StatusPendenciaUsuario_AguardandoCadastro_MantemValorEsperado()
+    {
+        Assert.Equal(4, (int)StatusPendenciaUsuario.AguardandoCadastro);
     }
 
     [Fact]

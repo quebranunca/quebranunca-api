@@ -198,11 +198,10 @@ public class PendenciaServico(
 
             await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, ct);
 
-            atleta.Email = emailNormalizado;
-            atleta.AtualizarDataModificacao();
             deveCriarConvite = true;
             emailConvite = emailNormalizado;
             telefoneConvite = atleta.Telefone;
+            pendencia.EmailInformado = emailNormalizado;
             pendencia.Status = StatusPendenciaUsuario.AguardandoCadastro;
             pendencia.DataConclusao = null;
             pendencia.Observacao = "Contato informado. Aguardando cadastro ativo do atleta para concluir o vínculo.";
