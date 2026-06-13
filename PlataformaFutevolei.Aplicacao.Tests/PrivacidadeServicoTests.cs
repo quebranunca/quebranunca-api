@@ -12,6 +12,23 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class PrivacidadeServicoTests
 {
     [Fact]
+    public async Task ObterPoliticaAtualAsync_RetornaVersaoVigente()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com"
+        });
+
+        var politica = await cenario.Servico.ObterPoliticaAtualAsync();
+
+        Assert.Equal(PrivacidadeServico.VersaoPoliticaPrivacidadeAtual, politica.Versao);
+        Assert.True(politica.ExigeAceitePoliticaPrivacidade);
+        Assert.True(politica.ExigeAceiteTermosUso);
+        Assert.Equal(new DateTime(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc), politica.VigenteDesdeUtc);
+    }
+
+    [Fact]
     public async Task ObterMinhasPreferenciasAsync_RetornaPreferenciasDoUsuarioAtual()
     {
         var cenario = new Cenario(new Usuario
@@ -65,6 +82,52 @@ public class PrivacidadeServicoTests
         Assert.False(preferencias.ExibirEmail);
         Assert.True(preferencias.PermitirUsoLocalizacao);
         Assert.True(preferencias.PermitirUsoImagem);
+    }
+
+    [Fact]
+    public async Task AtualizarMinhasPreferenciasAsync_DesativaLocalizacaoEImagem()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            PerfilPublico = true,
+            ExibirEmail = true,
+            PermitirUsoLocalizacao = true,
+            PermitirUsoImagem = true
+        });
+
+        var preferencias = await cenario.Servico.AtualizarMinhasPreferenciasAsync(
+            new AtualizarPreferenciasPrivacidadeDto(
+                PerfilPublico: true,
+                ExibirEmail: true,
+                PermitirUsoLocalizacao: false,
+                PermitirUsoImagem: false));
+
+        Assert.False(cenario.Usuario.PermitirUsoLocalizacao);
+        Assert.False(cenario.Usuario.PermitirUsoImagem);
+        Assert.False(preferencias.PermitirUsoLocalizacao);
+        Assert.False(preferencias.PermitirUsoImagem);
+    }
+
+    [Fact]
+    public async Task AtualizarMinhasPreferenciasAsync_UsuarioNaoEncontrado_Bloqueia()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com"
+        });
+        cenario.DefinirUsuarioAtual(new Usuario
+        {
+            Nome = "Outro",
+            Email = "outro@example.com"
+        });
+
+        var excecao = await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.AtualizarMinhasPreferenciasAsync(new AtualizarPreferenciasPrivacidadeDto(true, true, true, true)));
+
+        Assert.Equal("Usuário não encontrado.", excecao.Message);
     }
 
     [Fact]
@@ -124,6 +187,26 @@ public class PrivacidadeServicoTests
     }
 
     [Fact]
+    public async Task RegistrarConsentimentoAsync_VersaoVazia_UsaVersaoAtual()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com"
+        });
+
+        await cenario.Servico.RegistrarConsentimentoAsync(new RegistrarConsentimentoLgpdDto(
+            AceitouPoliticaPrivacidade: true,
+            AceitouTermosUso: true,
+            AceitouUsoLocalizacao: false,
+            AceitouUsoImagem: false,
+            VersaoPoliticaPrivacidade: "   "));
+
+        Assert.NotNull(cenario.UltimoConsentimento);
+        Assert.Equal(PrivacidadeServico.VersaoPoliticaPrivacidadeAtual, cenario.UltimoConsentimento!.VersaoPoliticaPrivacidade);
+    }
+
+    [Fact]
     public async Task UsuarioPrecisaAceitarPoliticaAsync_SemConsentimento_RetornaTrue()
     {
         var cenario = new Cenario(new Usuario
@@ -135,6 +218,30 @@ public class PrivacidadeServicoTests
         var precisaAceitar = await cenario.Servico.UsuarioPrecisaAceitarPoliticaAsync(cenario.Usuario.Id);
 
         Assert.True(precisaAceitar);
+    }
+
+    [Fact]
+    public async Task UsuarioPrecisaAceitarPoliticaAsync_VersaoAtualETermosAceitos_RetornaFalse()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com"
+        });
+        await cenario.AdicionarConsentimentoAsync(new UsuarioConsentimentoLgpd
+        {
+            UsuarioId = cenario.Usuario.Id,
+            VersaoPoliticaPrivacidade = PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+            AceitouPoliticaPrivacidade = true,
+            AceitouTermosUso = true,
+            AceitouUsoLocalizacao = false,
+            AceitouUsoImagem = false,
+            AceitoEm = DateTime.UtcNow
+        });
+
+        var precisaAceitar = await cenario.Servico.UsuarioPrecisaAceitarPoliticaAsync(cenario.Usuario.Id);
+
+        Assert.False(precisaAceitar);
     }
 
     [Fact]
@@ -174,6 +281,27 @@ public class PrivacidadeServicoTests
 
         Assert.NotNull(cenario.Usuario.ExclusaoSolicitadaEmUtc);
         Assert.True(cenario.UsuarioSolicitouExclusao);
+    }
+
+    [Fact]
+    public async Task SolicitarExclusaoContaAsync_UsuarioNaoEncontrado_Bloqueia()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com"
+        });
+        cenario.DefinirUsuarioAtual(new Usuario
+        {
+            Nome = "Outro",
+            Email = "outro@example.com"
+        });
+
+        var excecao = await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.SolicitarExclusaoContaAsync());
+
+        Assert.Equal("Usuário não encontrado.", excecao.Message);
+        Assert.False(cenario.UsuarioSolicitouExclusao);
     }
 
     private sealed class Cenario

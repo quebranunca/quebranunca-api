@@ -156,6 +156,202 @@ public class UsuarioServicoTests
         Assert.Equal("Apenas administradores podem executar esta operação.", excecao.Message);
     }
 
+    [Fact]
+    public async Task AtualizarAsync_NomeVazio_Bloqueia()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Admin",
+            Email = "admin@example.com",
+            Perfil = PerfilUsuario.Administrador,
+            Ativo = true
+        };
+        var cenario = new Cenario(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto("   ", "admin@example.com", PerfilUsuario.Administrador, true, null)));
+
+        Assert.Equal("Nome é obrigatório.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_EmailVazio_Bloqueia()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Admin",
+            Email = "admin@example.com",
+            Perfil = PerfilUsuario.Administrador,
+            Ativo = true
+        };
+        var cenario = new Cenario(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto("Admin", "   ", PerfilUsuario.Administrador, true, null)));
+
+        Assert.Equal("E-mail é obrigatório.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_PerfilInvalido_Bloqueia()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Admin",
+            Email = "admin@example.com",
+            Perfil = PerfilUsuario.Administrador,
+            Ativo = true
+        };
+        var cenario = new Cenario(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto("Admin", "admin@example.com", (PerfilUsuario)999, true, null)));
+
+        Assert.Equal("Perfil inválido.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_EmailDuplicado_Bloqueia()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Admin",
+            Email = "admin@example.com",
+            Perfil = PerfilUsuario.Administrador,
+            Ativo = true
+        };
+        var outro = new Usuario
+        {
+            Nome = "Outro",
+            Email = "outro@example.com",
+            Perfil = PerfilUsuario.Organizador,
+            Ativo = true
+        };
+        var cenario = new Cenario(usuario);
+        cenario.Usuarios.Itens.Add(outro);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto("Admin", " OUTRO@EXAMPLE.COM ", PerfilUsuario.Administrador, true, null)));
+
+        Assert.Equal("Já existe um usuário cadastrado com este e-mail.", excecao.Message);
+        Assert.Equal("admin@example.com", usuario.Email);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_AtletaJaVinculadoAOutroUsuario_Bloqueia()
+    {
+        var atleta = new Atleta { Nome = "Atleta", Email = "atleta@example.com" };
+        var usuario = new Usuario
+        {
+            Nome = "Admin",
+            Email = "admin@example.com",
+            Perfil = PerfilUsuario.Administrador,
+            Ativo = true
+        };
+        var outro = new Usuario
+        {
+            Nome = "Outro",
+            Email = "outro@example.com",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            AtletaId = atleta.Id,
+            Atleta = atleta
+        };
+        var cenario = new Cenario(usuario);
+        cenario.Usuarios.Itens.Add(outro);
+        cenario.Atletas.Itens.Add(atleta);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto("Admin", "admin@example.com", PerfilUsuario.Administrador, true, atleta.Id)));
+
+        Assert.Equal("Este atleta já está vinculado a outro usuário.", excecao.Message);
+        Assert.Null(usuario.AtletaId);
+    }
+
+    [Fact]
+    public async Task ExcluirMeuPerfilAsync_UsuarioInativo_Bloqueia()
+    {
+        var cenario = new Cenario(new Usuario
+        {
+            Nome = "Usuario Inativo",
+            Email = "inativo@example.com",
+            Perfil = PerfilUsuario.Organizador,
+            Ativo = false
+        });
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ExcluirMeuPerfilAsync());
+
+        Assert.Equal("Usuário já está inativo.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task ExcluirMeuPerfilAsync_UsuarioComDadosSensiveis_LimpaDadosSensiveis()
+    {
+        var atleta = new Atleta
+        {
+            Nome = "Atleta",
+            Email = "atleta@example.com",
+            Apelido = "At",
+            Telefone = "11999999999",
+            Instagram = "@atleta",
+            Cpf = "12345678900",
+            Bairro = "Centro",
+            Cidade = "Santos",
+            Estado = "SP",
+            Nivel = NivelAtleta.Intermediario,
+            DataNascimento = new DateTime(1990, 1, 1)
+        };
+        var usuario = new Usuario
+        {
+            Nome = "Usuario Ativo",
+            Email = "usuario@example.com",
+            SenhaHash = "hash",
+            CodigoLoginHash = "codigo-login",
+            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(10),
+            CodigoRedefinicaoSenhaHash = "codigo-senha",
+            CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10),
+            RefreshTokenHash = "refresh",
+            RefreshTokenExpiraEmUtc = DateTime.UtcNow.AddDays(1),
+            Perfil = PerfilUsuario.Organizador,
+            Ativo = true,
+            PerfilPublico = true,
+            ExibirEmail = true,
+            PermitirUsoLocalizacao = true,
+            PermitirUsoImagem = true,
+            Atleta = atleta
+        };
+        usuario.AtualizarFotoPerfil("https://cdn.example/foto.jpg", "public-id");
+        var cenario = new Cenario(usuario);
+
+        await cenario.Servico.ExcluirMeuPerfilAsync();
+
+        Assert.Equal(string.Empty, usuario.SenhaHash);
+        Assert.Null(usuario.CodigoLoginHash);
+        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+        Assert.Null(usuario.RefreshTokenHash);
+        Assert.Null(usuario.RefreshTokenExpiraEmUtc);
+        Assert.False(usuario.PerfilPublico);
+        Assert.False(usuario.ExibirEmail);
+        Assert.False(usuario.PermitirUsoLocalizacao);
+        Assert.False(usuario.PermitirUsoImagem);
+        Assert.Null(usuario.FotoPerfilUrl);
+        Assert.Null(usuario.FotoPerfilPublicId);
+        Assert.Equal("Usuário excluído", atleta.Nome);
+        Assert.Equal("Usuário excluído", atleta.Apelido);
+        Assert.Null(atleta.Email);
+        Assert.Null(atleta.Telefone);
+        Assert.Null(atleta.Instagram);
+        Assert.Null(atleta.Cpf);
+        Assert.Null(atleta.Bairro);
+        Assert.Null(atleta.Cidade);
+        Assert.Null(atleta.Estado);
+        Assert.Null(atleta.Nivel);
+        Assert.Null(atleta.DataNascimento);
+    }
+
     private static ArquivoFotoPerfilDto CriarArquivoFoto()
     {
         return new ArquivoFotoPerfilDto(new MemoryStream([1, 2, 3]), "foto.jpg", MediaTypeNames.Image.Jpeg, 3);

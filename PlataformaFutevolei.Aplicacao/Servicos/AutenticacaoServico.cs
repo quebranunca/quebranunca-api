@@ -30,7 +30,7 @@ public class AutenticacaoServico(
     public async Task<RespostaAutenticacaoDto> RegistrarAsync(RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken = default)
     {
         ValidarRegistro(dto);
-        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
         var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
         if (usuarioExistente is not null)
         {
@@ -131,12 +131,17 @@ public class AutenticacaoServico(
 
     private static string NormalizarEmailCodigoLogin(SolicitarCodigoLoginRequisicaoDto? dto)
     {
-        if (string.IsNullOrWhiteSpace(dto?.Email))
+        return NormalizarEmailObrigatorio(dto?.Email);
+    }
+
+    private static string NormalizarEmailObrigatorio(string? emailInformado)
+    {
+        if (string.IsNullOrWhiteSpace(emailInformado))
         {
             throw new RegraNegocioException("E-mail é obrigatório.");
         }
 
-        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var emailNormalizado = emailInformado.Trim().ToLowerInvariant();
         try
         {
             var email = new MailAddress(emailNormalizado);

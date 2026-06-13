@@ -93,6 +93,122 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task RegistrarAsync_EmailVazio_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            ConviteIdPublico: cenario.ConviteUsuario.ToString("N"),
+            CodigoConvite: "code",
+            Nome: "João",
+            Email: "   ",
+            Senha: "123456",
+            AceitouPoliticaPrivacidade: true,
+            AceitouTermosUso: true)));
+
+        Assert.Equal("E-mail é obrigatório.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_EmailInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.Convites.Itens.Add(CriarConvite("email-invalido", "code", cenario.ConviteUsuario.ToString("N")));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            ConviteIdPublico: cenario.ConviteUsuario.ToString("N"),
+            CodigoConvite: "code",
+            Nome: "João",
+            Email: "email-invalido",
+            Senha: "123456",
+            AceitouPoliticaPrivacidade: true,
+            AceitouTermosUso: true)));
+
+        Assert.Equal("E-mail inválido.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_NomeVazio_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            ConviteIdPublico: cenario.ConviteUsuario.ToString("N"),
+            CodigoConvite: "code",
+            Nome: "   ",
+            Email: "joao@example.com",
+            Senha: "123456",
+            AceitouPoliticaPrivacidade: true,
+            AceitouTermosUso: true)));
+
+        Assert.Equal("Nome é obrigatório.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_ConviteExpirado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var convite = CriarConvite("joao@example.com", "code", cenario.ConviteUsuario.ToString("N"));
+        convite.ExpiraEmUtc = DateTime.UtcNow.AddMinutes(-1);
+        cenario.Convites.Itens.Add(convite);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            cenario.ConviteUsuario.ToString("N"),
+            "code",
+            "João",
+            "joao@example.com",
+            "123456",
+            true,
+            true)));
+
+        Assert.Equal("Este convite está expirado.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_ConviteJaUtilizado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var convite = CriarConvite("joao@example.com", "code", cenario.ConviteUsuario.ToString("N"));
+        convite.UsadoEmUtc = DateTime.UtcNow.AddMinutes(-5);
+        cenario.Convites.Itens.Add(convite);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            cenario.ConviteUsuario.ToString("N"),
+            "code",
+            "João",
+            "joao@example.com",
+            "123456",
+            true,
+            true)));
+
+        Assert.Equal("Este convite já foi utilizado.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task RegistrarAsync_CodigoConviteInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.Convites.Itens.Add(CriarConvite("joao@example.com", "code", cenario.ConviteUsuario.ToString("N")));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.RegistrarAsync(new RegistrarUsuarioRequisicaoDto(
+            cenario.ConviteUsuario.ToString("N"),
+            "outro",
+            "João",
+            "joao@example.com",
+            "123456",
+            true,
+            true)));
+
+        Assert.Equal("Código do convite inválido.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
     public async Task LoginAsync_CredenciaisValidas_RetornaTokens()
     {
         var cenario = new Cenario();
@@ -196,6 +312,52 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task SolicitarCodigoLoginAsync_EmailVazio_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarCodigoLoginAsync(new SolicitarCodigoLoginRequisicaoDto("   ")));
+
+        Assert.Equal("E-mail é obrigatório.", excecao.Message);
+        Assert.Null(cenario.EnvioEmailCodigo.UltimoEmail);
+    }
+
+    [Fact]
+    public async Task SolicitarCodigoLoginAsync_EmailInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarCodigoLoginAsync(new SolicitarCodigoLoginRequisicaoDto("email-invalido")));
+
+        Assert.Equal("E-mail inválido.", excecao.Message);
+        Assert.Null(cenario.EnvioEmailCodigo.UltimoEmail);
+    }
+
+    [Fact]
+    public async Task SolicitarCodigoLoginAsync_UsuarioInativo_NaoGeraCodigo()
+    {
+        var cenario = new Cenario();
+        var usuario = new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash-antigo",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = false
+        };
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.SolicitarCodigoLoginAsync(new SolicitarCodigoLoginRequisicaoDto("joao@example.com"));
+
+        Assert.Equal("Se o e-mail estiver cadastrado, um código de acesso foi enviado.", resposta.Mensagem);
+        Assert.Null(usuario.CodigoLoginHash);
+        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+        Assert.Null(cenario.EnvioEmailCodigo.UltimoEmail);
+    }
+
+    [Fact]
     public async Task LoginComCodigoAsync_CodigoValido_RetornaAuthELimpaCodigo()
     {
         var cenario = new Cenario();
@@ -220,6 +382,29 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task LoginComCodigoAsync_EmailNormalizado_CodigoValidoRetornaAuth()
+    {
+        var cenario = new Cenario();
+        var usuario = new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash:senha",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            CodigoLoginHash = cenario.SenhaServico.GerarHash("123456"),
+            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+        };
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456"));
+
+        Assert.Equal(usuario.Id, resposta.Usuario.Id);
+        Assert.Null(usuario.CodigoLoginHash);
+        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+    }
+
+    [Fact]
     public async Task LoginComCodigoAsync_CodigoIncorreto_Bloqueia()
     {
         var cenario = new Cenario();
@@ -238,6 +423,8 @@ public class AutenticacaoServicoTests
             cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "654321")));
 
         Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginHash);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginExpiraEmUtc);
     }
 
     [Fact]
@@ -258,6 +445,8 @@ public class AutenticacaoServicoTests
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456")));
 
         Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginHash);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginExpiraEmUtc);
     }
 
     [Fact]
@@ -291,6 +480,38 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task SolicitarRedefinicaoSenhaAsync_EmailVazio_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarRedefinicaoSenhaAsync(new EsqueciSenhaRequisicaoDto("   ")));
+
+        Assert.Equal("E-mail é obrigatório.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task SolicitarRedefinicaoSenhaAsync_UsuarioInativo_NaoGeraCodigo()
+    {
+        var cenario = new Cenario();
+        var usuario = new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash-antigo",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = false
+        };
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.SolicitarRedefinicaoSenhaAsync(new EsqueciSenhaRequisicaoDto("joao@example.com"));
+
+        Assert.Equal("Se o e-mail estiver cadastrado, um código de redefinição foi gerado.", resposta.Mensagem);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+    }
+
+    [Fact]
     public async Task RedefinirSenhaAsync_CodigoValido_AtualizaSenhaELimpaCodigo()
     {
         var cenario = new Cenario();
@@ -315,6 +536,50 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task RedefinirSenhaAsync_EmailNormalizado_CodigoValidoAtualizaSenha()
+    {
+        var cenario = new Cenario();
+        var usuario = new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash-antigo",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            CodigoRedefinicaoSenhaHash = cenario.SenhaServico.GerarHash("123456"),
+            CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+        };
+        cenario.Usuarios.Itens.Add(usuario);
+
+        await cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456", "nova123"));
+
+        Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+    }
+
+    [Fact]
+    public async Task RedefinirSenhaAsync_NovaSenhaFraca_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash-antigo",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            CodigoRedefinicaoSenhaHash = cenario.SenhaServico.GerarHash("123456"),
+            CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+        });
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "123456", "12345")));
+
+        Assert.Equal("A nova senha deve ter no mínimo 6 caracteres.", excecao.Message);
+    }
+
+    [Fact]
     public async Task RedefinirSenhaAsync_CodigoInvalido_Bloqueia()
     {
         var cenario = new Cenario();
@@ -333,6 +598,8 @@ public class AutenticacaoServicoTests
             cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "654321", "nova123")));
 
         Assert.Equal("Código de redefinição inválido ou expirado.", excecao.Message);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaHash);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaExpiraEmUtc);
     }
 
     [Fact]
@@ -354,6 +621,8 @@ public class AutenticacaoServicoTests
             cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "123456", "nova123")));
 
         Assert.Equal("Código de redefinição inválido ou expirado.", excecao.Message);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaHash);
+        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaExpiraEmUtc);
     }
 
     [Fact]
@@ -379,6 +648,42 @@ public class AutenticacaoServicoTests
         Assert.Equal(usuario.RefreshTokenExpiraEmUtc, resposta.RefreshTokenExpiraEmUtc);
         Assert.Equal(usuario.Id, resposta.Usuario.Id);
         Assert.Equal("token", resposta.Token);
+        Assert.NotEqual("hash:refresh-anterior", usuario.RefreshTokenHash);
+    }
+
+    [Fact]
+    public async Task RenovarTokenAsync_UsuarioInexistente_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.TokenJwt.ResultadoUsuarioId = Guid.NewGuid();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.RenovarTokenAsync(new RenovarTokenRequisicaoDto("expired-token", "refresh-anterior")));
+
+        Assert.Equal("Usuário não encontrado ou inativo.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task RenovarTokenAsync_UsuarioInativo_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var usuario = new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash:senha",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = false,
+            RefreshTokenHash = "hash:refresh-anterior",
+            RefreshTokenExpiraEmUtc = DateTime.UtcNow.AddHours(1)
+        };
+        cenario.Usuarios.Itens.Add(usuario);
+        cenario.TokenJwt.ResultadoUsuarioId = usuario.Id;
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.RenovarTokenAsync(new RenovarTokenRequisicaoDto("expired-token", "refresh-anterior")));
+
+        Assert.Equal("Usuário não encontrado ou inativo.", excecao.Message);
     }
 
     [Fact]
