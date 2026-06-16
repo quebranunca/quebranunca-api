@@ -85,7 +85,17 @@ public class AutenticacaoServico(
 
         var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
         var usuario = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
-        if (usuario is null || !usuario.Ativo || !senhaServico.Verificar(dto.Senha, usuario.SenhaHash))
+        if (usuario is null || !usuario.Ativo)
+        {
+            throw new RegraNegocioException("Credenciais inválidas.");
+        }
+
+        if (!usuario.SenhaCadastrada)
+        {
+            throw new RegraNegocioException("Este usuário ainda não cadastrou senha. Entre com código por e-mail e cadastre uma senha no Meu Perfil.");
+        }
+
+        if (!senhaServico.Verificar(dto.Senha, usuario.SenhaHash))
         {
             throw new RegraNegocioException("Credenciais inválidas.");
         }
@@ -290,11 +300,64 @@ public class AutenticacaoServico(
         }
 
         usuario!.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
+        usuario.SenhaCadastrada = true;
         usuario.CodigoRedefinicaoSenhaHash = null;
         usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
+    public async Task<UsuarioLogadoDto> DefinirSenhaAsync(
+        DefinirSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await ObterUsuarioAtualParaAlteracaoSenhaAsync(cancellationToken);
+        if (usuario.SenhaCadastrada)
+        {
+            throw new RegraNegocioException("Senha já cadastrada. Use a alteração de senha.");
+        }
+
+        ValidarNovaSenha(dto.NovaSenha, dto.ConfirmacaoSenha);
+
+        usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
+        usuario.SenhaCadastrada = true;
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return usuario.ParaDto();
+    }
+
+    public async Task<UsuarioLogadoDto> AlterarSenhaAsync(
+        AlterarSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await ObterUsuarioAtualParaAlteracaoSenhaAsync(cancellationToken);
+        if (!usuario.SenhaCadastrada)
+        {
+            throw new RegraNegocioException("Cadastre uma senha antes de alterá-la.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.SenhaAtual))
+        {
+            throw new RegraNegocioException("Senha atual é obrigatória.");
+        }
+
+        if (!senhaServico.Verificar(dto.SenhaAtual, usuario.SenhaHash))
+        {
+            throw new RegraNegocioException("Senha atual incorreta.");
+        }
+
+        ValidarNovaSenha(dto.NovaSenha, dto.ConfirmacaoSenha);
+
+        usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
+        usuario.SenhaCadastrada = true;
+        usuario.AtualizarDataModificacao();
+        usuarioRepositorio.Atualizar(usuario);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return usuario.ParaDto();
     }
 
     public async Task<UsuarioLogadoDto> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
@@ -311,6 +374,45 @@ public class AutenticacaoServico(
         }
 
         return usuario.ParaDto();
+    }
+
+    private async Task<Usuario> ObterUsuarioAtualParaAlteracaoSenhaAsync(CancellationToken cancellationToken)
+    {
+        if (usuarioContexto.UsuarioId is null)
+        {
+            throw new RegraNegocioException("Usuário não autenticado.");
+        }
+
+        var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioContexto.UsuarioId.Value, cancellationToken);
+        if (usuario is null || !usuario.Ativo)
+        {
+            throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
+        }
+
+        return usuario;
+    }
+
+    private static void ValidarNovaSenha(string? novaSenha, string? confirmacaoSenha)
+    {
+        if (string.IsNullOrWhiteSpace(novaSenha))
+        {
+            throw new RegraNegocioException("Senha é obrigatória.");
+        }
+
+        if (string.IsNullOrWhiteSpace(confirmacaoSenha))
+        {
+            throw new RegraNegocioException("Confirmação de senha é obrigatória.");
+        }
+
+        if (novaSenha.Length < 6)
+        {
+            throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
+        }
+
+        if (!string.Equals(novaSenha, confirmacaoSenha, StringComparison.Ordinal))
+        {
+            throw new RegraNegocioException("Senha e confirmação devem ser iguais.");
+        }
     }
 
     private static void ValidarRegistro(RegistrarUsuarioRequisicaoDto dto)

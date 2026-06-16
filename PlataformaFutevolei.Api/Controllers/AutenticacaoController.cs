@@ -88,6 +88,28 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(new { mensagem = "Senha redefinida com sucesso." });
     }
 
+    [HttpPost("senha/definir")]
+    [Authorize]
+    [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DefinirSenha(
+        [FromBody] DefinirSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await autenticacaoServico.DefinirSenhaAsync(dto, cancellationToken);
+        return Ok(usuario);
+    }
+
+    [HttpPut("senha")]
+    [Authorize]
+    [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AlterarSenha(
+        [FromBody] AlterarSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await autenticacaoServico.AlterarSenhaAsync(dto, cancellationToken);
+        return Ok(usuario);
+    }
+
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType(typeof(UsuarioLogadoDto), StatusCodes.Status200OK)]

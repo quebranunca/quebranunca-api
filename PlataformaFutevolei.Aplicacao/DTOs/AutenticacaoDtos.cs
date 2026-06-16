@@ -45,6 +45,17 @@ public record RedefinirSenhaRequisicaoDto(
     string NovaSenha
 );
 
+public record DefinirSenhaRequisicaoDto(
+    string NovaSenha,
+    string ConfirmacaoSenha
+);
+
+public record AlterarSenhaRequisicaoDto(
+    string SenhaAtual,
+    string NovaSenha,
+    string ConfirmacaoSenha
+);
+
 public record RenovarTokenRequisicaoDto(
     string Token,
     string RefreshToken
@@ -93,6 +104,7 @@ public record UsuarioLogadoDto(
     bool PermitirUsoLocalizacao,
     bool PermitirUsoImagem,
     string? FotoPerfilUrl,
+    bool PossuiSenha,
     bool PoliticaPrivacidadePendente,
     bool ExclusaoSolicitada
 );
