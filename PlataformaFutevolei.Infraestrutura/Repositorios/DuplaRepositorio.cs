@@ -83,6 +83,14 @@ public class DuplaRepositorio(PlataformaFutevoleiDbContext dbContext) : IDuplaRe
 
     public Task<Dupla?> ObterPorAtletasAsync(Guid atleta1Id, Guid atleta2Id, CancellationToken cancellationToken = default)
     {
+        var duplaLocal = dbContext.Duplas.Local.FirstOrDefault(
+            x => (x.Atleta1Id == atleta1Id && x.Atleta2Id == atleta2Id) ||
+                 (x.Atleta1Id == atleta2Id && x.Atleta2Id == atleta1Id));
+        if (duplaLocal is not null)
+        {
+            return Task.FromResult<Dupla?>(duplaLocal);
+        }
+
         return dbContext.Duplas
             .Include(x => x.Atleta1)
             .Include(x => x.Atleta2)

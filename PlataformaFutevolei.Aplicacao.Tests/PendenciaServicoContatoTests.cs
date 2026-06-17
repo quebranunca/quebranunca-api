@@ -149,6 +149,25 @@ public class PendenciaServicoContatoTests
     }
 
     [Fact]
+    public async Task CompletarContatoAsync_AtletaIdEmMaisDeUmaPartida_ReaproveitaDuplaExistente()
+    {
+        var cenario = Cenario.Criar();
+        var segundaPartida = cenario.AdicionarPartidaPendenteComMesmoAtletaEParceiro();
+        var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
+        cenario.AdicionarAoGrupo(atletaExistente);
+
+        await cenario.Servico.CompletarContatoAsync(
+            cenario.Pendencia.Id,
+            new AtualizarContatoPendenciaDto(null, atletaExistente.Id));
+
+        Assert.Contains(atletaExistente.Id, ObterAtletasPartida(cenario.Partida));
+        Assert.Contains(atletaExistente.Id, ObterAtletasPartida(segundaPartida));
+        Assert.Single(cenario.Duplas.Where(x =>
+            (x.Atleta1Id == atletaExistente.Id && x.Atleta2Id == cenario.AtletaParceiro.Id) ||
+            (x.Atleta1Id == cenario.AtletaParceiro.Id && x.Atleta2Id == atletaExistente.Id)));
+    }
+
+    [Fact]
     public async Task CompletarContatoAsync_AtletaIdNaoExistente_RejeitaComErroControlado()
     {
         var cenario = Cenario.Criar();
@@ -550,6 +569,7 @@ public class PendenciaServicoContatoTests
         public List<Atleta> Atletas { get; } = [];
         public List<Usuario> Usuarios { get; } = [];
         public List<Dupla> Duplas { get; } = [];
+        public List<PendenciaUsuario> Pendencias { get; } = [];
         public Guid GrupoId { get; } = Guid.NewGuid();
         public GrupoAtletaRepositorioStub GruposAtletas { get; } = new();
         public PartidaRepositorioMemoria Partidas { get; private set; } = default!;
@@ -600,8 +620,8 @@ public class PendenciaServicoContatoTests
                 Partida = cenario.Partida,
                 Status = StatusPendenciaUsuario.Pendente
             };
+            cenario.Pendencias.Add(cenario.Pendencia);
 
-            var pendencias = new PendenciaUsuarioRepositorioMemoria([cenario.Pendencia]);
             cenario.Partidas = new PartidaRepositorioMemoria([cenario.Partida]);
             var atletas = new AtletaRepositorioMemoria(cenario.Atletas);
             var usuarios = new UsuarioRepositorioMemoria(cenario.Usuarios);
@@ -610,7 +630,7 @@ public class PendenciaServicoContatoTests
             cenario.Servico = new PendenciaServico(
                 cenario.Partidas,
                 cenario.Aprovacoes,
-                pendencias,
+                new PendenciaUsuarioRepositorioMemoria(cenario.Pendencias),
                 usuarios,
                 atletas,
                 cenario.GruposAtletas,
@@ -621,6 +641,42 @@ public class PendenciaServicoContatoTests
                 cenario.Convites);
 
             return cenario;
+        }
+
+        public Partida AdicionarPartidaPendenteComMesmoAtletaEParceiro()
+        {
+            var duplaB = CriarDupla(AtletaOponente1, AtletaOponente2);
+            var partida = new Partida
+            {
+                CriadoPorUsuarioId = UsuarioAtual.Id,
+                DuplaAId = Partida.DuplaAId,
+                DuplaA = Partida.DuplaA,
+                DuplaBId = duplaB.Id,
+                DuplaB = duplaB,
+                DuplaVencedoraId = Partida.DuplaAId,
+                DuplaVencedora = Partida.DuplaA,
+                PlacarDuplaA = 21,
+                PlacarDuplaB = 16,
+                Status = StatusPartida.Encerrada,
+                StatusAprovacao = StatusAprovacaoPartida.PendenteDeVinculos,
+                GrupoId = GrupoId,
+                DataPartida = DateTime.UtcNow.AddDays(-2)
+            };
+
+            Partidas.AdicionarAsync(partida).GetAwaiter().GetResult();
+            Pendencias.Add(new PendenciaUsuario
+            {
+                Tipo = TipoPendenciaUsuario.CompletarContatoAtletaDaPartida,
+                UsuarioId = UsuarioAtual.Id,
+                Usuario = UsuarioAtual,
+                AtletaId = AtletaPendente.Id,
+                Atleta = AtletaPendente,
+                PartidaId = partida.Id,
+                Partida = partida,
+                Status = StatusPendenciaUsuario.Pendente
+            });
+
+            return partida;
         }
 
         public void AdicionarAoGrupo(Atleta atleta)
