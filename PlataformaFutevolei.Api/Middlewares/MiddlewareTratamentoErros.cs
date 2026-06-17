@@ -12,6 +12,13 @@ public class MiddlewareTratamentoErros(RequestDelegate next, ILogger<MiddlewareT
         {
             await next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = 499;
+            }
+        }
         catch (Exception ex)
         {
             var (statusCode, mensagem) = ex switch

@@ -13,6 +13,19 @@ namespace PlataformaFutevolei.Aplicacao.Tests;
 public class PendenciaServicoContatoTests
 {
     [Fact]
+    public async Task ObterResumoAsync_UsuarioSemPendenciasRetornaResumoZerado()
+    {
+        var cenario = CenarioResumoSemPendencias.Criar();
+
+        var resumo = await cenario.Servico.ObterResumoAsync();
+
+        Assert.Equal(0, resumo.Total);
+        Assert.Equal(0, resumo.AltaPrioridade);
+        Assert.Equal(0, resumo.MediaPrioridade);
+        Assert.Equal(0, resumo.BaixaPrioridade);
+    }
+
+    [Fact]
     public async Task AprovarPartidaAsync_AprovacaoDaDuplaValidanteEncerraPendenciasCorrelatasEAprovaPartida()
     {
         var cenario = CenarioAprovacao.Criar();
@@ -427,6 +440,37 @@ public class PendenciaServicoContatoTests
             };
             pendencias.Add(pendencia);
             return pendencia;
+        }
+    }
+
+    private sealed class CenarioResumoSemPendencias
+    {
+        public Usuario UsuarioAtual { get; } = new()
+        {
+            Nome = "[AI TESTE] Testador",
+            Email = "gustavodrager+qnf-ai-tester@gmail.com",
+            Ativo = true
+        };
+
+        public PendenciaServico Servico { get; private set; } = default!;
+
+        public static CenarioResumoSemPendencias Criar()
+        {
+            var cenario = new CenarioResumoSemPendencias();
+            cenario.Servico = new PendenciaServico(
+                new PartidaRepositorioMemoria([]),
+                new PartidaAprovacaoRepositorioMemoria(),
+                new PendenciaUsuarioRepositorioMemoria([]),
+                new UsuarioRepositorioMemoria([cenario.UsuarioAtual]),
+                new AtletaRepositorioMemoria([]),
+                new GrupoAtletaRepositorioStub(),
+                new UnidadeTrabalhoStub(),
+                new AutorizacaoUsuarioServicoStub(cenario.UsuarioAtual),
+                new ResolvedorAtletaDuplaMemoria([]),
+                new ConsolidacaoAtletaServicoMemoria([]),
+                new ConviteCadastroServicoStub());
+
+            return cenario;
         }
     }
 

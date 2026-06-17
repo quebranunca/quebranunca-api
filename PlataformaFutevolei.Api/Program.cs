@@ -135,11 +135,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
 
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<PlataformaFutevoleiDbContext>();
-                var usuarioAtivo = await dbContext.Usuarios
-                    .AsNoTracking()
-                    .AnyAsync(
-                        x => x.Id == usuarioId && x.Ativo && !x.DadosAnonimizados,
-                        context.HttpContext.RequestAborted);
+                bool usuarioAtivo;
+                try
+                {
+                    usuarioAtivo = await dbContext.Usuarios
+                        .AsNoTracking()
+                        .AnyAsync(
+                            x => x.Id == usuarioId && x.Ativo && !x.DadosAnonimizados,
+                            CancellationToken.None);
+                }
+                catch (OperationCanceledException) when (context.HttpContext.RequestAborted.IsCancellationRequested)
+                {
+                    context.NoResult();
+                    return;
+                }
 
                 if (!usuarioAtivo)
                 {
