@@ -129,15 +129,38 @@ public class PendenciaServicoContatoTests
         var cenario = Cenario.Criar();
         var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
         cenario.AdicionarAoGrupo(atletaExistente);
+        var nomeOriginalInformado = cenario.AtletaPendente.Nome;
 
         await cenario.Servico.CompletarContatoAsync(
             cenario.Pendencia.Id,
             new AtualizarContatoPendenciaDto(null, atletaExistente.Id));
 
         Assert.Equal(StatusPendenciaUsuario.Concluida, cenario.Pendencia.Status);
+        Assert.Null(cenario.Pendencia.EmailInformado);
+        Assert.Empty(cenario.Convites.Criados);
+        Assert.Equal(nomeOriginalInformado, cenario.AtletaPendente.Nome);
         Assert.Contains(atletaExistente.Id, ObterAtletasPartida(cenario.Partida));
         Assert.DoesNotContain(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
         Assert.Single(cenario.Partidas.ListarPorAtleta(atletaExistente.Id));
+        Assert.Single(cenario.GruposAtletas.Vinculos.Where(x =>
+            x.GrupoId == cenario.GrupoId &&
+            x.AtletaId == atletaExistente.Id));
+        Assert.Equal(StatusAprovacaoPartida.PendenteAprovacao, cenario.Partida.StatusAprovacao);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_AtletaIdNaoExistente_RejeitaComErroControlado()
+    {
+        var cenario = Cenario.Criar();
+
+        var excecao = await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, Guid.NewGuid())));
+
+        Assert.Equal("Atleta não encontrado.", excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+        Assert.Empty(cenario.Convites.Criados);
     }
 
     [Fact]
@@ -173,6 +196,24 @@ public class PendenciaServicoContatoTests
     }
 
     [Fact]
+    public async Task CompletarContatoAsync_AtletaIdJaNaMesmaPartida_Rejeita()
+    {
+        var cenario = Cenario.Criar();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, cenario.AtletaOponente1.Id)));
+
+        Assert.Equal(
+            "Este atleta já está participando desta partida. Não é possível vincular o mesmo atleta duas vezes.",
+            excecao.Message);
+        Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+        Assert.Contains(cenario.AtletaPendente.Id, ObterAtletasPartida(cenario.Partida));
+        Assert.Empty(cenario.Convites.Criados);
+    }
+
+    [Fact]
     public async Task CompletarContatoAsync_SemAtletaIdESemEmail_Rejeita()
     {
         var cenario = Cenario.Criar();
@@ -184,6 +225,23 @@ public class PendenciaServicoContatoTests
 
         Assert.Equal("Informe atletaId ou e-mail, mas não os dois.", excecao.Message);
         Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
+    }
+
+    [Fact]
+    public async Task CompletarContatoAsync_PendenciaConcluida_RejeitaComErroControlado()
+    {
+        var cenario = Cenario.Criar();
+        cenario.Pendencia.Status = StatusPendenciaUsuario.Concluida;
+        var atletaExistente = cenario.CriarAtleta("Atleta Existente", "existente@teste.com", possuiUsuario: true);
+        cenario.AdicionarAoGrupo(atletaExistente);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarContatoAsync(
+                cenario.Pendencia.Id,
+                new AtualizarContatoPendenciaDto(null, atletaExistente.Id)));
+
+        Assert.Equal("Esta pendência já foi concluída.", excecao.Message);
+        Assert.Empty(cenario.Convites.Criados);
     }
 
     [Fact]
