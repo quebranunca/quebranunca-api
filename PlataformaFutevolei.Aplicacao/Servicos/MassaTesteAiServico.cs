@@ -58,16 +58,24 @@ public class MassaTesteAiServico(
                 configuracao.SenhaUsuarioPrincipal,
                 ct);
 
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+
             atletaUsuarioPrincipal = await GarantirAtletaUsuarioPrincipalAsync(usuarioPrincipal, ct);
             arenaBase = await GarantirArenaBaseAsync(ct);
             grupoBase = await GarantirGrupoBaseAsync(usuarioPrincipal, arenaBase, ct);
-
-            await GarantirVinculoGrupoAsync(grupoBase, atletaUsuarioPrincipal, ct);
+            var atletasDoGrupo = new List<Atleta> { atletaUsuarioPrincipal };
 
             foreach (var nomeAtleta in NomesAtletasAuxiliares)
             {
                 var atleta = await GarantirAtletaAuxiliarAsync(nomeAtleta, usuarioPrincipal.Id, ct);
                 atletasAuxiliares.Add(atleta);
+                atletasDoGrupo.Add(atleta);
+            }
+
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+
+            foreach (var atleta in atletasDoGrupo)
+            {
                 await GarantirVinculoGrupoAsync(grupoBase, atleta, ct);
             }
 
@@ -139,26 +147,31 @@ public class MassaTesteAiServico(
         atleta ??= (await atletaRepositorio.ListarPorEmailAsync(usuario.Email, cancellationToken))
             .FirstOrDefault(x => string.Equals(x.Nome, NomeUsuarioPrincipal, StringComparison.OrdinalIgnoreCase));
 
-        if (atleta is null)
+        var novoAtleta = atleta is null;
+        if (novoAtleta)
         {
             atleta = new Atleta();
             await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
         }
 
-        atleta.Nome = NomeUsuarioPrincipal;
-        atleta.Apelido = "AI Testador";
-        atleta.Email = usuario.Email;
-        atleta.CadastroPendente = false;
-        atleta.Lado = LadoAtleta.Ambos;
-        atleta.UsuarioCriadorId = usuario.Id;
-        atleta.AtualizarDataModificacao();
+        var atletaGarantido = atleta!;
+        atletaGarantido.Nome = NomeUsuarioPrincipal;
+        atletaGarantido.Apelido = "AI Testador";
+        atletaGarantido.Email = usuario.Email;
+        atletaGarantido.CadastroPendente = false;
+        atletaGarantido.Lado = LadoAtleta.Ambos;
+        atletaGarantido.UsuarioCriadorId = usuario.Id;
+        atletaGarantido.AtualizarDataModificacao();
 
-        usuario.AtletaId = atleta.Id;
-        usuario.Atleta = atleta;
+        usuario.AtletaId = atletaGarantido.Id;
+        usuario.Atleta = atletaGarantido;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
-        atletaRepositorio.Atualizar(atleta);
-        return atleta;
+        if (!novoAtleta)
+        {
+            atletaRepositorio.Atualizar(atletaGarantido);
+        }
+        return atletaGarantido;
     }
 
     private async Task<Atleta> GarantirAtletaAuxiliarAsync(
@@ -167,51 +180,61 @@ public class MassaTesteAiServico(
         CancellationToken cancellationToken)
     {
         var atleta = await atletaRepositorio.ObterPorNomeAsync(nome, cancellationToken);
-        if (atleta is null)
+        var novoAtleta = atleta is null;
+        if (novoAtleta)
         {
             atleta = new Atleta();
             await atletaRepositorio.AdicionarAsync(atleta, cancellationToken);
         }
 
-        atleta.Nome = nome;
-        atleta.Apelido = nome.Replace("[AI TESTE] ", string.Empty, StringComparison.Ordinal);
-        atleta.Email = null;
-        atleta.CadastroPendente = false;
-        atleta.Lado = LadoAtleta.Ambos;
-        atleta.UsuarioCriadorId = usuarioCriadorId;
-        atleta.AtualizarDataModificacao();
-        atletaRepositorio.Atualizar(atleta);
-        return atleta;
+        var atletaGarantido = atleta!;
+        atletaGarantido.Nome = nome;
+        atletaGarantido.Apelido = nome.Replace("[AI TESTE] ", string.Empty, StringComparison.Ordinal);
+        atletaGarantido.Email = null;
+        atletaGarantido.CadastroPendente = false;
+        atletaGarantido.Lado = LadoAtleta.Ambos;
+        atletaGarantido.UsuarioCriadorId = usuarioCriadorId;
+        atletaGarantido.AtualizarDataModificacao();
+        if (!novoAtleta)
+        {
+            atletaRepositorio.Atualizar(atletaGarantido);
+        }
+        return atletaGarantido;
     }
 
     private async Task<Arena> GarantirArenaBaseAsync(CancellationToken cancellationToken)
     {
         var arena = await arenaRepositorio.ObterPorNomeAsync(NomeArenaBase, cancellationToken);
-        if (arena is null)
+        var novaArena = arena is null;
+        if (novaArena)
         {
             arena = new Arena();
             await arenaRepositorio.AdicionarAsync(arena, cancellationToken);
         }
 
-        arena.Nome = NomeArenaBase;
-        arena.Slug = "ai-teste-arena-base";
-        arena.Descricao = "Arena técnica para validações manuais e E2E.";
-        arena.TipoArena = TipoArena.ArenaPrivada;
-        arena.QuantidadeEspacos = 1;
-        arena.Cidade = "Praia Grande";
-        arena.Estado = "SP";
-        arena.Publica = false;
-        arena.Ativa = true;
-        arena.PossuiIluminacao = true;
-        arena.PossuiEstacionamento = false;
-        arena.PossuiVestiario = false;
-        arena.PossuiDucha = false;
-        arena.PossuiBarRestaurante = false;
-        arena.PossuiLoja = false;
-        arena.PossuiCobertura = false;
-        arena.AtualizarDataModificacao();
-        arenaRepositorio.Atualizar(arena);
-        return arena;
+        var arenaGarantida = arena!;
+        arenaGarantida.Nome = NomeArenaBase;
+        arenaGarantida.Slug = "ai-teste-arena-base";
+        arenaGarantida.Descricao = "Arena técnica para validações manuais e E2E.";
+        arenaGarantida.TipoArena = TipoArena.ArenaPrivada;
+        arenaGarantida.QuantidadeEspacos = 1;
+        arenaGarantida.Cidade = "Praia Grande";
+        arenaGarantida.Estado = "SP";
+        arenaGarantida.Publica = false;
+        arenaGarantida.Ativa = true;
+        arenaGarantida.PossuiIluminacao = true;
+        arenaGarantida.PossuiEstacionamento = false;
+        arenaGarantida.PossuiVestiario = false;
+        arenaGarantida.PossuiDucha = false;
+        arenaGarantida.PossuiBarRestaurante = false;
+        arenaGarantida.PossuiLoja = false;
+        arenaGarantida.PossuiCobertura = false;
+        arenaGarantida.AtualizarDataModificacao();
+        if (!novaArena)
+        {
+            arenaRepositorio.Atualizar(arenaGarantida);
+        }
+        return arenaGarantida;
     }
 
     private async Task<Grupo> GarantirGrupoBaseAsync(
@@ -220,25 +243,30 @@ public class MassaTesteAiServico(
         CancellationToken cancellationToken)
     {
         var grupo = await grupoRepositorio.ObterPorNomeNormalizadoAsync(NomeGrupoBase, cancellationToken);
-        if (grupo is null)
+        var novoGrupo = grupo is null;
+        if (novoGrupo)
         {
             grupo = new Grupo();
             await grupoRepositorio.AdicionarAsync(grupo, cancellationToken);
         }
 
-        grupo.Nome = NomeGrupoBase;
-        grupo.Descricao = "Grupo técnico para validações manuais e E2E.";
-        grupo.DataInicio = DateTime.UtcNow.Date;
-        grupo.DataFim = null;
-        grupo.ArenaId = arenaBase.Id;
-        grupo.Arena = arenaBase;
-        grupo.LocalPrincipal = NomeArenaBase;
-        grupo.UsuarioOrganizadorId = usuarioPrincipal.Id;
-        grupo.UsuarioOrganizador = usuarioPrincipal;
-        grupo.Publico = false;
-        grupo.AtualizarDataModificacao();
-        grupoRepositorio.Atualizar(grupo);
-        return grupo;
+        var grupoGarantido = grupo!;
+        grupoGarantido.Nome = NomeGrupoBase;
+        grupoGarantido.Descricao = "Grupo técnico para validações manuais e E2E.";
+        grupoGarantido.DataInicio = DateTime.UtcNow.Date;
+        grupoGarantido.DataFim = null;
+        grupoGarantido.ArenaId = arenaBase.Id;
+        grupoGarantido.Arena = arenaBase;
+        grupoGarantido.LocalPrincipal = NomeArenaBase;
+        grupoGarantido.UsuarioOrganizadorId = usuarioPrincipal.Id;
+        grupoGarantido.UsuarioOrganizador = usuarioPrincipal;
+        grupoGarantido.Publico = false;
+        grupoGarantido.AtualizarDataModificacao();
+        if (!novoGrupo)
+        {
+            grupoRepositorio.Atualizar(grupoGarantido);
+        }
+        return grupoGarantido;
     }
 
     private async Task GarantirVinculoGrupoAsync(
