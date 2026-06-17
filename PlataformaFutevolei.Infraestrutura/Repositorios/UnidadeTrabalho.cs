@@ -43,15 +43,17 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
             return null;
         }
 
-        return postgresException.ConstraintName switch
+        return postgresException.ConstraintName?.ToLowerInvariant() switch
         {
             "ix_grupos_atletas_grupo_id_atleta_id" =>
+                new RegraNegocioException("Este atleta já está vinculado ao grupo."),
+            "ix_grupos_atletas_competicao_id_atleta_id" =>
                 new RegraNegocioException("Este atleta já está vinculado ao grupo."),
             "ix_duplas_atleta1_id_atleta2_id" =>
                 new RegraNegocioException("Esta dupla já existe."),
             "ix_partidas_aprovacoes_partida_id_atleta_id" =>
                 new RegraNegocioException("A aprovação desta partida já existe para o atleta."),
-            _ => null
+            _ => new RegraNegocioException("Já existe um registro com estes dados.")
         };
     }
 }
