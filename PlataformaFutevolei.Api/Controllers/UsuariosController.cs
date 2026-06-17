@@ -38,7 +38,7 @@ public class UsuariosController(IUsuarioServico usuarioServico) : ControllerBase
     [HttpPost("foto-perfil")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(FotoPerfilRespostaDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AtualizarMinhaFotoPerfil([FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    public async Task<IActionResult> AtualizarMinhaFotoPerfil(IFormFile arquivo, CancellationToken cancellationToken)
     {
         await using var stream = arquivo?.OpenReadStream();
         var resposta = await usuarioServico.AtualizarMinhaFotoPerfilAsync(

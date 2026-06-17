@@ -37,6 +37,8 @@
 - Validação de conexão e aplicação de migrations na subida devem ficar centralizadas em classe própria, com falha explícita fora de Development
 - Em `Staging` e `Production`, tratar ausência de configuração obrigatória como erro de startup e evitar qualquer fallback para `localhost`
 - Endpoints de diagnóstico, Swagger e flags operacionais precisam ficar protegidos por configuração segura por ambiente
+- Em execução local sem Docker, usar `ASPNETCORE_ENVIRONMENT=Development PORT=5080` e manter `Database:MigrateOnStartup=false` ao conectar no Railway
+- Swagger local deve responder em `/swagger/index.html` e o JSON em `/swagger/v1/swagger.json`; uploads `multipart/form-data` com `IFormFile` não devem quebrar a geração do documento
 - Payload de request só deve ser logado em caso de erro crítico (500).
 - Deve ser sanitizado antes de logar.
 - Nunca logar dados sensíveis (senha, token, authorization).

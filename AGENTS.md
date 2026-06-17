@@ -36,11 +36,12 @@
 
 ## Contexto local recorrente
 
-- Para execução local sem Docker, o backend deve apontar para o PostgreSQL do Railway usando conexão pública/TCP Proxy; não usar `postgres.railway.internal` fora do Railway
-- Não versionar connection string, senha, `DATABASE_URL` ou secrets; preferir `dotnet user-secrets` ou variável de ambiente para secrets locais do backend
-- Para integração com o frontend local, rodar a API com `ASPNETCORE_ENVIRONMENT=Development PORT=5000 dotnet run --project PlataformaFutevolei.Api/PlataformaFutevolei.Api.csproj`
-- Em execução local contra banco compartilhado, manter `Database:MigrateOnStartup=false`; não executar migrations ou seeds destrutivos automaticamente
-- Validar disponibilidade com `GET http://localhost:5000/health`
+- Para execução local sem Docker, usar `ASPNETCORE_ENVIRONMENT=Development` e preferencialmente `PORT=5080`, pois `5000` pode estar ocupada no macOS
+- Backend local conectado ao Railway deve usar conexão pública/TCP Proxy; nunca usar `postgres.railway.internal` fora do Railway
+- Secrets locais devem ficar em `dotnet user-secrets` ou variáveis de ambiente; não versionar connection strings, `DATABASE_URL`, `Jwt:Chave`, senhas, `.env.local` ou `appsettings.Development.json`
+- Em execução local contra banco compartilhado do Railway, manter `Database:MigrateOnStartup=false`; não executar migrations ou seeds automaticamente
+- Frontend local deve apontar para a API local via `VITE_API_BASE_URL=http://localhost:5080`
+- Validar disponibilidade com `GET http://localhost:5080/health`, `/db-test` e Swagger em `http://localhost:5080/swagger/index.html`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável

@@ -27,7 +27,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost
-    .UseUrls($"http://0.0.0.0:{port}")
     .ConfigureKestrel(options =>
     {
         options.Limits.MaxRequestBodySize = LimiteUploadMidiaPartidaBytes;
@@ -44,6 +43,8 @@ if (builder.Environment.IsDevelopment())
 }
 
 builder.Configuration.AddEnvironmentVariables();
+
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var applicationInsightsConnectionString =
     builder.Configuration["ApplicationInsights:ConnectionString"]

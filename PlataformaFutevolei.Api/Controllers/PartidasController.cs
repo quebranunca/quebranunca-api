@@ -155,7 +155,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     [RequestSizeLimit(LimiteUploadMidiaPartidaBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = LimiteUploadMidiaPartidaBytes)]
     [ProducesResponseType(typeof(MidiaPartidaRespostaDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AtualizarMidia(Guid id, [FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    public async Task<IActionResult> AtualizarMidia(Guid id, IFormFile arquivo, CancellationToken cancellationToken)
     {
         await using var stream = arquivo is null ? Stream.Null : arquivo.OpenReadStream();
         var resposta = await partidaServico.AtualizarMidiaAsync(

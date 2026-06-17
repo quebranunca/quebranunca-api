@@ -98,7 +98,7 @@ public class GruposController(
     [HttpPost("{id:guid}/imagem")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(GrupoImagemRespostaDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AtualizarImagem(Guid id, [FromForm] IFormFile arquivo, CancellationToken cancellationToken)
+    public async Task<IActionResult> AtualizarImagem(Guid id, IFormFile arquivo, CancellationToken cancellationToken)
     {
         await using var stream = arquivo?.OpenReadStream();
         var resposta = await grupoServico.AtualizarImagemAsync(
