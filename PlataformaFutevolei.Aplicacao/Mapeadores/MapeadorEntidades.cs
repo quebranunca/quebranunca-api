@@ -25,7 +25,7 @@ internal static class MapeadorEntidades
             usuario.PermitirUsoLocalizacao,
             usuario.PermitirUsoImagem,
             usuario.FotoPerfilUrl,
-            usuario.SenhaCadastrada,
+            usuario.SenhaDefinidaEmUtc.HasValue,
             PoliticaPrivacidadePendente: false,
             usuario.ExclusaoSolicitadaEmUtc.HasValue
         );

@@ -217,6 +217,8 @@ public class AutenticacaoServicoTests
             Nome = "João",
             Email = "joao@example.com",
             SenhaHash = "hash:123456",
+            SenhaDefinidaEmUtc = DateTime.UtcNow.AddDays(-1),
+            SenhaAtualizadaEmUtc = DateTime.UtcNow.AddDays(-1),
             Perfil = PerfilUsuario.Atleta,
             Ativo = true,
         });
@@ -249,6 +251,8 @@ public class AutenticacaoServicoTests
             Nome = "João",
             Email = "joao@example.com",
             SenhaHash = "hash:123456",
+            SenhaDefinidaEmUtc = DateTime.UtcNow.AddDays(-1),
+            SenhaAtualizadaEmUtc = DateTime.UtcNow.AddDays(-1),
             Perfil = PerfilUsuario.Atleta,
             Ativo = false
         });
@@ -267,6 +271,8 @@ public class AutenticacaoServicoTests
             Nome = "João",
             Email = "joao@example.com",
             SenhaHash = "hash:123456",
+            SenhaDefinidaEmUtc = DateTime.UtcNow.AddDays(-1),
+            SenhaAtualizadaEmUtc = DateTime.UtcNow.AddDays(-1),
             Perfil = PerfilUsuario.Atleta,
             Ativo = true
         });
@@ -531,6 +537,8 @@ public class AutenticacaoServicoTests
         await cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto(" joao@example.com ", "123456", "nova123"));
 
         Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
         Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
         Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
     }
@@ -554,6 +562,8 @@ public class AutenticacaoServicoTests
         await cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456", "nova123"));
 
         Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
         Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
         Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
     }
@@ -623,6 +633,155 @@ public class AutenticacaoServicoTests
         Assert.Equal("Código de redefinição inválido ou expirado.", excecao.Message);
         Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaHash);
         Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaExpiraEmUtc);
+    }
+
+    [Fact]
+    public async Task LoginAsync_UsuarioSemSenhaDefinida_OrientaLoginPorCodigo()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash:123456",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true
+        });
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.LoginAsync(new LoginRequisicaoDto("joao@example.com", "123456")));
+
+        Assert.Equal("Este usuário ainda não cadastrou senha. Entre com código por e-mail e cadastre uma senha no seu perfil.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task DefinirSenhaAsync_UsuarioAutenticadoSemSenha_DefineHashEDatas()
+    {
+        var usuario = CriarUsuarioSemSenha();
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.DefinirSenhaAsync(new DefinirSenhaRequisicaoDto("nova123", "nova123"));
+
+        Assert.True(resposta.PossuiSenha);
+        Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+    }
+
+    [Fact]
+    public async Task DefinirSenhaAsync_ConfirmacaoDivergente_Bloqueia()
+    {
+        var usuario = CriarUsuarioSemSenha();
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.DefinirSenhaAsync(new DefinirSenhaRequisicaoDto("nova123", "outra123")));
+
+        Assert.Equal("Senha e confirmação devem ser iguais.", excecao.Message);
+        Assert.Null(usuario.SenhaDefinidaEmUtc);
+    }
+
+    [Fact]
+    public async Task DefinirSenhaAsync_SenhaMenorQueSeisCaracteres_Bloqueia()
+    {
+        var usuario = CriarUsuarioSemSenha();
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.DefinirSenhaAsync(new DefinirSenhaRequisicaoDto("12345", "12345")));
+
+        Assert.Equal("A senha deve ter no mínimo 6 caracteres.", excecao.Message);
+        Assert.Null(usuario.SenhaDefinidaEmUtc);
+    }
+
+    [Fact]
+    public async Task DefinirSenhaAsync_UsuarioJaPossuiSenha_Bloqueia()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.DefinirSenhaAsync(new DefinirSenhaRequisicaoDto("nova123", "nova123")));
+
+        Assert.Equal("Senha já cadastrada. Use a alteração de senha.", excecao.Message);
+        Assert.Equal("hash:atual123", usuario.SenhaHash);
+    }
+
+    [Fact]
+    public async Task AlterarSenhaAsync_SenhaAtualCorreta_AtualizaHashEPreservaDataDefinicao()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var definidaEm = usuario.SenhaDefinidaEmUtc;
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.AlterarSenhaAsync(new AlterarSenhaRequisicaoDto("atual123", "nova123", "nova123"));
+
+        Assert.True(resposta.PossuiSenha);
+        Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.Equal(definidaEm, usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+        Assert.NotEqual(definidaEm, usuario.SenhaAtualizadaEmUtc);
+    }
+
+    [Fact]
+    public async Task AlterarSenhaAsync_SenhaAtualIncorreta_Bloqueia()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AlterarSenhaAsync(new AlterarSenhaRequisicaoDto("errada", "nova123", "nova123")));
+
+        Assert.Equal("Senha atual incorreta.", excecao.Message);
+        Assert.Equal("hash:atual123", usuario.SenhaHash);
+    }
+
+    [Fact]
+    public async Task AlterarSenhaAsync_ConfirmacaoDivergente_Bloqueia()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AlterarSenhaAsync(new AlterarSenhaRequisicaoDto("atual123", "nova123", "outra123")));
+
+        Assert.Equal("Senha e confirmação devem ser iguais.", excecao.Message);
+        Assert.Equal("hash:atual123", usuario.SenhaHash);
+    }
+
+    [Fact]
+    public async Task AlterarSenhaAsync_SenhaMenorQueSeisCaracteres_Bloqueia()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AlterarSenhaAsync(new AlterarSenhaRequisicaoDto("atual123", "12345", "12345")));
+
+        Assert.Equal("A senha deve ter no mínimo 6 caracteres.", excecao.Message);
+        Assert.Equal("hash:atual123", usuario.SenhaHash);
+    }
+
+    [Fact]
+    public async Task ObterSegurancaUsuarioAtualAsync_RetornaStatusSemHash()
+    {
+        var usuario = CriarUsuarioComSenha("atual123");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.ObterSegurancaUsuarioAtualAsync();
+
+        Assert.True(resposta.PossuiSenha);
+        Assert.DoesNotContain(typeof(SegurancaUsuarioDto).GetProperties(), propriedade => propriedade.Name == nameof(Usuario.SenhaHash));
+        Assert.DoesNotContain(typeof(UsuarioLogadoDto).GetProperties(), propriedade => propriedade.Name == nameof(Usuario.SenhaHash));
     }
 
     [Fact]
@@ -760,20 +919,43 @@ public class AutenticacaoServicoTests
             .ToLowerInvariant();
     }
 
+    private static Usuario CriarUsuarioSemSenha()
+        => new()
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash-interno",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true
+        };
+
+    private static Usuario CriarUsuarioComSenha(string senha)
+        => new()
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = HashSenha(senha),
+            SenhaDefinidaEmUtc = DateTime.UtcNow.AddDays(-2),
+            SenhaAtualizadaEmUtc = DateTime.UtcNow.AddDays(-2),
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true
+        };
+
     private static string HashSenha(string senha) => $"hash:{senha}";
 
     private sealed class Cenario
     {
-        public Cenario()
+        public Cenario(Guid? usuarioContexto = null)
         {
             ConviteUsuario = Guid.NewGuid();
+            UsuarioContexto = usuarioContexto;
             Servico = new AutenticacaoServico(
                 Usuarios,
                 Convites,
                 UnidadeTrabalho,
                 SenhaServico,
                 TokenJwt,
-                new UsuarioContextoStub(null),
+                new UsuarioContextoStub(usuarioContexto),
                 ResolvedorAtleta,
                 PendenciaServico,
                 EnvioEmailCodigo,

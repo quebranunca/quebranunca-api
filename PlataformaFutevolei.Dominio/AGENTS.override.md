@@ -5,7 +5,16 @@
 - Evitar setters e mutações públicas desnecessárias, sem quebrar as necessidades atuais do EF Core
 - Ao alterar regra de entidade ou relacionamento, alinhar aplicação, mapeamentos e constraints do banco
 - Não criar abstrações de domínio genéricas sem ganho real
-- Preservar as invariantes já adotadas: partida sem empate, dupla com exatamente dois atletas e categoria ligada a competição
+- A fase atual é atleta/grupo/ranking/scout-first; evitar acoplar o domínio atual a campeonatos futuros
+- Partida é dupla contra dupla; cada dupla tem exatamente 2 atletas
+- Dupla deve ser normalizada para estatística, ranking e histórico: Atleta A + Atleta B equivale a Atleta B + Atleta A
+- Partida com placar e partida apenas com vencedor possuem validações diferentes
+- Em partida apenas com vencedor, não aplicar mínimo de pontos, diferença mínima nem cálculo de pontos pró/contra/saldo
+- Não criar dependência obrigatória de competição, categoria ou liga para partida de grupo
+- Regras configuráveis devem ficar centralizadas, com fallback explícito quando aplicável
+- Nunca hardcodar mínimo de pontos, diferença mínima, pontuação ou ranking fora do ponto centralizado
+- Ranking deve ser recalculável, consistente e testável
+- Preservar as invariantes já adotadas: partida sem empate, dupla com exatamente dois atletas e categoria ligada a competição apenas nos fluxos de competição
 - Convite de cadastro precisa manter um único código vigente e impedir uso quando estiver vencido, inativo ou já utilizado
 - Se o convite registrar status operacional de envio por e-mail ou WhatsApp, isso não pode relaxar as invariantes de uso do código
 - Ações de entrega por canais diferentes não devem alterar a identidade do convite nem invalidar o código vigente

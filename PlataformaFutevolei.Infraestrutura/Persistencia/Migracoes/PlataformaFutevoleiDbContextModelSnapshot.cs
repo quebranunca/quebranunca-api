@@ -1740,6 +1740,14 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(255)")
                         .HasColumnName("senha_hash");
 
+                    b.Property<DateTime?>("SenhaAtualizadaEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("senha_atualizada_em_utc");
+
+                    b.Property<DateTime?>("SenhaDefinidaEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("senha_definida_em_utc");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AtletaId")

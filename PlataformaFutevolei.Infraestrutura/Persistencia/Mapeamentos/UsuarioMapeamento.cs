@@ -30,10 +30,11 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
             .HasMaxLength(255)
             .IsRequired();
 
-        builder.Property(x => x.SenhaCadastrada)
-            .HasColumnName("senha_cadastrada")
-            .HasDefaultValue(false)
-            .IsRequired();
+        builder.Property(x => x.SenhaDefinidaEmUtc)
+            .HasColumnName("senha_definida_em_utc");
+
+        builder.Property(x => x.SenhaAtualizadaEmUtc)
+            .HasColumnName("senha_atualizada_em_utc");
 
         builder.Property(x => x.CodigoLoginHash)
             .HasColumnName("codigo_login_hash")

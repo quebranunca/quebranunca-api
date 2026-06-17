@@ -1,7 +1,9 @@
 # Diretrizes do backend
 
+- Este é um projeto existente; antes de mudar comportamento, entender e estender os fluxos atuais em vez de tratar como implementação nova
 - O backend segue a arquitetura em camadas já existente: `Api`, `Aplicacao`, `Dominio` e `Infraestrutura`
 - Antes de implementar, analisar o fluxo atual, localizar as camadas impactadas e só então editar
+- Regra de domínio deve ficar fora de controllers; controllers permanecem finos e delegam para a aplicação
 - `Program.cs` deve ficar enxuto: configuração, registro de serviços, autenticação/autorização, CORS, Swagger, pipeline HTTP e chamada da inicialização do banco
 - Preparação do banco deve ficar centralizada em classe própria; evitar lógica de banco espalhada no startup
 - Migrations do EF Core são a fonte oficial de evolução do schema
@@ -30,11 +32,14 @@
 - Quando `Database:MigrateOnStartup` estiver desabilitado em produção, aplicar migrations via `scripts/aplicar-migrations-producao.sh`; não substituir migration por SQL estrutural manual no startup
 - Antes de assumir que produção está migrada, validar `dotnet ef migrations list` contra o banco alvo e conferir se migrations críticas aparecem como aplicadas; no caso do endpoint `POST /api/partidas`, conferir especialmente `20260401103000_AdicionarCriadoPorUsuarioNaPartida`, `20260401233000_AdicionarFluxoAprovacaoResultados` e `20260402213000_CompatibilizarStatusAprovacaoPartidas`
 - Antes de subir `master`, revisar também `.gitignore`, artefatos de publish, documentação de deploy e checklist operacional
+- Toda feature criada ou alterada deve avaliar se `AGENTS.md`, `AGENTS.override.md` ou `.ai` precisam registrar uma decisão recorrente
 
 ## Contexto local recorrente
 
-- Banco local de desenvolvimento costuma usar Postgres em `localhost:55432`, database `quebranunca`, conforme `PlataformaFutevolei.Api/appsettings.Development.json`
-- Para teste manual da API, usar `ASPNETCORE_URLS=http://localhost:5000 ASPNETCORE_ENVIRONMENT=Development dotnet run --project PlataformaFutevolei.Api --no-build --no-launch-profile`
+- Para execução local sem Docker, o backend deve apontar para o PostgreSQL do Railway usando conexão pública/TCP Proxy; não usar `postgres.railway.internal` fora do Railway
+- Não versionar connection string, senha, `DATABASE_URL` ou secrets; preferir `dotnet user-secrets` ou variável de ambiente para secrets locais do backend
+- Para integração com o frontend local, rodar a API com `ASPNETCORE_ENVIRONMENT=Development PORT=5000 dotnet run --project PlataformaFutevolei.Api/PlataformaFutevolei.Api.csproj`
+- Em execução local contra banco compartilhado, manter `Database:MigrateOnStartup=false`; não executar migrations ou seeds destrutivos automaticamente
 - Validar disponibilidade com `GET http://localhost:5000/health`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
@@ -60,3 +65,24 @@
 - Em `Production`, a API exige `Jwt__Chave` e `Frontend__Url` válidos; para debug local temporário, pode-se passar por variável de ambiente, sem salvar secrets no repositório
 - Não colocar connection string real, senha de banco ou chave JWT em `appsettings.Production.json`; se isso acontecer, remover antes de commit e rotacionar o segredo exposto
 - Se `POST /api/partidas` falhar em produção com coluna/tabela faltando, validar no banco alvo a existência de `partidas.status_aprovacao`, `partidas_aprovacoes` e `pendencias_usuarios`, e validar pelo EF se as migrations acima aparecem no catálogo
+
+## Fase atual do produto
+
+- A fase atual é atleta/grupo/ranking/scout-first, não campeonato-first
+- Priorizar registro rápido de partidas, grupos, scout individual, scout de duplas, ranking individual por grupo, ranking de duplas por grupo, histórico e qualidade dos dados
+- Grupos são o contexto principal da fase atual; campeonato, evento, categoria e liga são visão futura ou fluxo específico quando solicitado
+- Partida comum de grupo não deve exigir competição, categoria ou liga
+- Partida é dupla contra dupla; cada dupla possui exatamente 2 atletas
+- Partida pode ter placar completo ou apenas vencedor
+- Com placar, validar regras aplicáveis e calcular pontos pró, pontos contra e saldo quando o fluxo exigir essas métricas
+- Em modo apenas vencedor, exigir dupla vencedora, não permitir empate, não aplicar mínimo/diferença de pontos e não calcular pontos pró, pontos contra ou saldo
+- Scout individual e scout de duplas são núcleo atual do produto
+- Dupla é derivada das partidas nesta fase; não exigir cadastro fixo de dupla para registrar partida comum
+- Normalizar dupla para estatística e histórico: Atleta A + Atleta B é equivalente a Atleta B + Atleta A
+- Ranking individual e ranking de duplas por grupo devem usar cálculo centralizado, recalculável e testável
+- Não confundir pontuação de competição com ranking da plataforma
+- Regras configuráveis de competição só se aplicam aos fluxos de competição; ranking da plataforma deve manter regra central própria
+- Pendências e vínculos impactam partida, grupo, ranking, scout individual e scout de dupla
+- Pendência pode ser resolvida por `atletaId` ou e-mail quando o fluxo suportar; preservar o status `AguardandoCadastro` quando o atleta ainda não existir
+- Resolver vínculo não deve corromper partida, histórico, nome informado, ranking ou scout; evitar duplicidade de atleta
+- Alterações em domínio, aplicação, partida, ranking, scout, grupo, vínculo ou autenticação devem criar ou ajustar testes compatíveis com o risco da mudança

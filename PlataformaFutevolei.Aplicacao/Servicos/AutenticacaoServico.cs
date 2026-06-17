@@ -90,9 +90,9 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Credenciais inválidas.");
         }
 
-        if (!usuario.SenhaCadastrada)
+        if (!UsuarioPossuiSenha(usuario))
         {
-            throw new RegraNegocioException("Este usuário ainda não cadastrou senha. Entre com código por e-mail e cadastre uma senha no Meu Perfil.");
+            throw new RegraNegocioException("Este usuário ainda não cadastrou senha. Entre com código por e-mail e cadastre uma senha no seu perfil.");
         }
 
         if (!senhaServico.Verificar(dto.Senha, usuario.SenhaHash))
@@ -299,8 +299,10 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Código de redefinição inválido ou expirado.");
         }
 
+        var agora = DateTime.UtcNow;
         usuario!.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
-        usuario.SenhaCadastrada = true;
+        usuario.SenhaDefinidaEmUtc ??= agora;
+        usuario.SenhaAtualizadaEmUtc = agora;
         usuario.CodigoRedefinicaoSenhaHash = null;
         usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
         usuario.AtualizarDataModificacao();
@@ -308,33 +310,41 @@ public class AutenticacaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
-    public async Task<UsuarioLogadoDto> DefinirSenhaAsync(
+    public async Task<SegurancaUsuarioDto> ObterSegurancaUsuarioAtualAsync(CancellationToken cancellationToken = default)
+    {
+        var usuario = await ObterUsuarioAtualParaAlteracaoSenhaAsync(cancellationToken);
+        return new SegurancaUsuarioDto(UsuarioPossuiSenha(usuario));
+    }
+
+    public async Task<SegurancaUsuarioDto> DefinirSenhaAsync(
         DefinirSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default)
     {
         var usuario = await ObterUsuarioAtualParaAlteracaoSenhaAsync(cancellationToken);
-        if (usuario.SenhaCadastrada)
+        if (UsuarioPossuiSenha(usuario))
         {
             throw new RegraNegocioException("Senha já cadastrada. Use a alteração de senha.");
         }
 
-        ValidarNovaSenha(dto.NovaSenha, dto.ConfirmacaoSenha);
+        ValidarNovaSenha(dto.Senha, dto.ConfirmacaoSenha);
 
-        usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
-        usuario.SenhaCadastrada = true;
+        var agora = DateTime.UtcNow;
+        usuario.SenhaHash = senhaServico.GerarHash(dto.Senha);
+        usuario.SenhaDefinidaEmUtc = agora;
+        usuario.SenhaAtualizadaEmUtc = agora;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        return usuario.ParaDto();
+        return new SegurancaUsuarioDto(true);
     }
 
-    public async Task<UsuarioLogadoDto> AlterarSenhaAsync(
+    public async Task<SegurancaUsuarioDto> AlterarSenhaAsync(
         AlterarSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default)
     {
         var usuario = await ObterUsuarioAtualParaAlteracaoSenhaAsync(cancellationToken);
-        if (!usuario.SenhaCadastrada)
+        if (!UsuarioPossuiSenha(usuario))
         {
             throw new RegraNegocioException("Cadastre uma senha antes de alterá-la.");
         }
@@ -349,15 +359,16 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Senha atual incorreta.");
         }
 
-        ValidarNovaSenha(dto.NovaSenha, dto.ConfirmacaoSenha);
+        ValidarNovaSenha(dto.NovaSenha, dto.ConfirmacaoNovaSenha);
 
+        var agora = DateTime.UtcNow;
         usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
-        usuario.SenhaCadastrada = true;
+        usuario.SenhaAtualizadaEmUtc = agora;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        return usuario.ParaDto();
+        return new SegurancaUsuarioDto(true);
     }
 
     public async Task<UsuarioLogadoDto> ObterUsuarioAtualAsync(CancellationToken cancellationToken = default)
@@ -414,6 +425,9 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Senha e confirmação devem ser iguais.");
         }
     }
+
+    private static bool UsuarioPossuiSenha(Usuario usuario)
+        => usuario.SenhaDefinidaEmUtc.HasValue;
 
     private static void ValidarRegistro(RegistrarUsuarioRequisicaoDto dto)
     {

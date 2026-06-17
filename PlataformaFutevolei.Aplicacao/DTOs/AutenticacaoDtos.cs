@@ -46,14 +46,18 @@ public record RedefinirSenhaRequisicaoDto(
 );
 
 public record DefinirSenhaRequisicaoDto(
-    string NovaSenha,
+    string Senha,
     string ConfirmacaoSenha
 );
 
 public record AlterarSenhaRequisicaoDto(
     string SenhaAtual,
     string NovaSenha,
-    string ConfirmacaoSenha
+    string ConfirmacaoNovaSenha
+);
+
+public record SegurancaUsuarioDto(
+    bool PossuiSenha
 );
 
 public record RenovarTokenRequisicaoDto(

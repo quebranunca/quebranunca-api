@@ -1,6 +1,8 @@
 # Regras específicas da API
 
 - Controller cuida de HTTP, autorização, binding e status code
+- Controllers devem ser finos; controller não calcula scout, ranking, pontuação ou regra esportiva
+- Controller não contém regra de domínio; domínio e aplicação mantêm a fonte oficial de validação
 - GET de leitura pública pode usar `[AllowAnonymous]`; POST, PUT, PATCH e DELETE continuam autenticados e validam dono/criador ou administrador na aplicação
 - Respostas públicas não devem expor dados sensíveis como e-mail, telefone, tokens, permissões ou dados administrativos privados
 - Endpoints de privacidade devem alterar apenas dados do usuário autenticado, salvo fluxo administrativo explícito validado na aplicação
@@ -16,6 +18,9 @@
 - Em convites, link de aceite, e-mail e WhatsApp devem entregar o mesmo código vigente; controller ou serviço não deve regenerar código como efeito colateral dessas ações
 - Código de convite deve ser tratado como dado sensível operacional: não logar em payloads, respostas de erro ou rastreios fora das respostas administrativas já previstas
 - Validar entrada sem duplicar invariantes do serviço ou do domínio
+- Entrada pode ser validada para formato básico, mas regra complexa deve permanecer na aplicação/domínio
+- Erros HTTP devem ser claros para o frontend sem expor detalhes internos, SQL, stack trace, tokens ou dados sensíveis
+- Preservar contratos existentes sempre que possível; preferir evolução compatível a quebra ampla de rotas/payloads
 - Propagar `CancellationToken` e manter respostas claras e consistentes
 - Fluxos novos devem preferir ampliar endpoints existentes antes de criar controller paralelo sem necessidade
 - Autocomplete de atletas por competição deve ser endpoint fino e reutilizável; elegibilidade, autorização e limite mínimo de 3 caracteres ficam na aplicação/repositório, não no controller
