@@ -246,6 +246,7 @@ app.Logger.LogInformation(
         : "Redirecionamento HTTPS desabilitado por configuração.");
 
 await InicializacaoBancoDeDados.PrepararAsync(app);
+await InicializacaoMassaTesteAi.PrepararAsync(app);
 
 app.UseForwardedHeaders();
 

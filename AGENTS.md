@@ -43,6 +43,8 @@
 - Frontend local deve apontar para a API local via `VITE_API_BASE_URL=http://localhost:5080`
 - Validar disponibilidade com `GET http://localhost:5080/health`, `/db-test` e Swagger em `http://localhost:5080/swagger/index.html`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
+- Massa técnica `[AI TESTE]` deve ser idempotente, habilitada por configuração e usar senha apenas via user-secrets ou variáveis de ambiente; o usuário principal deve ser comum
+- Não criar partidas automaticamente na massa `[AI TESTE]` base nem tornar competição/categoria obrigatórias para partida comum de grupo
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável
 - Ao persistir código de convite para reenvio, manter também o hash usado na validação e limpar o código em claro quando o convite for utilizado

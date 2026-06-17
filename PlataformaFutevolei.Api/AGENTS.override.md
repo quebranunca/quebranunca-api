@@ -39,6 +39,7 @@
 - Endpoints de diagnóstico, Swagger e flags operacionais precisam ficar protegidos por configuração segura por ambiente
 - Em execução local sem Docker, usar `ASPNETCORE_ENVIRONMENT=Development PORT=5080` e manter `Database:MigrateOnStartup=false` ao conectar no Railway
 - Swagger local deve responder em `/swagger/index.html` e o JSON em `/swagger/v1/swagger.json`; uploads `multipart/form-data` com `IFormFile` não devem quebrar a geração do documento
+- Massa `[AI TESTE]` só deve executar quando `MassaTesteAi:Habilitada=true`; não logar senha nem criar automaticamente em `Production`
 - Payload de request só deve ser logado em caso de erro crítico (500).
 - Deve ser sanitizado antes de logar.
 - Nunca logar dados sensíveis (senha, token, authorization).
