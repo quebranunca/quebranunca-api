@@ -2803,8 +2803,13 @@ public class PartidaServico(
         return placarDuplaA.Value > placarDuplaB.Value ? partida.DuplaAId : partida.DuplaBId;
     }
 
-    private static bool EhCategoriaComChaveDuplaEliminacao(CategoriaCompeticao categoria)
+    private static bool EhCategoriaComChaveDuplaEliminacao(CategoriaCompeticao? categoria)
     {
+        if (categoria is null)
+        {
+            return false;
+        }
+
         var formato = ObterFormatoCampeonatoEfetivo(categoria);
         return categoria.Competicao.Tipo != TipoCompeticao.Grupo &&
                formato?.TipoFormato == TipoFormatoCampeonato.Chave &&

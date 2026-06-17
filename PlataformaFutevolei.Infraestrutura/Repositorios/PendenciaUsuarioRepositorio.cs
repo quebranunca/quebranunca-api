@@ -103,16 +103,16 @@ public class PendenciaUsuarioRepositorio(PlataformaFutevoleiDbContext dbContext)
                 .ThenInclude(x => x!.Grupo)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.DuplaA)
-                    .ThenInclude(x => x.Atleta1)
+                    .ThenInclude(x => x!.Atleta1)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.DuplaA)
-                    .ThenInclude(x => x.Atleta2)
+                    .ThenInclude(x => x!.Atleta2)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.DuplaB)
-                    .ThenInclude(x => x.Atleta1)
+                    .ThenInclude(x => x!.Atleta1)
             .Include(x => x.Partida)
                 .ThenInclude(x => x!.DuplaB)
-                    .ThenInclude(x => x.Atleta2);
+                    .ThenInclude(x => x!.Atleta2);
 
         return usarNoTracking ? consulta.AsNoTracking() : consulta;
     }

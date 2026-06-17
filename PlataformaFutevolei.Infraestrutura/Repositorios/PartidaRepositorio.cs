@@ -192,10 +192,12 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         return await CriarConsultaDetalhadaPartidas()
             .Where(x => x.CriadoPorUsuarioId == usuarioId)
             .Where(x =>
-                x.DuplaA.Atleta1.Usuario == null ||
-                x.DuplaA.Atleta2.Usuario == null ||
-                x.DuplaB.Atleta1.Usuario == null ||
-                x.DuplaB.Atleta2.Usuario == null)
+                x.DuplaA != null &&
+                x.DuplaB != null &&
+                (x.DuplaA.Atleta1.Usuario == null ||
+                 x.DuplaA.Atleta2.Usuario == null ||
+                 x.DuplaB.Atleta1.Usuario == null ||
+                 x.DuplaB.Atleta2.Usuario == null))
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
             .ThenByDescending(x => x.DataCriacao)
             .ToListAsync(cancellationToken);
@@ -209,10 +211,12 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Where(x => x.Status == StatusPartida.Encerrada)
             .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.PendenteDeVinculos)
             .Where(x =>
-                x.DuplaA.Atleta1Id == atletaId ||
-                x.DuplaA.Atleta2Id == atletaId ||
-                x.DuplaB.Atleta1Id == atletaId ||
-                x.DuplaB.Atleta2Id == atletaId)
+                x.DuplaA != null &&
+                x.DuplaB != null &&
+                (x.DuplaA.Atleta1Id == atletaId ||
+                 x.DuplaA.Atleta2Id == atletaId ||
+                 x.DuplaB.Atleta1Id == atletaId ||
+                 x.DuplaB.Atleta2Id == atletaId))
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
             .ThenByDescending(x => x.DataCriacao)
             .ToListAsync(cancellationToken);
@@ -227,6 +231,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .AsNoTracking()
             .AnyAsync(
                 x => x.CriadoPorUsuarioId == usuarioId &&
+                     x.DuplaA != null &&
+                     x.DuplaB != null &&
                      (x.DuplaA.Atleta1Id == atletaId ||
                       x.DuplaA.Atleta2Id == atletaId ||
                       x.DuplaB.Atleta1Id == atletaId ||
@@ -326,10 +332,12 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         if (atletaId.HasValue)
         {
             consulta = consulta.Where(x =>
-                x.DuplaA.Atleta1Id == atletaId.Value ||
-                x.DuplaA.Atleta2Id == atletaId.Value ||
-                x.DuplaB.Atleta1Id == atletaId.Value ||
-                x.DuplaB.Atleta2Id == atletaId.Value);
+                x.DuplaA != null &&
+                x.DuplaB != null &&
+                (x.DuplaA.Atleta1Id == atletaId.Value ||
+                 x.DuplaA.Atleta2Id == atletaId.Value ||
+                 x.DuplaB.Atleta1Id == atletaId.Value ||
+                 x.DuplaB.Atleta2Id == atletaId.Value));
         }
         else if (usuarioOrganizadorId.HasValue)
         {
@@ -686,20 +694,20 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         var consulta = dbContext.Partidas
             .Include(x => x.CategoriaCompeticao)
-                .ThenInclude(x => x.Competicao)
+                .ThenInclude(x => x!.Competicao)
             .Include(x => x.Grupo)
             .Include(x => x.CriadoPorUsuario)
             .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta1)
+                .ThenInclude(x => x!.Atleta1)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta2)
+                .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta1)
+                .ThenInclude(x => x!.Atleta1)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta2)
+                .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaVencedora);
 
@@ -711,20 +719,20 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         return dbContext.Partidas
             .AsNoTracking()
             .Include(x => x.CategoriaCompeticao)
-                .ThenInclude(x => x.Competicao)
+                .ThenInclude(x => x!.Competicao)
                     .ThenInclude(x => x.RegraCompeticao)
             .Include(x => x.Grupo)
             .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta1)
+                .ThenInclude(x => x!.Atleta1)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaA)
-                .ThenInclude(x => x.Atleta2)
+                .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta1)
+                .ThenInclude(x => x!.Atleta1)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.DuplaB)
-                .ThenInclude(x => x.Atleta2)
+                .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Where(x => x.Status == StatusPartida.Encerrada)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)

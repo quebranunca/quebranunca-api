@@ -172,15 +172,23 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
                         inscricao.CompeticaoId == competicaoId &&
                         inscricao.Status == StatusInscricaoCampeonato.Ativa &&
                         inscricao.DuplaId == dupla.Id) ||
-                    dupla.PartidasComoDuplaA.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
-                    dupla.PartidasComoDuplaB.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId)) ||
+                    dupla.PartidasComoDuplaA.Any(partida =>
+                        partida.CategoriaCompeticao != null &&
+                        partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
+                    dupla.PartidasComoDuplaB.Any(partida =>
+                        partida.CategoriaCompeticao != null &&
+                        partida.CategoriaCompeticao.CompeticaoId == competicaoId)) ||
                 x.DuplasComoAtleta2.Any(dupla =>
                     dbContext.InscricoesCampeonato.Any(inscricao =>
                         inscricao.CompeticaoId == competicaoId &&
                         inscricao.Status == StatusInscricaoCampeonato.Ativa &&
                         inscricao.DuplaId == dupla.Id) ||
-                    dupla.PartidasComoDuplaA.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
-                    dupla.PartidasComoDuplaB.Any(partida => partida.CategoriaCompeticao.CompeticaoId == competicaoId)))
+                    dupla.PartidasComoDuplaA.Any(partida =>
+                        partida.CategoriaCompeticao != null &&
+                        partida.CategoriaCompeticao.CompeticaoId == competicaoId) ||
+                    dupla.PartidasComoDuplaB.Any(partida =>
+                        partida.CategoriaCompeticao != null &&
+                        partida.CategoriaCompeticao.CompeticaoId == competicaoId)))
             .OrderBy(x => x.Nome)
             .Take(20)
             .ToListAsync(cancellationToken);
