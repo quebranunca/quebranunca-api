@@ -26,7 +26,8 @@ public class AtletaServico(
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IConsolidacaoAtletaServico consolidacaoAtletaServico,
     IPendenciaServico pendenciaServico,
-    IConviteCadastroServico conviteCadastroServico
+    IConviteCadastroServico conviteCadastroServico,
+    IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null
 ) : IAtletaServico
 {
     public async Task<IReadOnlyList<AtletaPublicoDto>> ListarPublicoAsync(CancellationToken cancellationToken = default)
@@ -275,6 +276,10 @@ public class AtletaServico(
         if (usuarioComum || criandoMeuProprioAtleta)
         {
             await pendenciaServico.SincronizarAposVinculoAtletaAsync(atleta.Id, cancellationToken);
+            if (pontuacaoBeneficioServico is not null)
+            {
+                await pontuacaoBeneficioServico.PontuarPerfilCompletoAsync(atleta, usuario.Id, cancellationToken);
+            }
         }
         return atleta.ParaDto();
     }
@@ -355,6 +360,10 @@ public class AtletaServico(
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         await SincronizarPendenciasAposMeuPerfilAsync(atleta.Id, cancellationToken);
+        if (pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.PontuarPerfilCompletoAsync(atleta, usuario.Id, cancellationToken);
+        }
 
         return atleta.ParaDto();
     }
@@ -407,6 +416,11 @@ public class AtletaServico(
 
         atletaRepositorio.Atualizar(atleta);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (pontuacaoBeneficioServico is not null && usuario.AtletaId == atleta.Id)
+        {
+            await pontuacaoBeneficioServico.PontuarPerfilCompletoAsync(atleta, usuario.Id, cancellationToken);
+        }
+
         return atleta.ParaDto();
     }
 

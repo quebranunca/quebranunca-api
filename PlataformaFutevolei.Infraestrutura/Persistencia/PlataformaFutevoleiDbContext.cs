@@ -27,6 +27,10 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
     public DbSet<Partida> Partidas => Set<Partida>();
     public DbSet<PartidaAprovacao> PartidasAprovacoes => Set<PartidaAprovacao>();
     public DbSet<PendenciaUsuario> PendenciasUsuarios => Set<PendenciaUsuario>();
+    public DbSet<PontuacaoBeneficioAtleta> PontuacoesBeneficiosAtletas => Set<PontuacaoBeneficioAtleta>();
+    public DbSet<ExtratoPontuacaoBeneficio> ExtratosPontuacaoBeneficio => Set<ExtratoPontuacaoBeneficio>();
+    public DbSet<BeneficioPontuacao> BeneficiosPontuacao => Set<BeneficioPontuacao>();
+    public DbSet<ResgateBeneficioPontuacao> ResgatesBeneficiosPontuacao => Set<ResgateBeneficioPontuacao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

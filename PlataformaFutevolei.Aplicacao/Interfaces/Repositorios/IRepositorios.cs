@@ -349,6 +349,52 @@ public interface IPendenciaUsuarioRepositorio
     void Atualizar(PendenciaUsuario pendencia);
 }
 
+public interface IPontuacaoBeneficioRepositorio
+{
+    Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task AdicionarSaldoAsync(PontuacaoBeneficioAtleta saldo, CancellationToken cancellationToken = default);
+    Task<bool> ExisteExtratoPorChaveAsync(string chaveIdempotencia, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ExtratoPontuacaoBeneficio>> ListarExtratoAsync(
+        Guid atletaId,
+        TipoEventoPontuacaoBeneficio? tipo,
+        DateTime? dataInicial,
+        DateTime? dataFinal,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ExtratoPontuacaoBeneficio>> ListarExtratoPorPartidaAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default);
+    Task<int> ContarEventosAsync(
+        Guid atletaId,
+        IReadOnlyCollection<TipoEventoPontuacaoBeneficio> tipos,
+        DateTime dataInicial,
+        DateTime dataFinal,
+        CancellationToken cancellationToken = default);
+    Task<int> SomarPontosAsync(
+        Guid atletaId,
+        IReadOnlyCollection<TipoEventoPontuacaoBeneficio> tipos,
+        DateTime dataInicial,
+        DateTime dataFinal,
+        CancellationToken cancellationToken = default);
+    Task AdicionarExtratoAsync(ExtratoPontuacaoBeneficio extrato, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BeneficioPontuacao>> ListarBeneficiosAtivosAsync(
+        TipoBeneficioPontuacao? tipo,
+        bool? disponivel,
+        bool? destaque,
+        CancellationToken cancellationToken = default);
+    Task<BeneficioPontuacao?> ObterBeneficioPorIdAsync(Guid beneficioId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesAdministracaoAsync(CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacao?> ObterResgatePorIdAsync(Guid resgateId, CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacao?> ObterResgatePorIdParaAtualizacaoAsync(Guid resgateId, CancellationToken cancellationToken = default);
+    Task<bool> ExisteResgateSolicitadoAsync(Guid atletaId, Guid beneficioId, CancellationToken cancellationToken = default);
+    Task AdicionarResgateAsync(ResgateBeneficioPontuacao resgate, CancellationToken cancellationToken = default);
+    void AtualizarSaldo(PontuacaoBeneficioAtleta saldo);
+    void AtualizarResgate(ResgateBeneficioPontuacao resgate);
+}
+
 public interface IInscricaoCampeonatoRepositorio
 {
     Task<IReadOnlyList<InscricaoCampeonato>> ListarPorCampeonatoAsync(

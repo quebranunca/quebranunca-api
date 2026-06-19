@@ -21,7 +21,8 @@ public class PendenciaServico(
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IConsolidacaoAtletaServico consolidacaoAtletaServico,
-    IConviteCadastroServico conviteCadastroServico
+    IConviteCadastroServico conviteCadastroServico,
+    IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null
 ) : IPendenciaServico
 {
     private const string MarcadorMetadadosLados = "[[lados:";
@@ -87,6 +88,14 @@ public class PendenciaServico(
 
         await RecalcularStatusPartidaAsync(pendencia.Partida!, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.PontuarPartidaValidadaAsync(
+                pendencia.Partida!,
+                pendencia.Partida!.CriadoPorUsuarioId,
+                cancellationToken);
+        }
+
         return pendencia.ParaDto();
     }
 
@@ -215,6 +224,18 @@ public class PendenciaServico(
             resultado = new AtualizarContatoPendenciaResultadoDto(false, pendenciaAtualizada.ParaDto(), null);
         }, cancellationToken);
 
+        if (pontuacaoBeneficioServico is not null &&
+            resultado?.Pendencia.Status == StatusPendenciaUsuario.Concluida &&
+            usuario.AtletaId.HasValue)
+        {
+            await pontuacaoBeneficioServico.PontuarPendenciaResolvidaAsync(
+                pendenciaId,
+                usuario.AtletaId.Value,
+                resultado.Pendencia.PartidaId,
+                usuario.Id,
+                cancellationToken);
+        }
+
         if (deveCriarConvite && !string.IsNullOrWhiteSpace(emailConvite))
         {
             await conviteCadastroServico.CriarParaPendenciaAtletaAsync(
@@ -309,6 +330,18 @@ public class PendenciaServico(
                 ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
             resultado = pendenciaAtualizada.ParaDto();
         }, cancellationToken);
+
+        if (pontuacaoBeneficioServico is not null &&
+            resultado?.Status == StatusPendenciaUsuario.Concluida &&
+            usuario.AtletaId.HasValue)
+        {
+            await pontuacaoBeneficioServico.PontuarPendenciaResolvidaAsync(
+                pendenciaId,
+                usuario.AtletaId.Value,
+                resultado.PartidaId,
+                usuario.Id,
+                cancellationToken);
+        }
 
         return resultado ?? throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
     }

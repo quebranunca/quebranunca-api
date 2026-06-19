@@ -25,7 +25,8 @@ public class PartidaServico(
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IPendenciaServico pendenciaServico,
     IRankingServico rankingServico,
-    IMidiaPartidaService midiaPartidaService
+    IMidiaPartidaService midiaPartidaService,
+    IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null
 ) : IPartidaServico
 {
     private const string MarcadorMetadadosChave = "[[chave:";
@@ -835,6 +836,11 @@ public class PartidaServico(
             await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         }
         var partidaCriada = await partidaRepositorio.ObterPorIdAsync(partida.Id, cancellationToken);
+        if (partidaCriada is not null && pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.PontuarPartidaValidadaAsync(partidaCriada, usuarioAtual.Id, cancellationToken);
+        }
+
         return new CriarPartidaResultadoDto(
             StatusCriacaoPartida.Criada,
             partidaCriada!.ParaDto(),
@@ -971,6 +977,14 @@ public class PartidaServico(
             await ProcessarAvancoRodadasAsync(categoria, cancellationToken);
         }
         var partidaAtualizada = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partidaAtualizada is not null && pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.PontuarPartidaValidadaAsync(
+                partidaAtualizada,
+                partidaAtualizada.CriadoPorUsuarioId,
+                cancellationToken);
+        }
+
         return partidaAtualizada!.ParaDto();
     }
 
@@ -1071,6 +1085,14 @@ public class PartidaServico(
         }
 
         var partidaAtualizada = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
+        if (partidaAtualizada is not null && pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.PontuarPartidaValidadaAsync(
+                partidaAtualizada,
+                partidaAtualizada.CriadoPorUsuarioId,
+                cancellationToken);
+        }
+
         return partidaAtualizada!.ParaDto();
     }
 
@@ -1087,6 +1109,11 @@ public class PartidaServico(
         if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
         {
             await midiaPartidaService.RemoverAsync(partida.MidiaPublicId, partida.MidiaTipo, cancellationToken);
+        }
+
+        if (pontuacaoBeneficioServico is not null)
+        {
+            await pontuacaoBeneficioServico.EstornarPartidaAsync(partida.Id, cancellationToken);
         }
 
         partidaRepositorio.Remover(partida);

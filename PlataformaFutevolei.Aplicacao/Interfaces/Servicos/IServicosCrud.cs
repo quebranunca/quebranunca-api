@@ -376,6 +376,39 @@ public interface IRankingServico
         CancellationToken cancellationToken = default);
 }
 
+public interface IPontuacaoBeneficioServico
+{
+    Task<GamificacaoResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default);
+    Task<ExtratoPontuacaoBeneficioListaDto> ListarExtratoAsync(
+        TipoEventoPontuacaoBeneficio? tipo,
+        DateTime? dataInicial,
+        DateTime? dataFinal,
+        int pagina,
+        int quantidadePorPagina,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BeneficioPontuacaoDto>> ListarBeneficiosAsync(
+        TipoBeneficioPontuacao? tipo,
+        bool? disponivel,
+        bool? destaque,
+        CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacaoDto> SolicitarResgateAsync(
+        Guid beneficioId,
+        SolicitarResgateBeneficioDto dto,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ResgateBeneficioPontuacaoDto>> ListarMeusResgatesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ResgateBeneficioPontuacaoDto>> ListarResgatesAdministracaoAsync(CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacaoDto> AprovarResgateAsync(Guid resgateId, AtualizarStatusResgateBeneficioDto dto, CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacaoDto> RejeitarResgateAsync(Guid resgateId, AtualizarStatusResgateBeneficioDto dto, CancellationToken cancellationToken = default);
+    Task<ResgateBeneficioPontuacaoDto> CancelarResgateAsync(Guid resgateId, AtualizarStatusResgateBeneficioDto dto, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MissaoPontuacaoDto>> ListarMissoesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ConquistaAtletaDto>> ListarConquistasAsync(CancellationToken cancellationToken = default);
+    Task RegistrarCompartilhamentoAsync(RegistrarCompartilhamentoGamificacaoDto dto, CancellationToken cancellationToken = default);
+    Task PontuarPartidaValidadaAsync(Partida partida, Guid? usuarioRegistradorId, CancellationToken cancellationToken = default);
+    Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task PontuarPendenciaResolvidaAsync(Guid pendenciaId, Guid atletaId, Guid? partidaId, Guid usuarioId, CancellationToken cancellationToken = default);
+    Task PontuarPerfilCompletoAsync(Atleta atleta, Guid usuarioId, CancellationToken cancellationToken = default);
+}
+
 public interface IImportacaoServico
 {
     Task<ImportacaoResultadoDto> ImportarAsync(
