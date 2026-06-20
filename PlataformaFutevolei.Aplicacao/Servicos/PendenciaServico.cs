@@ -90,6 +90,13 @@ public class PendenciaServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         if (pontuacaoBeneficioServico is not null)
         {
+            await pontuacaoBeneficioServico.PontuarConfirmacaoAprovacaoPartidaAsync(
+                pendencia.Partida!.Id,
+                pendencia.AtletaId!.Value,
+                pendencia.Id,
+                usuario.Id,
+                cancellationToken);
+
             await pontuacaoBeneficioServico.PontuarPartidaValidadaAsync(
                 pendencia.Partida!,
                 pendencia.Partida!.CriadoPorUsuarioId,

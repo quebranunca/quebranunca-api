@@ -13,7 +13,12 @@ public enum TipoEventoPontuacaoBeneficio
     PendenciaResolvida = 9,
     SequenciaSemanal = 10,
     ConviteAtletaPrimeiraPartida = 11,
+    PartidaVitoria = 12,
+    ConfirmacaoAprovacaoPartida = 13,
+    EntradaGrupo = 14,
+    ConviteAtletaCadastro = 15,
     ResgateBeneficio = 50,
+    SaldoInicialRetroativo = 60,
     EstornoPartida = 90,
     EstornoResgate = 91
 }

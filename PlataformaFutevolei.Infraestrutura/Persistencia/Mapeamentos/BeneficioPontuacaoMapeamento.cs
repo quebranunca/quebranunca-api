@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Dominio.Entidades;
-using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Mapeamentos;
 
@@ -35,81 +35,20 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
         builder.HasIndex(x => x.Ativo);
         builder.HasIndex(x => x.Ordem);
 
-        builder.HasData(
-            new
-            {
-                Id = Guid.Parse("11111111-1111-4111-8111-111111111111"),
-                Titulo = "10% OFF na loja",
-                Descricao = "Solicite um cupom manual de desconto para usar na loja QuebraNunca.",
-                Tipo = TipoBeneficioPontuacao.DescontoLoja,
-                PontosNecessarios = 600,
-                Ativo = true,
-                QuantidadeDisponivel = (int?)null,
-                ImagemUrl = (string?)null,
-                Ordem = 1,
-                Destaque = true,
-                DataCriacao = DataSeed,
-                DataAtualizacao = DataSeed
-            },
-            new
-            {
-                Id = Guid.Parse("22222222-2222-4222-8222-222222222222"),
-                Titulo = "Boné QuebraNunca",
-                Descricao = "Brinde sujeito a disponibilidade e aprovação manual.",
-                Tipo = TipoBeneficioPontuacao.Brinde,
-                PontosNecessarios = 1200,
-                Ativo = true,
-                QuantidadeDisponivel = (int?)null,
-                ImagemUrl = (string?)null,
-                Ordem = 2,
-                Destaque = false,
-                DataCriacao = DataSeed,
-                DataAtualizacao = DataSeed
-            },
-            new
-            {
-                Id = Guid.Parse("33333333-3333-4333-8333-333333333333"),
-                Titulo = "Garrafa QN",
-                Descricao = "Brinde sujeito a disponibilidade e aprovação manual.",
-                Tipo = TipoBeneficioPontuacao.Brinde,
-                PontosNecessarios = 1200,
-                Ativo = true,
-                QuantidadeDisponivel = (int?)null,
-                ImagemUrl = (string?)null,
-                Ordem = 3,
-                Destaque = false,
-                DataCriacao = DataSeed,
-                DataAtualizacao = DataSeed
-            },
-            new
-            {
-                Id = Guid.Parse("44444444-4444-4444-8444-444444444444"),
-                Titulo = "Camiseta Drop Especial",
-                Descricao = "Produto sujeito a estoque e aprovação manual.",
-                Tipo = TipoBeneficioPontuacao.Produto,
-                PontosNecessarios = 1800,
-                Ativo = true,
-                QuantidadeDisponivel = (int?)null,
-                ImagemUrl = (string?)null,
-                Ordem = 4,
-                Destaque = false,
-                DataCriacao = DataSeed,
-                DataAtualizacao = DataSeed
-            },
-            new
-            {
-                Id = Guid.Parse("55555555-5555-4555-8555-555555555555"),
-                Titulo = "Aula com parceiro",
-                Descricao = "Experiência agendada manualmente pela equipe QuebraNunca.",
-                Tipo = TipoBeneficioPontuacao.Experiencia,
-                PontosNecessarios = 2000,
-                Ativo = true,
-                QuantidadeDisponivel = (int?)null,
-                ImagemUrl = (string?)null,
-                Ordem = 5,
-                Destaque = false,
-                DataCriacao = DataSeed,
-                DataAtualizacao = DataSeed
-            });
+        builder.HasData(PontuacaoBeneficioRegras.BeneficiosPadrao.Select(beneficio => new
+        {
+            beneficio.Id,
+            beneficio.Titulo,
+            beneficio.Descricao,
+            beneficio.Tipo,
+            beneficio.PontosNecessarios,
+            Ativo = true,
+            QuantidadeDisponivel = (int?)null,
+            ImagemUrl = (string?)null,
+            beneficio.Ordem,
+            beneficio.Destaque,
+            DataCriacao = DataSeed,
+            DataAtualizacao = DataSeed
+        }));
     }
 }

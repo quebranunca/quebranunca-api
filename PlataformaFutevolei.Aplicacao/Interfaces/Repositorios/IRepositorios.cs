@@ -379,6 +379,9 @@ public interface IPontuacaoBeneficioRepositorio
         DateTime dataFinal,
         CancellationToken cancellationToken = default);
     Task AdicionarExtratoAsync(ExtratoPontuacaoBeneficio extrato, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SaldoInicialRetroativoAtletaDto>> CalcularSaldosIniciaisRetroativosAsync(
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlySet<Guid>> ListarAtletasComSaldoInicialRetroativoAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BeneficioPontuacao>> ListarBeneficiosAtivosAsync(
         TipoBeneficioPontuacao? tipo,
         bool? disponivel,

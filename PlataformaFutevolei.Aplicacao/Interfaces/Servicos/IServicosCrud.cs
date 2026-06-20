@@ -404,9 +404,13 @@ public interface IPontuacaoBeneficioServico
     Task<IReadOnlyList<ConquistaAtletaDto>> ListarConquistasAsync(CancellationToken cancellationToken = default);
     Task RegistrarCompartilhamentoAsync(RegistrarCompartilhamentoGamificacaoDto dto, CancellationToken cancellationToken = default);
     Task PontuarPartidaValidadaAsync(Partida partida, Guid? usuarioRegistradorId, CancellationToken cancellationToken = default);
+    Task PontuarConfirmacaoAprovacaoPartidaAsync(Guid partidaId, Guid atletaId, Guid pendenciaId, Guid usuarioId, CancellationToken cancellationToken = default);
     Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
     Task PontuarPendenciaResolvidaAsync(Guid pendenciaId, Guid atletaId, Guid? partidaId, Guid usuarioId, CancellationToken cancellationToken = default);
     Task PontuarPerfilCompletoAsync(Atleta atleta, Guid usuarioId, CancellationToken cancellationToken = default);
+    Task<RecalculoSaldoInicialPontuacaoResultadoDto> RecalcularSaldoInicialRetroativoAsync(
+        bool dryRun,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IImportacaoServico

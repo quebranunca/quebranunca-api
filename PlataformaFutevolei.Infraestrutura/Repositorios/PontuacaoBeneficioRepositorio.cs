@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using PlataformaFutevolei.Aplicacao.Configuracoes;
+using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
@@ -124,6 +126,111 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
         return dbContext.ExtratosPontuacaoBeneficio.AddAsync(extrato, cancellationToken).AsTask();
     }
 
+    public async Task<IReadOnlyList<SaldoInicialRetroativoAtletaDto>> CalcularSaldosIniciaisRetroativosAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var nomesAtletas = await dbContext.Atletas
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.Nome })
+            .ToDictionaryAsync(x => x.Id, x => x.Nome, cancellationToken);
+        var calculos = new Dictionary<Guid, SaldoInicialRetroativoAcumulador>();
+
+        SaldoInicialRetroativoAcumulador ObterAcumulador(Guid atletaId)
+        {
+            if (!calculos.TryGetValue(atletaId, out var acumulador))
+            {
+                acumulador = new SaldoInicialRetroativoAcumulador(
+                    atletaId,
+                    nomesAtletas.GetValueOrDefault(atletaId) ?? "Atleta");
+                calculos[atletaId] = acumulador;
+            }
+
+            return acumulador;
+        }
+
+        var partidasValidas = await dbContext.Partidas
+            .AsNoTracking()
+            .Include(x => x.DuplaA)
+            .Include(x => x.DuplaB)
+            .Include(x => x.CriadoPorUsuario)
+            .Where(x =>
+                x.Ativa &&
+                x.Status == StatusPartida.Encerrada &&
+                x.StatusAprovacao == StatusAprovacaoPartida.Aprovada &&
+                x.DuplaAId != null &&
+                x.DuplaBId != null &&
+                x.DuplaVencedoraId != null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var partida in partidasValidas)
+        {
+            foreach (var atletaId in ObterAtletasPartida(partida).Distinct())
+            {
+                ObterAcumulador(atletaId).PartidasParticipadas++;
+            }
+
+            if (partida.CriadoPorUsuario?.AtletaId is Guid atletaRegistradorId)
+            {
+                var acumuladorRegistrador = ObterAcumulador(atletaRegistradorId);
+                acumuladorRegistrador.PartidasRegistradas++;
+                if (partida.PossuiPlacarDetalhado())
+                {
+                    acumuladorRegistrador.PartidasComPlacar++;
+                }
+            }
+
+            foreach (var atletaId in ObterAtletasDuplaVencedora(partida))
+            {
+                ObterAcumulador(atletaId).Vitorias++;
+            }
+        }
+
+        var gruposPorAtleta = await dbContext.GruposAtletas
+            .AsNoTracking()
+            .Select(x => new { x.AtletaId, x.GrupoId })
+            .Distinct()
+            .GroupBy(x => x.AtletaId)
+            .Select(x => new { AtletaId = x.Key, Total = x.Count() })
+            .ToListAsync(cancellationToken);
+        foreach (var grupo in gruposPorAtleta)
+        {
+            ObterAcumulador(grupo.AtletaId).Grupos = grupo.Total;
+        }
+
+        var pendenciasResolvidas = await dbContext.PendenciasUsuarios
+            .AsNoTracking()
+            .Where(x =>
+                x.Status == StatusPendenciaUsuario.Concluida &&
+                x.Tipo == TipoPendenciaUsuario.CompletarContatoAtletaDaPartida &&
+                x.AtletaId != null)
+            .GroupBy(x => x.AtletaId!.Value)
+            .Select(x => new { AtletaId = x.Key, Total = x.Count() })
+            .ToListAsync(cancellationToken);
+        foreach (var pendencia in pendenciasResolvidas)
+        {
+            ObterAcumulador(pendencia.AtletaId).PendenciasResolvidas = pendencia.Total;
+        }
+
+        return calculos.Values
+            .Select(x => x.ParaDto())
+            .Where(x => x.TotalCalculado > 0)
+            .OrderByDescending(x => x.TotalCalculado)
+            .ThenBy(x => x.NomeAtleta)
+            .ToList();
+    }
+
+    public async Task<IReadOnlySet<Guid>> ListarAtletasComSaldoInicialRetroativoAsync(CancellationToken cancellationToken = default)
+    {
+        var atletas = await dbContext.ExtratosPontuacaoBeneficio
+            .AsNoTracking()
+            .Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo)
+            .Select(x => x.AtletaId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return atletas.ToHashSet();
+    }
+
     public async Task<IReadOnlyList<BeneficioPontuacao>> ListarBeneficiosAtivosAsync(
         TipoBeneficioPontuacao? tipo,
         bool? disponivel,
@@ -243,5 +350,69 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
             .Where(x => x.AtletaId == atletaId)
             .Where(x => tipos.Contains(x.TipoEvento))
             .Where(x => x.DataCriacao >= dataInicial && x.DataCriacao < dataFinal);
+    }
+
+    private static IReadOnlyList<Guid> ObterAtletasPartida(Partida partida)
+    {
+        if (partida.DuplaA is null || partida.DuplaB is null)
+        {
+            return [];
+        }
+
+        return
+        [
+            partida.DuplaA.Atleta1Id,
+            partida.DuplaA.Atleta2Id,
+            partida.DuplaB.Atleta1Id,
+            partida.DuplaB.Atleta2Id
+        ];
+    }
+
+    private static IReadOnlyList<Guid> ObterAtletasDuplaVencedora(Partida partida)
+    {
+        if (partida.DuplaVencedoraId == partida.DuplaAId && partida.DuplaA is not null)
+        {
+            return [partida.DuplaA.Atleta1Id, partida.DuplaA.Atleta2Id];
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaBId && partida.DuplaB is not null)
+        {
+            return [partida.DuplaB.Atleta1Id, partida.DuplaB.Atleta2Id];
+        }
+
+        return [];
+    }
+
+    private sealed class SaldoInicialRetroativoAcumulador(Guid atletaId, string nomeAtleta)
+    {
+        public int PartidasParticipadas { get; set; }
+        public int PartidasRegistradas { get; set; }
+        public int PartidasComPlacar { get; set; }
+        public int Vitorias { get; set; }
+        public int Grupos { get; set; }
+        public int PendenciasResolvidas { get; set; }
+
+        public SaldoInicialRetroativoAtletaDto ParaDto()
+        {
+            var total =
+                PartidasParticipadas * PontuacaoBeneficioRegras.PartidaParticipante +
+                PartidasRegistradas * PontuacaoBeneficioRegras.PartidaRegistrador +
+                PartidasComPlacar * PontuacaoBeneficioRegras.PartidaPlacarCompleto +
+                Vitorias * PontuacaoBeneficioRegras.PartidaVitoria +
+                Grupos * PontuacaoBeneficioRegras.EntradaGrupo +
+                PendenciasResolvidas * PontuacaoBeneficioRegras.PendenciaResolvida;
+
+            return new SaldoInicialRetroativoAtletaDto(
+                atletaId,
+                nomeAtleta,
+                PartidasParticipadas,
+                PartidasRegistradas,
+                PartidasComPlacar,
+                Vitorias,
+                Grupos,
+                PendenciasResolvidas,
+                total,
+                false);
+        }
     }
 }

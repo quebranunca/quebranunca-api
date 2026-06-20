@@ -114,3 +114,25 @@ public record RegistrarCompartilhamentoGamificacaoDto(
     Guid? AtletaId,
     Guid? DuplaId,
     string? Origem);
+
+public record SaldoInicialRetroativoAtletaDto(
+    Guid AtletaId,
+    string NomeAtleta,
+    int PartidasParticipadas,
+    int PartidasRegistradas,
+    int PartidasComPlacar,
+    int Vitorias,
+    int Grupos,
+    int PendenciasResolvidas,
+    int TotalCalculado,
+    bool JaPossuiaSaldoInicial);
+
+public record RecalculoSaldoInicialPontuacaoResultadoDto(
+    bool DryRun,
+    bool Aplicado,
+    int AtletasAvaliados,
+    int AtletasComSaldoInicialCalculado,
+    int AtletasIgnoradosPorSaldoInicialExistente,
+    int TotalPontosCalculados,
+    IReadOnlyList<SaldoInicialRetroativoAtletaDto> TopSaldosCalculados,
+    IReadOnlyList<string> Avisos);

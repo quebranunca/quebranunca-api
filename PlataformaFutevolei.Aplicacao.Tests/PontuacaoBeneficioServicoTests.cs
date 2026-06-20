@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -21,10 +22,11 @@ public class PontuacaoBeneficioServicoTests
         await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
         await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
 
-        Assert.Equal(6, cenario.Repositorio.Extratos.Count);
-        Assert.Equal(18, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
-        Assert.Equal(5, cenario.Repositorio.Saldos[cenario.OutrosAtletas[0].Id].SaldoAtual);
+        Assert.Equal(8, cenario.Repositorio.Extratos.Count);
+        Assert.Equal(23, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(13, cenario.Repositorio.Saldos[cenario.OutrosAtletas[0].Id].SaldoAtual);
         Assert.Contains(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto);
+        Assert.Contains(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.PartidaVitoria);
     }
 
     [Fact]
@@ -48,9 +50,10 @@ public class PontuacaoBeneficioServicoTests
 
         await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
 
-        Assert.Equal(5, cenario.Repositorio.Extratos.Count);
+        Assert.Equal(7, cenario.Repositorio.Extratos.Count);
         Assert.DoesNotContain(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto);
-        Assert.Equal(15, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(18, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Contains(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.PartidaVitoria);
     }
 
     [Fact]
@@ -79,7 +82,7 @@ public class PontuacaoBeneficioServicoTests
             new SolicitarResgateBeneficioDto("Quero usar na loja."));
 
         Assert.Equal(StatusResgateBeneficioPontuacao.Solicitado, resgate.Status);
-        Assert.Equal(8, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
         Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
         Assert.Contains(cenario.Repositorio.Extratos, x =>
             x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio &&
@@ -105,7 +108,46 @@ public class PontuacaoBeneficioServicoTests
         }
 
         Assert.Equal(3, cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.CompartilhamentoPartida));
-        Assert.Equal(9, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(15, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+    }
+
+    [Fact]
+    public async Task PontuarConfirmacaoAprovacaoPartidaAsync_RegistraUmaVezPorPendencia()
+    {
+        var cenario = new Cenario();
+        var partidaId = Guid.NewGuid();
+        var pendenciaId = Guid.NewGuid();
+
+        await cenario.Servico.PontuarConfirmacaoAprovacaoPartidaAsync(
+            partidaId,
+            cenario.Usuario.AtletaId!.Value,
+            pendenciaId,
+            cenario.Usuario.Id);
+        await cenario.Servico.PontuarConfirmacaoAprovacaoPartidaAsync(
+            partidaId,
+            cenario.Usuario.AtletaId!.Value,
+            pendenciaId,
+            cenario.Usuario.Id);
+
+        Assert.Single(cenario.Repositorio.Extratos);
+        Assert.Equal(TipoEventoPontuacaoBeneficio.ConfirmacaoAprovacaoPartida, cenario.Repositorio.Extratos[0].TipoEvento);
+        Assert.Equal(2, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+    }
+
+    [Fact]
+    public async Task EstornarPartidaAsync_EstornaPontosDaPartidaComIdempotencia()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+
+        Assert.Equal(16, cenario.Repositorio.Extratos.Count);
+        Assert.Equal(0, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.All(cenario.Atletas, atleta => Assert.Equal(0, cenario.Repositorio.Saldos[atleta.Id].SaldoAtual));
+        Assert.Equal(8, cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida));
     }
 
     [Fact]
@@ -122,16 +164,84 @@ public class PontuacaoBeneficioServicoTests
         Assert.Contains(conquistas, x => x.Codigo == "primeira-partida" && x.Desbloqueada);
     }
 
+    [Fact]
+    public void BeneficiosPadrao_UsamTabelaOficialDeCupons()
+    {
+        var pontos = PontuacaoBeneficioRegras.BeneficiosPadrao
+            .OrderBy(x => x.Ordem)
+            .Select(x => x.PontosNecessarios)
+            .ToList();
+
+        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontos);
+        Assert.All(PontuacaoBeneficioRegras.BeneficiosPadrao, beneficio =>
+            Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, beneficio.Tipo));
+    }
+
+    [Fact]
+    public async Task RecalcularSaldoInicialRetroativoAsync_DryRunNaoAlteraSaldo()
+    {
+        var cenario = new Cenario(perfilUsuario: PerfilUsuario.Administrador);
+        cenario.Repositorio.CalculosSaldoInicial.Add(new SaldoInicialRetroativoAtletaDto(
+            cenario.Usuario.AtletaId!.Value,
+            cenario.Usuario.Nome,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            63,
+            false));
+
+        var resultado = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: true);
+
+        Assert.True(resultado.DryRun);
+        Assert.False(resultado.Aplicado);
+        Assert.Equal(1, resultado.AtletasAvaliados);
+        Assert.Equal(1, resultado.AtletasComSaldoInicialCalculado);
+        Assert.Equal(63, resultado.TotalPontosCalculados);
+        Assert.Empty(cenario.Repositorio.Extratos);
+        Assert.Empty(cenario.Repositorio.Saldos);
+    }
+
+    [Fact]
+    public async Task RecalcularSaldoInicialRetroativoAsync_AplicaSaldoInicialEIgnoraDuplicidade()
+    {
+        var cenario = new Cenario(perfilUsuario: PerfilUsuario.Administrador);
+        cenario.Repositorio.CalculosSaldoInicial.Add(new SaldoInicialRetroativoAtletaDto(
+            cenario.Usuario.AtletaId!.Value,
+            cenario.Usuario.Nome,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            63,
+            false));
+
+        var resultado = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: false);
+        var segundaExecucao = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: false);
+
+        Assert.True(resultado.Aplicado);
+        Assert.Equal(63, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Single(cenario.Repositorio.Extratos);
+        Assert.Equal(TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo, cenario.Repositorio.Extratos[0].TipoEvento);
+        Assert.Equal(1, segundaExecucao.AtletasIgnoradosPorSaldoInicialExistente);
+        Assert.Equal(0, segundaExecucao.AtletasComSaldoInicialCalculado);
+        Assert.Single(cenario.Repositorio.Extratos);
+    }
+
     private class Cenario
     {
-        public Cenario()
+        public Cenario(PerfilUsuario perfilUsuario = PerfilUsuario.Atleta)
         {
             var atletaUsuario = new Atleta { Nome = "Atleta Usuário" };
             Usuario = new Usuario
             {
                 Nome = "Usuário",
                 Email = "usuario@qnf.test",
-                Perfil = PerfilUsuario.Atleta,
+                Perfil = perfilUsuario,
                 AtletaId = atletaUsuario.Id,
                 Atleta = atletaUsuario
             };
@@ -202,6 +312,7 @@ public class PontuacaoBeneficioServicoTests
         public List<ExtratoPontuacaoBeneficio> Extratos { get; } = [];
         public List<BeneficioPontuacao> Beneficios { get; } = [];
         public List<ResgateBeneficioPontuacao> Resgates { get; } = [];
+        public List<SaldoInicialRetroativoAtletaDto> CalculosSaldoInicial { get; } = [];
 
         public BeneficioPontuacao AdicionarBeneficio(int pontos, bool ativo = true)
         {
@@ -293,6 +404,16 @@ public class PontuacaoBeneficioServicoTests
             Extratos.Add(extrato);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<SaldoInicialRetroativoAtletaDto>> CalcularSaldosIniciaisRetroativosAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SaldoInicialRetroativoAtletaDto>>(CalculosSaldoInicial);
+
+        public Task<IReadOnlySet<Guid>> ListarAtletasComSaldoInicialRetroativoAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlySet<Guid>>(Extratos
+                .Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo)
+                .Select(x => x.AtletaId)
+                .ToHashSet());
 
         public Task<IReadOnlyList<BeneficioPontuacao>> ListarBeneficiosAtivosAsync(
             TipoBeneficioPontuacao? tipo,

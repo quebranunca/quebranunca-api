@@ -20,9 +20,7 @@ public class PontuacaoBeneficioServico(
 {
     private static readonly IReadOnlyCollection<TipoEventoPontuacaoBeneficio> EventosPartida =
     [
-        TipoEventoPontuacaoBeneficio.PartidaParticipante,
-        TipoEventoPontuacaoBeneficio.PartidaRegistrador,
-        TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto
+        TipoEventoPontuacaoBeneficio.PartidaParticipante
     ];
 
     private static readonly IReadOnlyCollection<TipoEventoPontuacaoBeneficio> EventosCompartilhamento =
@@ -259,6 +257,7 @@ public class PontuacaoBeneficioServico(
         return
         [
             new("jogar-3-partidas", "Jogue 3 partidas", "Participe de partidas válidas na semana.", Math.Min(partidas, 3), 3, PontuacaoBeneficioRegras.SequenciaSemanal, partidas >= 3, inicioSemana, fimSemana),
+            new("jogar-5-partidas", "Jogue 5 partidas", "Mantenha ritmo forte na semana.", Math.Min(partidas, 5), 5, PontuacaoBeneficioRegras.FrequenciaCincoPartidasSemana, partidas >= 5, inicioSemana, fimSemana),
             new("compartilhar-2-resultados", "Compartilhe 2 resultados", "Compartilhe resultados, ranking ou scout.", Math.Min(compartilhamentos, 2), 2, PontuacaoBeneficioRegras.Compartilhamento, compartilhamentos >= 2, inicioSemana, fimSemana),
             new("resolver-1-pendencia", "Resolva 1 pendência", "Ajude a comunidade corrigindo dados pendentes.", Math.Min(pendencias, 1), 1, PontuacaoBeneficioRegras.PendenciaResolvida, pendencias >= 1, inicioSemana, fimSemana),
             new("registrar-1-placar", "Registre 1 partida com placar completo", "Inclua o placar para melhorar a qualidade dos dados.", Math.Min(placares, 1), 1, PontuacaoBeneficioRegras.PartidaPlacarCompleto, placares >= 1, inicioSemana, fimSemana)
@@ -376,6 +375,22 @@ public class PontuacaoBeneficioServico(
                 cancellationToken);
         }
 
+        foreach (var atletaId in ObterAtletasDuplaVencedora(partida))
+        {
+            await RegistrarMovimentacaoAsync(
+                atletaId,
+                PontuacaoBeneficioRegras.PartidaVitoria,
+                TipoEventoPontuacaoBeneficio.PartidaVitoria,
+                "Venceu partida validada",
+                "Partida",
+                $"PARTIDA_VITORIA:{partida.Id}:ATLETA:{atletaId}",
+                partida.GrupoId,
+                partida.Id,
+                null,
+                usuarioRegistradorId,
+                cancellationToken);
+        }
+
         var atletaRegistradorId = await ObterAtletaRegistradorAsync(usuarioRegistradorId, cancellationToken);
         if (!atletaRegistradorId.HasValue)
         {
@@ -410,6 +425,27 @@ public class PontuacaoBeneficioServico(
                 usuarioRegistradorId,
                 cancellationToken);
         }
+    }
+
+    public Task PontuarConfirmacaoAprovacaoPartidaAsync(
+        Guid partidaId,
+        Guid atletaId,
+        Guid pendenciaId,
+        Guid usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        return RegistrarMovimentacaoAsync(
+            atletaId,
+            PontuacaoBeneficioRegras.ConfirmacaoAprovacaoPartida,
+            TipoEventoPontuacaoBeneficio.ConfirmacaoAprovacaoPartida,
+            "Confirmou aprovação de partida",
+            "Pendencia",
+            $"PARTIDA_CONFIRMACAO_APROVACAO:{partidaId}:PENDENCIA:{pendenciaId}:ATLETA:{atletaId}",
+            null,
+            partidaId,
+            null,
+            usuarioId,
+            cancellationToken);
     }
 
     public async Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)
@@ -475,6 +511,73 @@ public class PontuacaoBeneficioServico(
             null,
             usuarioId,
             cancellationToken);
+    }
+
+    public async Task<RecalculoSaldoInicialPontuacaoResultadoDto> RecalcularSaldoInicialRetroativoAsync(
+        bool dryRun,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+
+        var calculos = await pontuacaoRepositorio.CalcularSaldosIniciaisRetroativosAsync(cancellationToken);
+        var atletasComSaldoInicial = await pontuacaoRepositorio.ListarAtletasComSaldoInicialRetroativoAsync(cancellationToken);
+        var calculosComStatus = calculos
+            .Select(x => x with { JaPossuiaSaldoInicial = atletasComSaldoInicial.Contains(x.AtletaId) })
+            .ToList();
+        var candidatos = calculosComStatus
+            .Where(x => x.TotalCalculado > 0 && !x.JaPossuiaSaldoInicial)
+            .ToList();
+        var avisos = new List<string>
+        {
+            dryRun
+                ? "Dry run executado: nenhum saldo foi alterado."
+                : "Saldo inicial retroativo aplicado apenas para atletas sem lançamento anterior."
+        };
+
+        if (!dryRun && candidatos.Count > 0)
+        {
+            await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
+            {
+                foreach (var candidato in candidatos)
+                {
+                    await RegistrarMovimentacaoAsync(
+                        candidato.AtletaId,
+                        candidato.TotalCalculado,
+                        TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo,
+                        MontarDescricaoSaldoInicial(candidato),
+                        "Backfill",
+                        MontarChaveSaldoInicialRetroativo(candidato.AtletaId),
+                        null,
+                        null,
+                        null,
+                        usuario.Id,
+                        ct,
+                        salvarAoFinal: false);
+                }
+
+                await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+            }, cancellationToken);
+
+            logger.LogInformation(
+                "Saldo inicial retroativo Pontos QN aplicado. Atletas={Atletas} TotalPontos={TotalPontos}",
+                candidatos.Count,
+                candidatos.Sum(x => x.TotalCalculado));
+        }
+
+        return new RecalculoSaldoInicialPontuacaoResultadoDto(
+            dryRun,
+            !dryRun,
+            calculosComStatus.Count,
+            candidatos.Count,
+            calculosComStatus.Count(x => x.JaPossuiaSaldoInicial),
+            candidatos.Sum(x => x.TotalCalculado),
+            calculosComStatus
+                .OrderByDescending(x => x.TotalCalculado)
+                .ThenBy(x => x.NomeAtleta)
+                .Take(10)
+                .ToList(),
+            avisos);
     }
 
     private async Task<ResgateBeneficioPontuacaoDto> AtualizarStatusResgateAsync(
@@ -769,6 +872,21 @@ public class PontuacaoBeneficioServico(
         ];
     }
 
+    private static IReadOnlyList<Guid> ObterAtletasDuplaVencedora(Partida partida)
+    {
+        if (partida.DuplaVencedoraId == partida.DuplaAId && partida.DuplaA is not null)
+        {
+            return [partida.DuplaA.Atleta1Id, partida.DuplaA.Atleta2Id];
+        }
+
+        if (partida.DuplaVencedoraId == partida.DuplaBId && partida.DuplaB is not null)
+        {
+            return [partida.DuplaB.Atleta1Id, partida.DuplaB.Atleta2Id];
+        }
+
+        return [];
+    }
+
     private static (DateTime Inicio, DateTime Fim) ObterIntervaloSemanaUtc(DateTime referencia)
     {
         var data = referencia.Date;
@@ -805,6 +923,20 @@ public class PontuacaoBeneficioServico(
         };
     }
 
+    private static string MontarChaveSaldoInicialRetroativo(Guid atletaId)
+        => $"SALDO_INICIAL_RETROATIVO:ATLETA:{atletaId}";
+
+    private static string MontarDescricaoSaldoInicial(SaldoInicialRetroativoAtletaDto saldo)
+    {
+        return "Saldo inicial calculado pelo historico da plataforma: " +
+            $"{saldo.PartidasParticipadas} partidas, " +
+            $"{saldo.PartidasRegistradas} registros, " +
+            $"{saldo.PartidasComPlacar} placares, " +
+            $"{saldo.Vitorias} vitorias, " +
+            $"{saldo.Grupos} grupos, " +
+            $"{saldo.PendenciasResolvidas} pendencias.";
+    }
+
     private static bool PerfilCompleto(Atleta atleta)
     {
         return !string.IsNullOrWhiteSpace(atleta.Nome) &&
@@ -822,14 +954,19 @@ public class PontuacaoBeneficioServico(
             TipoEventoPontuacaoBeneficio.PartidaParticipante => "Participação em partida",
             TipoEventoPontuacaoBeneficio.PartidaRegistrador => "Registro de partida",
             TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto => "Placar completo",
+            TipoEventoPontuacaoBeneficio.PartidaVitoria => "Vitória em partida",
+            TipoEventoPontuacaoBeneficio.ConfirmacaoAprovacaoPartida => "Confirmação de partida",
+            TipoEventoPontuacaoBeneficio.EntradaGrupo => "Entrada em grupo",
             TipoEventoPontuacaoBeneficio.CompartilhamentoPartida => "Compartilhamento de partida",
             TipoEventoPontuacaoBeneficio.CompartilhamentoRanking => "Compartilhamento de ranking",
             TipoEventoPontuacaoBeneficio.CompartilhamentoScoutAtleta => "Compartilhamento de scout",
             TipoEventoPontuacaoBeneficio.CompartilhamentoScoutDupla => "Compartilhamento de scout de dupla",
             TipoEventoPontuacaoBeneficio.PendenciaResolvida => "Pendência resolvida",
             TipoEventoPontuacaoBeneficio.SequenciaSemanal => "Sequência semanal",
+            TipoEventoPontuacaoBeneficio.ConviteAtletaCadastro => "Convite com cadastro",
             TipoEventoPontuacaoBeneficio.ConviteAtletaPrimeiraPartida => "Convite convertido",
             TipoEventoPontuacaoBeneficio.ResgateBeneficio => "Resgate de benefício",
+            TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo => "Saldo inicial retroativo",
             TipoEventoPontuacaoBeneficio.EstornoPartida => "Estorno de partida",
             TipoEventoPontuacaoBeneficio.EstornoResgate => "Estorno de resgate",
             _ => tipo.ToString()
