@@ -197,7 +197,8 @@ public class PontuacaoBeneficioServicoTests
             1,
             1,
             1,
-            63,
+            true,
+            113,
             false));
 
         var resultado = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: true);
@@ -206,7 +207,9 @@ public class PontuacaoBeneficioServicoTests
         Assert.False(resultado.Aplicado);
         Assert.Equal(1, resultado.AtletasAvaliados);
         Assert.Equal(1, resultado.AtletasComSaldoInicialCalculado);
-        Assert.Equal(63, resultado.TotalPontosCalculados);
+        Assert.Equal(1, resultado.AtletasComPerfilCompleto);
+        Assert.Equal(113, resultado.TotalPontosCalculados);
+        Assert.True(resultado.TopSaldosCalculados[0].PerfilCompleto);
         Assert.Empty(cenario.Repositorio.Extratos);
         Assert.Empty(cenario.Repositorio.Saldos);
     }
@@ -224,14 +227,16 @@ public class PontuacaoBeneficioServicoTests
             1,
             1,
             1,
-            63,
+            true,
+            113,
             false));
 
         var resultado = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: false);
         var segundaExecucao = await cenario.Servico.RecalcularSaldoInicialRetroativoAsync(dryRun: false);
 
         Assert.True(resultado.Aplicado);
-        Assert.Equal(63, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(1, resultado.AtletasComPerfilCompleto);
+        Assert.Equal(113, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
         Assert.Single(cenario.Repositorio.Extratos);
         Assert.Equal(TipoEventoPontuacaoBeneficio.SaldoInicialRetroativo, cenario.Repositorio.Extratos[0].TipoEvento);
         Assert.Equal(1, segundaExecucao.AtletasIgnoradosPorSaldoInicialExistente);

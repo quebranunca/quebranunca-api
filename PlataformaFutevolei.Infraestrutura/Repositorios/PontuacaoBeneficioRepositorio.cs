@@ -129,10 +129,11 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
     public async Task<IReadOnlyList<SaldoInicialRetroativoAtletaDto>> CalcularSaldosIniciaisRetroativosAsync(
         CancellationToken cancellationToken = default)
     {
-        var nomesAtletas = await dbContext.Atletas
+        var atletas = await dbContext.Atletas
             .AsNoTracking()
-            .Select(x => new { x.Id, x.Nome })
-            .ToDictionaryAsync(x => x.Id, x => x.Nome, cancellationToken);
+            .Select(x => new { x.Id, x.Nome, x.Email, x.Nivel, x.Sexo, x.DataNascimento })
+            .ToListAsync(cancellationToken);
+        var nomesAtletas = atletas.ToDictionary(x => x.Id, x => x.Nome);
         var calculos = new Dictionary<Guid, SaldoInicialRetroativoAcumulador>();
 
         SaldoInicialRetroativoAcumulador ObterAcumulador(Guid atletaId)
@@ -146,6 +147,16 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
             }
 
             return acumulador;
+        }
+
+        foreach (var atleta in atletas.Where(x => PerfilCompleto(
+            x.Nome,
+            x.Email,
+            x.Nivel,
+            x.Sexo,
+            x.DataNascimento)))
+        {
+            ObterAcumulador(atleta.Id).PerfilCompleto = true;
         }
 
         var partidasValidas = await dbContext.Partidas
@@ -331,6 +342,11 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
 
     public void AtualizarSaldo(PontuacaoBeneficioAtleta saldo)
     {
+        if (dbContext.Entry(saldo).State == EntityState.Added)
+        {
+            return;
+        }
+
         dbContext.PontuacoesBeneficiosAtletas.Update(saldo);
     }
 
@@ -391,6 +407,7 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
         public int Vitorias { get; set; }
         public int Grupos { get; set; }
         public int PendenciasResolvidas { get; set; }
+        public bool PerfilCompleto { get; set; }
 
         public SaldoInicialRetroativoAtletaDto ParaDto()
         {
@@ -400,7 +417,8 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
                 PartidasComPlacar * PontuacaoBeneficioRegras.PartidaPlacarCompleto +
                 Vitorias * PontuacaoBeneficioRegras.PartidaVitoria +
                 Grupos * PontuacaoBeneficioRegras.EntradaGrupo +
-                PendenciasResolvidas * PontuacaoBeneficioRegras.PendenciaResolvida;
+                PendenciasResolvidas * PontuacaoBeneficioRegras.PendenciaResolvida +
+                (PerfilCompleto ? PontuacaoBeneficioRegras.PerfilCompleto : 0);
 
             return new SaldoInicialRetroativoAtletaDto(
                 atletaId,
@@ -411,8 +429,23 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
                 Vitorias,
                 Grupos,
                 PendenciasResolvidas,
+                PerfilCompleto,
                 total,
                 false);
         }
+    }
+
+    private static bool PerfilCompleto(
+        string nome,
+        string? email,
+        NivelAtleta? nivel,
+        SexoAtleta? sexo,
+        DateTime? dataNascimento)
+    {
+        return !string.IsNullOrWhiteSpace(nome) &&
+            !string.IsNullOrWhiteSpace(email) &&
+            nivel.HasValue &&
+            sexo.HasValue &&
+            dataNascimento.HasValue;
     }
 }

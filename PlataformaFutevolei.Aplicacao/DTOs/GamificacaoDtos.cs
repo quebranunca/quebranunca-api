@@ -124,6 +124,7 @@ public record SaldoInicialRetroativoAtletaDto(
     int Vitorias,
     int Grupos,
     int PendenciasResolvidas,
+    bool PerfilCompleto,
     int TotalCalculado,
     bool JaPossuiaSaldoInicial);
 
@@ -133,6 +134,7 @@ public record RecalculoSaldoInicialPontuacaoResultadoDto(
     int AtletasAvaliados,
     int AtletasComSaldoInicialCalculado,
     int AtletasIgnoradosPorSaldoInicialExistente,
+    int AtletasComPerfilCompleto,
     int TotalPontosCalculados,
     IReadOnlyList<SaldoInicialRetroativoAtletaDto> TopSaldosCalculados,
     IReadOnlyList<string> Avisos);

@@ -571,6 +571,7 @@ public class PontuacaoBeneficioServico(
             calculosComStatus.Count,
             candidatos.Count,
             calculosComStatus.Count(x => x.JaPossuiaSaldoInicial),
+            calculosComStatus.Count(x => x.PerfilCompleto),
             candidatos.Sum(x => x.TotalCalculado),
             calculosComStatus
                 .OrderByDescending(x => x.TotalCalculado)
@@ -934,7 +935,8 @@ public class PontuacaoBeneficioServico(
             $"{saldo.PartidasComPlacar} placares, " +
             $"{saldo.Vitorias} vitorias, " +
             $"{saldo.Grupos} grupos, " +
-            $"{saldo.PendenciasResolvidas} pendencias.";
+            $"{saldo.PendenciasResolvidas} pendencias, " +
+            $"perfil completo: {(saldo.PerfilCompleto ? "sim" : "nao")}.";
     }
 
     private static bool PerfilCompleto(Atleta atleta)
