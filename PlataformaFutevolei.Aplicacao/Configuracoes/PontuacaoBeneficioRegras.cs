@@ -45,12 +45,21 @@ public static class PontuacaoBeneficioRegras
             2,
             false),
         new(
+            Guid.Parse("66666666-6666-4666-8666-666666666666"),
+            "Chaveiro QuebraNunca",
+            "Chaveiro exclusivo QuebraNunca para levar a resenha com voce.",
+            TipoBeneficioPontuacao.Produto,
+            2000,
+            3,
+            false,
+            "pontos-qn/beneficio-chaveiro-qn.png"),
+        new(
             Guid.Parse("33333333-3333-4333-8333-333333333333"),
             "R$ 20 off na loja",
             "Cupom manual de R$ 20 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
             TipoBeneficioPontuacao.DescontoLoja,
             2000,
-            3,
+            4,
             false),
         new(
             Guid.Parse("44444444-4444-4444-8444-444444444444"),
@@ -58,7 +67,7 @@ public static class PontuacaoBeneficioRegras
             "Cupom manual de R$ 30 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
             TipoBeneficioPontuacao.DescontoLoja,
             3000,
-            4,
+            5,
             false),
         new(
             Guid.Parse("55555555-5555-4555-8555-555555555555"),
@@ -66,8 +75,17 @@ public static class PontuacaoBeneficioRegras
             "Cupom manual de R$ 50 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
             TipoBeneficioPontuacao.DescontoLoja,
             5000,
-            5,
-            false)
+            6,
+            false),
+        new(
+            Guid.Parse("77777777-7777-4777-8777-777777777777"),
+            "Boné QuebraNunca",
+            "Boné trucker QuebraNunca para usar dentro e fora da areia.",
+            TipoBeneficioPontuacao.Produto,
+            8000,
+            7,
+            false,
+            "pontos-qn/beneficio-bone-qn.png")
     ];
 
     public static readonly IReadOnlyList<FaixaPontuacaoBeneficio> Faixas =
@@ -105,4 +123,5 @@ public record BeneficioPontuacaoPadrao(
     TipoBeneficioPontuacao Tipo,
     int PontosNecessarios,
     int Ordem,
-    bool Destaque);
+    bool Destaque,
+    string? ImagemUrl = null);

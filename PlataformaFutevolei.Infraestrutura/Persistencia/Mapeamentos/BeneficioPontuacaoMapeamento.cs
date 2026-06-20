@@ -44,7 +44,7 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
             beneficio.PontosNecessarios,
             Ativo = true,
             QuantidadeDisponivel = (int?)null,
-            ImagemUrl = (string?)null,
+            beneficio.ImagemUrl,
             beneficio.Ordem,
             beneficio.Destaque,
             DataCriacao = DataSeed,

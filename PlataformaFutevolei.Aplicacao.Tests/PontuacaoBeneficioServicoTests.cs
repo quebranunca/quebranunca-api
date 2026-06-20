@@ -165,16 +165,23 @@ public class PontuacaoBeneficioServicoTests
     }
 
     [Fact]
-    public void BeneficiosPadrao_UsamTabelaOficialDeCupons()
+    public void BeneficiosPadrao_MantemCuponsEIncluiProdutosFisicos()
     {
-        var pontos = PontuacaoBeneficioRegras.BeneficiosPadrao
+        var pontosCupons = PontuacaoBeneficioRegras.BeneficiosPadrao
+            .Where(x => x.Tipo == TipoBeneficioPontuacao.DescontoLoja)
             .OrderBy(x => x.Ordem)
             .Select(x => x.PontosNecessarios)
             .ToList();
+        var chaveiro = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Chaveiro QuebraNunca");
+        var bone = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Boné QuebraNunca");
 
-        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontos);
-        Assert.All(PontuacaoBeneficioRegras.BeneficiosPadrao, beneficio =>
-            Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, beneficio.Tipo));
+        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontosCupons);
+        Assert.Equal(TipoBeneficioPontuacao.Produto, chaveiro.Tipo);
+        Assert.Equal(2000, chaveiro.PontosNecessarios);
+        Assert.Equal("pontos-qn/beneficio-chaveiro-qn.png", chaveiro.ImagemUrl);
+        Assert.Equal(TipoBeneficioPontuacao.Produto, bone.Tipo);
+        Assert.Equal(8000, bone.PontosNecessarios);
+        Assert.Equal("pontos-qn/beneficio-bone-qn.png", bone.ImagemUrl);
     }
 
     [Fact]
