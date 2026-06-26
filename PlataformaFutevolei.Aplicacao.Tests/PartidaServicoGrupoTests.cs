@@ -1201,7 +1201,7 @@ public class PartidaServicoGrupoTests
         public Task<Atleta> ObterOuCriarAtletaAsync(string? nomeInformado, string? apelidoInformado, bool cadastroPendente, CancellationToken cancellationToken = default)
             => Task.FromResult(atletas.First(x => x.Nome == nomeInformado));
 
-        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, CancellationToken cancellationToken = default)
+        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, string? apelidoInformado = null, CancellationToken cancellationToken = default)
             => Task.FromResult(atletas.First(x => x.Nome == nomeInformado));
 
         public Task<Dupla> ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken = default)

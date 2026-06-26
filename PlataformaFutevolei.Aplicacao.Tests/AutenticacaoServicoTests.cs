@@ -283,7 +283,7 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
-    public async Task SolicitarCodigoLoginAsync_EmailValido_GeraHashEExpiraESalvaUsuario()
+    public async Task SolicitarCodigoLoginAsync_EmailValido_GeraHashEExpiraESalvaCodigoSeguro()
     {
         var cenario = new Cenario();
         var usuario = new Usuario
@@ -299,11 +299,17 @@ public class AutenticacaoServicoTests
         var resposta = await cenario.Servico.SolicitarCodigoLoginAsync(new SolicitarCodigoLoginRequisicaoDto(" joao@example.com "));
 
         Assert.Equal("Se o e-mail estiver cadastrado, um código de acesso foi enviado.", resposta.Mensagem);
-        Assert.NotNull(usuario.CodigoLoginHash);
-        Assert.NotNull(usuario.CodigoLoginExpiraEmUtc);
         Assert.Equal("123456", cenario.EnvioEmailCodigo.Resultado?.CodigoDesenvolvimento);
         Assert.NotNull(cenario.EnvioEmailCodigo.UltimoCodigo);
-        Assert.Equal(HashSenha(cenario.EnvioEmailCodigo.UltimoCodigo), usuario.CodigoLoginHash);
+        Assert.Null(usuario.CodigoLoginHash);
+        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        Assert.Equal("joao@example.com", codigoAcesso.EmailNormalizado);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
+        Assert.True(codigoAcesso.ExpiraEmUtc > DateTime.UtcNow);
+        Assert.Equal(HashSenha(cenario.EnvioEmailCodigo.UltimoCodigo), codigoAcesso.CodigoHash);
     }
 
     [Fact]
@@ -361,30 +367,29 @@ public class AutenticacaoServicoTests
         Assert.Null(usuario.CodigoLoginHash);
         Assert.Null(usuario.CodigoLoginExpiraEmUtc);
         Assert.Null(cenario.EnvioEmailCodigo.UltimoEmail);
+        Assert.Empty(cenario.CodigosAcesso.Itens);
     }
 
     [Fact]
     public async Task LoginComCodigoAsync_CodigoValido_RetornaAuthELimpaCodigo()
     {
         var cenario = new Cenario();
-        var hashCodigo = cenario.SenhaServico.GerarHash("123456");
         var usuario = new Usuario
         {
             Nome = "João",
             Email = "joao@example.com",
             SenhaHash = "hash:senha",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoLoginHash = hashCodigo,
-            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+            Ativo = true
         };
         cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
 
         var resposta = await cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456"));
 
         Assert.Equal("João", resposta.Usuario.Nome);
-        Assert.Null(usuario.CodigoLoginHash);
-        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.NotNull(usuario.EmailConfirmadoEmUtc);
     }
 
     [Fact]
@@ -397,17 +402,15 @@ public class AutenticacaoServicoTests
             Email = "joao@example.com",
             SenhaHash = "hash:senha",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoLoginHash = cenario.SenhaServico.GerarHash("123456"),
-            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+            Ativo = true
         };
         cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
 
         var resposta = await cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456"));
 
         Assert.Equal(usuario.Id, resposta.Usuario.Id);
-        Assert.Null(usuario.CodigoLoginHash);
-        Assert.Null(usuario.CodigoLoginExpiraEmUtc);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -420,17 +423,16 @@ public class AutenticacaoServicoTests
             Email = "joao@example.com",
             SenhaHash = "hash:senha",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoLoginHash = cenario.SenhaServico.GerarHash("123456"),
-            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+            Ativo = true
         });
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "654321")));
 
         Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginHash);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginExpiraEmUtc);
+        Assert.Equal(1, codigoAcesso.Tentativas);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -443,16 +445,308 @@ public class AutenticacaoServicoTests
             Email = "joao@example.com",
             SenhaHash = "hash:senha",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoLoginHash = cenario.SenhaServico.GerarHash("123456"),
-            CodigoLoginExpiraEmUtc = DateTime.UtcNow.AddMinutes(-1)
+            Ativo = true
         });
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            expiraEmUtc: DateTime.UtcNow.AddMinutes(-1));
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456")));
 
         Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginHash);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoLoginExpiraEmUtc);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
+    }
+
+    [Fact]
+    public async Task IniciarAcessoAsync_EmailNovo_EnviaCodigoCadastroPublico()
+    {
+        var cenario = new Cenario();
+
+        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(" NOVO@EXAMPLE.COM "));
+
+        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.True(resposta.CadastroNovo);
+        Assert.False(resposta.PodeEntrarComSenha);
+        Assert.Equal("n***@example.com", resposta.EmailMascarado);
+        Assert.Equal("novo@example.com", cenario.EnvioEmailCodigo.UltimoEmail);
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        Assert.Equal("novo@example.com", codigoAcesso.EmailNormalizado);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.CadastroPublico, codigoAcesso.Finalidade);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
+    }
+
+    [Fact]
+    public async Task IniciarAcessoAsync_UsuarioExistenteSemSenha_EnviaCodigoLogin()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioSemSenha());
+
+        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto("JOAO@EXAMPLE.COM"));
+
+        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.False(resposta.CadastroNovo);
+        Assert.False(resposta.PodeEntrarComSenha);
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+    }
+
+    [Fact]
+    public async Task IniciarAcessoAsync_UsuarioExistenteComSenha_PermiteSenhaEEnviaCodigoLogin()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioComSenha("123456"));
+
+        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto("joao@example.com"));
+
+        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.False(resposta.CadastroNovo);
+        Assert.True(resposta.PodeEntrarComSenha);
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+    }
+
+    [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_UsuarioExistente_AutenticaEMarcaEmailConfirmado()
+    {
+        var cenario = new Cenario();
+        var usuario = CriarUsuarioSemSenha();
+        cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
+
+        var resposta = await cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456"));
+
+        Assert.Equal("Autenticado", resposta.Status);
+        Assert.Equal(usuario.Id, resposta.Usuario?.Id);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
+        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+        Assert.NotNull(usuario.EmailConfirmadoEmUtc);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+    }
+
+    [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_EmailNovo_RetornaCadastroIncompletoComTokenTemporario()
+    {
+        var cenario = new Cenario();
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "novo@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.CadastroPublico);
+
+        var resposta = await cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("novo@example.com", "123456"));
+
+        Assert.Equal("CadastroIncompleto", resposta.Status);
+        Assert.True(resposta.EmailConfirmado);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.CadastroToken));
+        Assert.Null(resposta.Token);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.NotNull(codigoAcesso.CadastroTokenHash);
+        Assert.NotNull(codigoAcesso.CadastroTokenExpiraEmUtc);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_DadosValidos_CriaUsuarioAtletaSemConviteEAutentica()
+    {
+        var cenario = new Cenario();
+        var atletaExistente = new Atleta
+        {
+            Nome = "Atleta pendente",
+            Email = "novo@example.com"
+        };
+        cenario.ResolvedorAtleta.AtletaPadrao = atletaExistente;
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var resposta = await cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(
+            cadastroToken,
+            apelido: "Gu QN",
+            aceitouMarketing: false));
+
+        var usuario = Assert.Single(cenario.Usuarios.Itens);
+        Assert.Equal("novo@example.com", usuario.Email);
+        Assert.Equal("Gustavo", usuario.Nome);
+        Assert.Equal(PerfilUsuario.Atleta, usuario.Perfil);
+        Assert.True(usuario.Ativo);
+        Assert.NotNull(usuario.EmailConfirmadoEmUtc);
+        Assert.NotNull(usuario.CadastroCompletoEmUtc);
+        Assert.Null(usuario.SenhaDefinidaEmUtc);
+        Assert.Equal(atletaExistente.Id, usuario.AtletaId);
+        Assert.Equal("Gu QN", cenario.ResolvedorAtleta.UltimoApelidoInformado);
+        Assert.Equal(atletaExistente.Id, cenario.PendenciaServico.UltimoAtletaSincronizado);
+        Assert.Null(usuario.ConsentimentoMarketingEmUtc);
+        Assert.False(resposta.Usuario.PossuiSenha);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
+        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+
+        var consentimento = Assert.Single(cenario.Privacidade.Consentimentos);
+        Assert.True(consentimento.AceitouTermosUso);
+        Assert.True(consentimento.AceitouPoliticaPrivacidade);
+        Assert.True(consentimento.DeclarouMaiorDe18);
+        Assert.False(consentimento.AceitouMarketing);
+        Assert.Equal("CadastroPublico", consentimento.Origem);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_NomeVazio_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, nome: "   ")));
+
+        Assert.Equal("Nome de exibição é obrigatório.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_SemTermos_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, aceitouTermos: false)));
+
+        Assert.Equal("É necessário aceitar os Termos de Uso para continuar.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_SemPoliticaPrivacidade_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, aceitouPoliticaPrivacidade: false)));
+
+        Assert.Equal("É necessário aceitar a Política de Privacidade para continuar.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_SemDeclaracaoMaioridade_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, declarouMaiorDe18: false)));
+
+        Assert.Equal("É necessário declarar que você tem 18 anos ou mais para continuar.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_MarketingOpcionalNaoBloqueiaCadastro()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        await cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, aceitouMarketing: false));
+
+        var usuario = Assert.Single(cenario.Usuarios.Itens);
+        Assert.Null(usuario.ConsentimentoMarketingEmUtc);
+        Assert.False(Assert.Single(cenario.Privacidade.Consentimentos).AceitouMarketing);
+    }
+
+    [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_CodigoConsumido_NaoPermiteReuso()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioSemSenha());
+        CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            consumidoEmUtc: DateTime.UtcNow.AddMinutes(-1));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "123456")));
+
+        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_CodigoExpirado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioSemSenha());
+        CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            expiraEmUtc: DateTime.UtcNow.AddMinutes(-1));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "123456")));
+
+        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+    }
+
+    [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_ExcessoTentativas_BloqueiaEConsomeCodigo()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioSemSenha());
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
+
+        for (var tentativa = 1; tentativa <= 4; tentativa++)
+        {
+            var excecaoTentativa = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+                cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "000000")));
+            Assert.Equal("Código de acesso inválido ou expirado.", excecaoTentativa.Message);
+            Assert.Equal(tentativa, codigoAcesso.Tentativas);
+            Assert.Null(codigoAcesso.ConsumidoEmUtc);
+        }
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "000000")));
+
+        Assert.Equal("Muitas tentativas inválidas. Solicite um novo código.", excecao.Message);
+        Assert.Equal(5, codigoAcesso.Tentativas);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_EmailNormalizadoExistente_BloqueiaDuplicidade()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, " PESSOA@EXAMPLE.COM ");
+        cenario.Usuarios.Itens.Add(new Usuario
+        {
+            Nome = "Pessoa existente",
+            Email = "pessoa@example.com",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true
+        });
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken)));
+
+        Assert.Equal("Já existe um usuário cadastrado com este e-mail.", excecao.Message);
+        Assert.Single(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_AtletaPendenteEncontrado_NaoCriaOutroAtleta()
+    {
+        var cenario = new Cenario();
+        var atletaPendente = new Atleta
+        {
+            Nome = "Atleta pendente",
+            Email = "novo@example.com"
+        };
+        cenario.ResolvedorAtleta.AtletaPadrao = atletaPendente;
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        await cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken));
+
+        var usuario = Assert.Single(cenario.Usuarios.Itens);
+        Assert.Equal(atletaPendente.Id, usuario.AtletaId);
+        Assert.Same(atletaPendente, usuario.Atleta);
     }
 
     [Fact]
@@ -943,6 +1237,57 @@ public class AutenticacaoServicoTests
 
     private static string HashSenha(string senha) => $"hash:{senha}";
 
+    private static CodigoAcessoEmail CriarCodigoAcesso(
+        Cenario cenario,
+        string email,
+        string codigo,
+        FinalidadeCodigoAcessoEmail finalidade = FinalidadeCodigoAcessoEmail.Login,
+        DateTime? expiraEmUtc = null,
+        DateTime? consumidoEmUtc = null)
+    {
+        var codigoAcesso = new CodigoAcessoEmail
+        {
+            EmailNormalizado = email.Trim().ToLowerInvariant(),
+            CodigoHash = cenario.SenhaServico.GerarHash(codigo),
+            Finalidade = finalidade,
+            ExpiraEmUtc = expiraEmUtc ?? DateTime.UtcNow.AddMinutes(10),
+            ConsumidoEmUtc = consumidoEmUtc,
+            UltimoEnvioEmUtc = DateTime.UtcNow
+        };
+        cenario.CodigosAcesso.Itens.Add(codigoAcesso);
+        return codigoAcesso;
+    }
+
+    private static async Task<string> ObterCadastroTokenAsync(Cenario cenario, string email)
+    {
+        await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(email));
+        var codigo = cenario.EnvioEmailCodigo.UltimoCodigo
+            ?? throw new InvalidOperationException("Código de teste não foi enviado.");
+        var resposta = await cenario.Servico.ConfirmarCodigoAcessoAsync(
+            new ConfirmarCodigoAcessoRequisicaoDto(email, codigo));
+        return resposta.CadastroToken
+            ?? throw new InvalidOperationException("Token de cadastro de teste não foi gerado.");
+    }
+
+    private static CompletarCadastroPublicoRequisicaoDto CadastroPublicoValido(
+        string cadastroToken,
+        string nome = "Gustavo",
+        string? apelido = null,
+        bool aceitouTermos = true,
+        bool aceitouPoliticaPrivacidade = true,
+        bool declarouMaiorDe18 = true,
+        bool aceitouMarketing = false)
+        => new(
+            cadastroToken,
+            nome,
+            apelido,
+            aceitouTermos,
+            PrivacidadeServico.VersaoTermosUsoAtual,
+            aceitouPoliticaPrivacidade,
+            PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+            declarouMaiorDe18,
+            aceitouMarketing);
+
     private sealed class Cenario
     {
         public Cenario(Guid? usuarioContexto = null)
@@ -952,6 +1297,7 @@ public class AutenticacaoServicoTests
             Servico = new AutenticacaoServico(
                 Usuarios,
                 Convites,
+                CodigosAcesso,
                 UnidadeTrabalho,
                 SenhaServico,
                 TokenJwt,
@@ -959,18 +1305,20 @@ public class AutenticacaoServicoTests
                 ResolvedorAtleta,
                 PendenciaServico,
                 EnvioEmailCodigo,
-                new PrivacidadeServicoStub());
+                Privacidade);
         }
 
         public AutenticacaoServico Servico { get; }
         public UsuarioRepositorioMemoria Usuarios { get; } = new();
         public ConviteRepositorioMemoria Convites { get; } = new();
+        public CodigoAcessoEmailRepositorioMemoria CodigosAcesso { get; } = new();
         public UnidadeTrabalhoStub UnidadeTrabalho { get; } = new();
         public SenhaServicoStub SenhaServico { get; } = new();
         public TokenJwtServicoStub TokenJwt { get; } = new();
         public ResolvedorAtletaDuplaServicoStub ResolvedorAtleta { get; } = new();
         public PendenciaServicoStub PendenciaServico { get; } = new();
         public EnvioEmailCodigoLoginStub EnvioEmailCodigo { get; } = new();
+        public PrivacidadeServicoStub Privacidade { get; } = new();
         public Guid ConviteUsuario { get; }
         public Guid? UsuarioContexto { get; set; }
 
@@ -1070,6 +1418,73 @@ public class AutenticacaoServicoTests
         }
     }
 
+    private sealed class CodigoAcessoEmailRepositorioMemoria : ICodigoAcessoEmailRepositorio
+    {
+        public readonly List<CodigoAcessoEmail> Itens = new();
+
+        public Task<IReadOnlyList<CodigoAcessoEmail>> ListarPendentesPorEmailFinalidadeParaAtualizacaoAsync(
+            string emailNormalizado,
+            FinalidadeCodigoAcessoEmail finalidade,
+            CancellationToken cancellationToken = default)
+        {
+            var codigos = Itens
+                .Where(x =>
+                    x.EmailNormalizado == emailNormalizado &&
+                    x.Finalidade == finalidade &&
+                    x.ConsumidoEmUtc == null)
+                .OrderByDescending(x => x.DataCriacao)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<CodigoAcessoEmail>>(codigos);
+        }
+
+        public Task<CodigoAcessoEmail?> ObterAtivoPorEmailFinalidadeParaAtualizacaoAsync(
+            string emailNormalizado,
+            FinalidadeCodigoAcessoEmail finalidade,
+            DateTime dataUtc,
+            CancellationToken cancellationToken = default)
+        {
+            var codigo = Itens
+                .Where(x =>
+                    x.EmailNormalizado == emailNormalizado &&
+                    x.Finalidade == finalidade &&
+                    x.ConsumidoEmUtc == null &&
+                    x.ExpiraEmUtc >= dataUtc)
+                .OrderByDescending(x => x.DataCriacao)
+                .FirstOrDefault();
+            return Task.FromResult(codigo);
+        }
+
+        public Task<CodigoAcessoEmail?> ObterPorCadastroTokenHashParaAtualizacaoAsync(
+            string cadastroTokenHash,
+            DateTime dataUtc,
+            CancellationToken cancellationToken = default)
+        {
+            var codigo = Itens
+                .Where(x =>
+                    x.Finalidade == FinalidadeCodigoAcessoEmail.CadastroPublico &&
+                    x.CadastroTokenHash == cadastroTokenHash &&
+                    x.CadastroTokenExpiraEmUtc != null &&
+                    x.CadastroTokenExpiraEmUtc >= dataUtc)
+                .OrderByDescending(x => x.DataCriacao)
+                .FirstOrDefault();
+            return Task.FromResult(codigo);
+        }
+
+        public Task AdicionarAsync(CodigoAcessoEmail codigoAcessoEmail, CancellationToken cancellationToken = default)
+        {
+            Itens.Add(codigoAcessoEmail);
+            return Task.CompletedTask;
+        }
+
+        public void Atualizar(CodigoAcessoEmail codigoAcessoEmail)
+        {
+            if (!Itens.Contains(codigoAcessoEmail))
+            {
+                Itens.Add(codigoAcessoEmail);
+            }
+        }
+    }
+
     private sealed class UnidadeTrabalhoStub : IUnidadeTrabalho
     {
         public int Salvamentos { get; private set; }
@@ -1113,6 +1528,9 @@ public class AutenticacaoServicoTests
     private sealed class ResolvedorAtletaDuplaServicoStub : IResolvedorAtletaDuplaServico
     {
         public Atleta? AtletaPadrao { get; set; }
+        public string? UltimoNomeInformado { get; private set; }
+        public string? UltimoEmailInformado { get; private set; }
+        public string? UltimoApelidoInformado { get; private set; }
 
         public Task<Atleta> ObterAtletaExistenteAsync(
             Guid atletaId,
@@ -1134,12 +1552,22 @@ public class AutenticacaoServicoTests
             CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
-        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, CancellationToken cancellationToken = default)
-            => Task.FromResult(AtletaPadrao ?? new Atleta
+        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(
+            string nomeInformado,
+            string emailInformado,
+            string? apelidoInformado = null,
+            CancellationToken cancellationToken = default)
+        {
+            UltimoNomeInformado = nomeInformado;
+            UltimoEmailInformado = emailInformado;
+            UltimoApelidoInformado = apelidoInformado;
+            return Task.FromResult(AtletaPadrao ?? new Atleta
             {
                 Nome = nomeInformado,
+                Apelido = apelidoInformado,
                 Email = emailInformado,
             });
+        }
 
         public Task<Dupla> ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
@@ -1152,6 +1580,8 @@ public class AutenticacaoServicoTests
 
     private sealed class PendenciaServicoStub : IPendenciaServico
     {
+        public Guid? UltimoAtletaSincronizado { get; private set; }
+
         public Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<PendenciaUsuarioDto>>([]);
@@ -1188,7 +1618,10 @@ public class AutenticacaoServicoTests
         public Task SincronizarAposVinculoAtletaAsync(
             Guid atletaId,
             CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
+        {
+            UltimoAtletaSincronizado = atletaId;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class EnvioEmailCodigoLoginStub : IEnvioEmailCodigoLoginServico
@@ -1207,8 +1640,18 @@ public class AutenticacaoServicoTests
 
     private sealed class PrivacidadeServicoStub : IPrivacidadeServico
     {
+        public List<RegistrarConsentimentoLgpdDto> Consentimentos { get; } = new();
+        public Usuario? UltimoUsuarioConsentimento { get; private set; }
+
         public Task<PoliticaPrivacidadeAtualDto> ObterPoliticaAtualAsync(CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
+
+        public Task<TermosVersaoAtualDto> ObterTermosVersaoAtualAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new TermosVersaoAtualDto(
+                PrivacidadeServico.VersaoTermosUsoAtual,
+                "/privacidade",
+                PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+                "/privacidade"));
 
         public Task<PreferenciasPrivacidadeDto> ObterMinhasPreferenciasAsync(CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
@@ -1225,9 +1668,13 @@ public class AutenticacaoServicoTests
         public Task SolicitarExclusaoContaAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
         public Task RegistrarConsentimentoUsuarioAsync(Usuario usuario, RegistrarConsentimentoLgpdDto dto, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
+        {
+            UltimoUsuarioConsentimento = usuario;
+            Consentimentos.Add(dto);
+            return Task.CompletedTask;
+        }
 
         public Task<bool> UsuarioPrecisaAceitarPoliticaAsync(Guid usuarioId, CancellationToken cancellationToken = default)
-            => throw new NotImplementedException();
+            => Task.FromResult(false);
     }
 }

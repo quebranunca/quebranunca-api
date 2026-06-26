@@ -30,6 +30,12 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
             .HasMaxLength(255)
             .IsRequired();
 
+        builder.Property(x => x.EmailConfirmadoEmUtc)
+            .HasColumnName("email_confirmado_em_utc");
+
+        builder.Property(x => x.CadastroCompletoEmUtc)
+            .HasColumnName("cadastro_completo_em_utc");
+
         builder.Property(x => x.SenhaDefinidaEmUtc)
             .HasColumnName("senha_definida_em_utc");
 
@@ -98,6 +104,12 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
             .HasColumnName("permitir_uso_imagem")
             .HasDefaultValue(false)
             .IsRequired();
+
+        builder.Property(x => x.ConsentimentoMarketingEmUtc)
+            .HasColumnName("consentimento_marketing_em_utc");
+
+        builder.Property(x => x.RevogouMarketingEmUtc)
+            .HasColumnName("revogou_marketing_em_utc");
 
         builder.Property(x => x.FotoPerfilUrl)
             .HasColumnName("foto_perfil_url")

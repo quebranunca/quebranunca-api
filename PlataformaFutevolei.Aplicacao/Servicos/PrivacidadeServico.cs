@@ -16,7 +16,10 @@ public class PrivacidadeServico(
 ) : IPrivacidadeServico
 {
     public const string VersaoPoliticaPrivacidadeAtual = "2026-05-18";
+    public const string VersaoTermosUsoAtual = "2026-05-18";
     private static readonly DateTime PoliticaVigenteDesdeUtc = new(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc);
+    private const string UrlPoliticaPrivacidadeAtual = "/privacidade";
+    private const string UrlTermosUsoAtual = "/privacidade";
 
     public Task<PoliticaPrivacidadeAtualDto> ObterPoliticaAtualAsync(CancellationToken cancellationToken = default)
     {
@@ -25,6 +28,15 @@ public class PrivacidadeServico(
             PoliticaVigenteDesdeUtc,
             ExigeAceitePoliticaPrivacidade: true,
             ExigeAceiteTermosUso: true));
+    }
+
+    public Task<TermosVersaoAtualDto> ObterTermosVersaoAtualAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new TermosVersaoAtualDto(
+            VersaoTermosUsoAtual,
+            UrlTermosUsoAtual,
+            VersaoPoliticaPrivacidadeAtual,
+            UrlPoliticaPrivacidadeAtual));
     }
 
     public async Task<PreferenciasPrivacidadeDto> ObterMinhasPreferenciasAsync(CancellationToken cancellationToken = default)
@@ -90,12 +102,21 @@ public class PrivacidadeServico(
 
         usuario.PermitirUsoLocalizacao = dto.AceitouUsoLocalizacao;
         usuario.PermitirUsoImagem = dto.AceitouUsoImagem;
+        if (dto.AceitouMarketing)
+        {
+            usuario.ConsentimentoMarketingEmUtc ??= DateTime.UtcNow;
+            usuario.RevogouMarketingEmUtc = null;
+        }
         usuario.AtualizarDataModificacao();
 
+        var aceitoEm = DateTime.UtcNow;
         await consentimentoRepositorio.AdicionarAsync(new UsuarioConsentimentoLgpd
         {
             UsuarioId = usuario.Id,
             Usuario = usuario,
+            VersaoTermosUso = string.IsNullOrWhiteSpace(dto.VersaoTermosUso)
+                ? VersaoTermosUsoAtual
+                : dto.VersaoTermosUso.Trim(),
             VersaoPoliticaPrivacidade = string.IsNullOrWhiteSpace(dto.VersaoPoliticaPrivacidade)
                 ? VersaoPoliticaPrivacidadeAtual
                 : dto.VersaoPoliticaPrivacidade.Trim(),
@@ -103,7 +124,11 @@ public class PrivacidadeServico(
             AceitouTermosUso = dto.AceitouTermosUso,
             AceitouUsoLocalizacao = dto.AceitouUsoLocalizacao,
             AceitouUsoImagem = dto.AceitouUsoImagem,
-            AceitoEm = DateTime.UtcNow,
+            AceitoEm = aceitoEm,
+            DeclarouMaioridadeEmUtc = dto.DeclarouMaiorDe18 ? aceitoEm : null,
+            AceitouMarketing = dto.AceitouMarketing,
+            ConsentimentoMarketingEmUtc = dto.AceitouMarketing ? aceitoEm : null,
+            Origem = Limitar(dto.Origem, 80),
             IpAddress = Limitar(dto.IpAddress, 64),
             UserAgent = Limitar(dto.UserAgent, 512)
         }, cancellationToken);
@@ -114,6 +139,7 @@ public class PrivacidadeServico(
         var ultimo = await consentimentoRepositorio.ObterUltimoPorUsuarioAsync(usuarioId, cancellationToken);
         return ultimo is null ||
             ultimo.VersaoPoliticaPrivacidade != VersaoPoliticaPrivacidadeAtual ||
+            ultimo.VersaoTermosUso != VersaoTermosUsoAtual ||
             !ultimo.AceitouPoliticaPrivacidade ||
             !ultimo.AceitouTermosUso;
     }

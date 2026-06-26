@@ -107,6 +107,7 @@ public class ResolvedorAtletaDuplaServico(
     public async Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(
         string nomeInformado,
         string emailInformado,
+        string? apelidoInformado = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(nomeInformado))
@@ -120,7 +121,8 @@ public class ResolvedorAtletaDuplaServico(
         }
 
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(emailInformado).ToLowerInvariant();
-        var (nomeFinal, apelidoFinal) = NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeInformado, null);
+        var nomeFinal = NormalizadorNomeAtleta.NormalizarTexto(nomeInformado);
+        var apelidoFinal = NormalizarApelidoUsuario(nomeFinal, apelidoInformado);
 
         var atletasPorEmail = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
         if (atletasPorEmail.Count > 0)
@@ -251,5 +253,16 @@ public class ResolvedorAtletaDuplaServico(
         atleta.Email = emailNormalizado;
         atleta.CadastroPendente = false;
         atleta.AtualizarDataModificacao();
+    }
+
+    private static string NormalizarApelidoUsuario(string nomeNormalizado, string? apelidoInformado)
+    {
+        var apelidoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(apelidoInformado);
+        if (!string.IsNullOrWhiteSpace(apelidoNormalizado))
+        {
+            return apelidoNormalizado;
+        }
+
+        return NormalizadorNomeAtleta.NormalizarNomeEApelido(nomeNormalizado, null).Apelido;
     }
 }

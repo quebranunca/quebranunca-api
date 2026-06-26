@@ -109,6 +109,7 @@ public interface ISolicitacaoAcessoServico
 public interface IPrivacidadeServico
 {
     Task<PoliticaPrivacidadeAtualDto> ObterPoliticaAtualAsync(CancellationToken cancellationToken = default);
+    Task<TermosVersaoAtualDto> ObterTermosVersaoAtualAsync(CancellationToken cancellationToken = default);
     Task<PreferenciasPrivacidadeDto> ObterMinhasPreferenciasAsync(CancellationToken cancellationToken = default);
     Task<PreferenciasPrivacidadeDto> AtualizarMinhasPreferenciasAsync(
         AtualizarPreferenciasPrivacidadeDto dto,
@@ -305,6 +306,7 @@ public interface IResolvedorAtletaDuplaServico
     Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(
         string nomeInformado,
         string emailInformado,
+        string? apelidoInformado = null,
         CancellationToken cancellationToken = default);
 
     Task<Dupla> ObterOuCriarDuplaAsync(

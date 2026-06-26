@@ -231,6 +231,7 @@ public class PrivacidadeServicoTests
         await cenario.AdicionarConsentimentoAsync(new UsuarioConsentimentoLgpd
         {
             UsuarioId = cenario.Usuario.Id,
+            VersaoTermosUso = PrivacidadeServico.VersaoTermosUsoAtual,
             VersaoPoliticaPrivacidade = PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
             AceitouPoliticaPrivacidade = true,
             AceitouTermosUso = true,

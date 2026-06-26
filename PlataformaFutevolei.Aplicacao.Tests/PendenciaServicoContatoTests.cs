@@ -829,7 +829,7 @@ public class PendenciaServicoContatoTests
         public Task<Atleta> ObterAtletaExistenteAsync(Guid atletaId, string mensagemQuandoInvalido, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Atleta> ResolverAtletaAsync(Guid? atletaId, string? nomeInformado, string? apelidoInformado, string mensagemQuandoInvalido, bool cadastroPendente, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Atleta> ObterOuCriarAtletaAsync(string? nomeInformado, string? apelidoInformado, bool cadastroPendente, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, string? apelidoInformado = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Dupla> ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken = default)
         {
             var ids = new[] { atleta1.Id, atleta2.Id }.OrderBy(x => x).ToArray();

@@ -9,12 +9,14 @@ using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using System.Net.Mail;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AutenticacaoServico(
     IUsuarioRepositorio usuarioRepositorio,
     IConviteCadastroRepositorio conviteCadastroRepositorio,
+    ICodigoAcessoEmailRepositorio codigoAcessoEmailRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     ISenhaServico senhaServico,
     ITokenJwtServico tokenJwtServico,
@@ -25,7 +27,12 @@ public class AutenticacaoServico(
     IPrivacidadeServico privacidadeServico
 ) : IAutenticacaoServico
 {
-    private static readonly TimeSpan ValidadeCodigoLogin = TimeSpan.FromMinutes(15);
+    private const string StatusCodigoEnviado = "CodigoEnviado";
+    private const string StatusAutenticado = "Autenticado";
+    private const string StatusCadastroIncompleto = "CadastroIncompleto";
+    private const int MaxTentativasCodigoAcesso = 5;
+    private static readonly TimeSpan ValidadeCodigoLogin = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ValidadeCadastroToken = TimeSpan.FromMinutes(30);
 
     public async Task<RespostaAutenticacaoDto> RegistrarAsync(RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken = default)
     {
@@ -46,17 +53,20 @@ public class AutenticacaoServico(
         ValidarConviteParaRegistro(conviteCadastro, emailNormalizado);
         ValidarAceiteLgpd(dto);
 
+        var agora = DateTime.UtcNow;
         var usuario = new Usuario
         {
             Nome = dto.Nome.Trim(),
             Email = emailNormalizado,
             SenhaHash = senhaServico.GerarHash(GerarSenhaInicialInterna()),
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true
+            Ativo = true,
+            EmailConfirmadoEmUtc = agora,
+            CadastroCompletoEmUtc = agora
         };
 
-        await VincularAtletaPendenteSeNecessarioAsync(usuario, dto.Nome, cancellationToken);
-        conviteCadastro.MarcarComoUtilizado(DateTime.UtcNow);
+        await VincularAtletaPendenteSeNecessarioAsync(usuario, dto.Nome, null, cancellationToken);
+        conviteCadastro.MarcarComoUtilizado(agora);
 
         await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
         await privacidadeServico.RegistrarConsentimentoUsuarioAsync(usuario, new RegistrarConsentimentoLgpdDto(
@@ -64,9 +74,173 @@ public class AutenticacaoServico(
             dto.AceitouTermosUso,
             dto.AceitouUsoLocalizacao,
             dto.AceitouUsoImagem,
-            PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
-            dto.IpAddress,
-            dto.UserAgent), cancellationToken);
+            VersaoPoliticaPrivacidade: PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+            VersaoTermosUso: PrivacidadeServico.VersaoTermosUsoAtual,
+            DeclarouMaiorDe18: false,
+            AceitouMarketing: false,
+            Origem: "ConviteCadastro",
+            IpAddress: dto.IpAddress,
+            UserAgent: dto.UserAgent), cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        if (usuario.AtletaId.HasValue)
+        {
+            await pendenciaServico.SincronizarAposVinculoAtletaAsync(usuario.AtletaId.Value, cancellationToken);
+        }
+
+        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: false);
+    }
+
+    public async Task<IniciarAcessoRespostaDto> IniciarAcessoAsync(
+        IniciarAcessoRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
+        var usuario = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
+        var usuarioAtivo = usuario is not null && usuario.Ativo;
+        var cadastroNovo = usuario is null;
+        var podeEntrarComSenha = usuarioAtivo && UsuarioPossuiSenha(usuario!);
+        var mensagemPadrao = "Se o e-mail estiver correto, enviaremos as instruções de acesso.";
+        string? codigoDesenvolvimento = null;
+
+        if (usuarioAtivo || cadastroNovo)
+        {
+            var finalidade = usuarioAtivo
+                ? FinalidadeCodigoAcessoEmail.Login
+                : FinalidadeCodigoAcessoEmail.CadastroPublico;
+            codigoDesenvolvimento = await CriarEEnviarCodigoAcessoAsync(
+                emailNormalizado,
+                finalidade,
+                usuarioAtivo ? usuario : null,
+                cancellationToken);
+        }
+
+        return new IniciarAcessoRespostaDto(
+            StatusCodigoEnviado,
+            MascararEmail(emailNormalizado),
+            podeEntrarComSenha,
+            cadastroNovo,
+            mensagemPadrao,
+            codigoDesenvolvimento);
+    }
+
+    public async Task<ConfirmarCodigoAcessoRespostaDto> ConfirmarCodigoAcessoAsync(
+        ConfirmarCodigoAcessoRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
+        var codigoInformado = NormalizarCodigoAcesso(dto.Codigo);
+        var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
+        var finalidade = usuario is not null && usuario.Ativo
+            ? FinalidadeCodigoAcessoEmail.Login
+            : FinalidadeCodigoAcessoEmail.CadastroPublico;
+
+        var codigoAcesso = await ValidarCodigoAcessoAsync(
+            emailNormalizado,
+            finalidade,
+            codigoInformado,
+            cancellationToken);
+
+        var agora = DateTime.UtcNow;
+        if (finalidade == FinalidadeCodigoAcessoEmail.Login)
+        {
+            if (usuario is null || !usuario.Ativo)
+            {
+                throw new RegraNegocioException("Código de acesso inválido ou expirado.");
+            }
+
+            codigoAcesso.ConsumidoEmUtc = agora;
+            codigoAcesso.AtualizarDataModificacao();
+            codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+
+            usuario.EmailConfirmadoEmUtc ??= agora;
+            usuario.AtualizarDataModificacao();
+            usuarioRepositorio.Atualizar(usuario);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            var autenticacao = await CriarRespostaAutenticacaoAsync(
+                usuario,
+                cancellationToken,
+                reutilizarExpiracaoRefreshTokenAtual: false);
+            return RespostaCodigoAutenticado(autenticacao);
+        }
+
+        if (usuario is not null)
+        {
+            throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
+        }
+
+        var cadastroToken = GerarCadastroToken();
+        codigoAcesso.ConsumidoEmUtc = agora;
+        codigoAcesso.CadastroTokenHash = GerarHashCadastroToken(cadastroToken);
+        codigoAcesso.CadastroTokenExpiraEmUtc = agora.Add(ValidadeCadastroToken);
+        codigoAcesso.AtualizarDataModificacao();
+        codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return new ConfirmarCodigoAcessoRespostaDto(
+            StatusCadastroIncompleto,
+            CadastroToken: cadastroToken,
+            EmailConfirmado: true);
+    }
+
+    public async Task<RespostaAutenticacaoDto> CompletarCadastroPublicoAsync(
+        CompletarCadastroPublicoRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarCadastroPublico(dto);
+
+        var cadastroTokenHash = GerarHashCadastroToken(dto.CadastroToken.Trim());
+        var agora = DateTime.UtcNow;
+        var codigoAcesso = await codigoAcessoEmailRepositorio.ObterPorCadastroTokenHashParaAtualizacaoAsync(
+            cadastroTokenHash,
+            agora,
+            cancellationToken);
+        if (codigoAcesso is null)
+        {
+            throw new RegraNegocioException("Cadastro expirado. Solicite um novo código para continuar.");
+        }
+
+        var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(codigoAcesso.EmailNormalizado, cancellationToken);
+        if (usuarioExistente is not null)
+        {
+            throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
+        }
+
+        var nomeExibicao = NormalizadorNomeAtleta.NormalizarTexto(dto.NomeExibicao);
+        var apelido = NormalizadorNomeAtleta.NormalizarTexto(dto.Apelido);
+        var usuario = new Usuario
+        {
+            Nome = nomeExibicao,
+            Email = codigoAcesso.EmailNormalizado,
+            SenhaHash = senhaServico.GerarHash(GerarSenhaInicialInterna()),
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            EmailConfirmadoEmUtc = agora,
+            CadastroCompletoEmUtc = agora,
+            ConsentimentoMarketingEmUtc = dto.AceitouMarketing ? agora : null
+        };
+
+        await VincularAtletaPendenteSeNecessarioAsync(usuario, nomeExibicao, apelido, cancellationToken);
+        await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
+
+        await privacidadeServico.RegistrarConsentimentoUsuarioAsync(usuario, new RegistrarConsentimentoLgpdDto(
+            AceitouPoliticaPrivacidade: dto.AceitouPoliticaPrivacidade,
+            AceitouTermosUso: dto.AceitouTermos,
+            AceitouUsoLocalizacao: false,
+            AceitouUsoImagem: false,
+            VersaoPoliticaPrivacidade: dto.VersaoPoliticaPrivacidade,
+            VersaoTermosUso: dto.VersaoTermos,
+            DeclarouMaiorDe18: dto.DeclarouMaiorDe18,
+            AceitouMarketing: dto.AceitouMarketing,
+            Origem: "CadastroPublico",
+            IpAddress: dto.IpAddress,
+            UserAgent: dto.UserAgent), cancellationToken);
+
+        codigoAcesso.CadastroTokenHash = null;
+        codigoAcesso.CadastroTokenExpiraEmUtc = null;
+        codigoAcesso.AtualizarDataModificacao();
+        codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
         if (usuario.AtletaId.HasValue)
         {
@@ -116,27 +290,13 @@ public class AutenticacaoServico(
             return new SolicitarCodigoLoginRespostaDto(mensagemPadrao);
         }
 
-        var codigo = GerarCodigoLogin();
-        usuario.CodigoLoginHash = senhaServico.GerarHash(codigo);
-        usuario.CodigoLoginExpiraEmUtc = DateTime.UtcNow.Add(ValidadeCodigoLogin);
-        usuario.AtualizarDataModificacao();
-        usuarioRepositorio.Atualizar(usuario);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        var codigoDesenvolvimento = await CriarEEnviarCodigoAcessoAsync(
+            emailNormalizado,
+            FinalidadeCodigoAcessoEmail.Login,
+            usuario,
+            cancellationToken);
 
-        var resultado = await envioEmailCodigoLoginServico.EnviarAsync(usuario, codigo, cancellationToken);
-        if (!resultado.TentativaRealizada || !resultado.Enviado)
-        {
-            usuario.CodigoLoginHash = null;
-            usuario.CodigoLoginExpiraEmUtc = null;
-            usuario.AtualizarDataModificacao();
-            usuarioRepositorio.Atualizar(usuario);
-            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
-
-            throw new RegraNegocioException(
-                resultado.Erro ?? "Não foi possível enviar o código de acesso por e-mail.");
-        }
-
-        return new SolicitarCodigoLoginRespostaDto(mensagemPadrao, resultado.CodigoDesenvolvimento);
+        return new SolicitarCodigoLoginRespostaDto(mensagemPadrao, codigoDesenvolvimento);
     }
 
     private static string NormalizarEmailCodigoLogin(SolicitarCodigoLoginRequisicaoDto? dto)
@@ -182,22 +342,23 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Código de acesso é obrigatório.");
         }
 
-        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
+        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
         var usuario = await usuarioRepositorio.ObterPorEmailParaAtualizacaoAsync(emailNormalizado, cancellationToken);
-        var codigoValido = usuario is not null
-            && usuario.Ativo
-            && !string.IsNullOrWhiteSpace(usuario.CodigoLoginHash)
-            && usuario.CodigoLoginExpiraEmUtc is not null
-            && usuario.CodigoLoginExpiraEmUtc.Value >= DateTime.UtcNow
-            && senhaServico.Verificar(dto.Codigo.Trim(), usuario.CodigoLoginHash);
-
-        if (!codigoValido)
+        if (usuario is null || !usuario.Ativo)
         {
             throw new RegraNegocioException("Código de acesso inválido ou expirado.");
         }
 
-        usuario!.CodigoLoginHash = null;
-        usuario.CodigoLoginExpiraEmUtc = null;
+        var codigoAcesso = await ValidarCodigoAcessoAsync(
+            emailNormalizado,
+            FinalidadeCodigoAcessoEmail.Login,
+            NormalizarCodigoAcesso(dto.Codigo),
+            cancellationToken);
+
+        codigoAcesso.ConsumidoEmUtc = DateTime.UtcNow;
+        codigoAcesso.AtualizarDataModificacao();
+        codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+        usuario.EmailConfirmadoEmUtc ??= DateTime.UtcNow;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -384,7 +545,12 @@ public class AutenticacaoServico(
             throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         }
 
-        return usuario.ParaDto();
+        return usuario.ParaDto() with
+        {
+            PoliticaPrivacidadePendente = await privacidadeServico.UsuarioPrecisaAceitarPoliticaAsync(
+                usuario.Id,
+                cancellationToken)
+        };
     }
 
     private async Task<Usuario> ObterUsuarioAtualParaAlteracaoSenhaAsync(CancellationToken cancellationToken)
@@ -423,6 +589,34 @@ public class AutenticacaoServico(
         if (!string.Equals(novaSenha, confirmacaoSenha, StringComparison.Ordinal))
         {
             throw new RegraNegocioException("Senha e confirmação devem ser iguais.");
+        }
+    }
+
+    private static void ValidarCadastroPublico(CompletarCadastroPublicoRequisicaoDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.CadastroToken))
+        {
+            throw new RegraNegocioException("Cadastro expirado. Solicite um novo código para continuar.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.NomeExibicao))
+        {
+            throw new RegraNegocioException("Nome de exibição é obrigatório.");
+        }
+
+        if (!dto.AceitouTermos)
+        {
+            throw new RegraNegocioException("É necessário aceitar os Termos de Uso para continuar.");
+        }
+
+        if (!dto.AceitouPoliticaPrivacidade)
+        {
+            throw new RegraNegocioException("É necessário aceitar a Política de Privacidade para continuar.");
+        }
+
+        if (!dto.DeclarouMaiorDe18)
+        {
+            throw new RegraNegocioException("É necessário declarar que você tem 18 anos ou mais para continuar.");
         }
     }
 
@@ -512,6 +706,7 @@ public class AutenticacaoServico(
     private async Task VincularAtletaPendenteSeNecessarioAsync(
         Usuario usuario,
         string nomeUsuario,
+        string? apelido,
         CancellationToken cancellationToken)
     {
         if (usuario.Perfil != PerfilUsuario.Atleta)
@@ -522,9 +717,110 @@ public class AutenticacaoServico(
         var atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
             nomeUsuario,
             usuario.Email,
+            apelido,
             cancellationToken);
         usuario.AtletaId = atleta.Id;
         usuario.Atleta = atleta;
+    }
+
+    private async Task<string?> CriarEEnviarCodigoAcessoAsync(
+        string emailNormalizado,
+        FinalidadeCodigoAcessoEmail finalidade,
+        Usuario? usuario,
+        CancellationToken cancellationToken)
+    {
+        var agora = DateTime.UtcNow;
+        var codigosPendentes = await codigoAcessoEmailRepositorio.ListarPendentesPorEmailFinalidadeParaAtualizacaoAsync(
+            emailNormalizado,
+            finalidade,
+            cancellationToken);
+        foreach (var pendente in codigosPendentes)
+        {
+            pendente.ConsumidoEmUtc = agora;
+            pendente.AtualizarDataModificacao();
+            codigoAcessoEmailRepositorio.Atualizar(pendente);
+        }
+
+        var codigo = GerarCodigoLogin();
+        var codigoAcesso = new CodigoAcessoEmail
+        {
+            EmailNormalizado = emailNormalizado,
+            CodigoHash = senhaServico.GerarHash(codigo),
+            Finalidade = finalidade,
+            ExpiraEmUtc = agora.Add(ValidadeCodigoLogin),
+            Tentativas = 0,
+            UltimoEnvioEmUtc = agora
+        };
+
+        await codigoAcessoEmailRepositorio.AdicionarAsync(codigoAcesso, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var destinatario = usuario ?? new Usuario
+        {
+            Nome = "QuebraNunca",
+            Email = emailNormalizado,
+            Ativo = true
+        };
+
+        var resultado = await envioEmailCodigoLoginServico.EnviarAsync(destinatario, codigo, cancellationToken);
+        if (!resultado.TentativaRealizada || !resultado.Enviado)
+        {
+            codigoAcesso.ConsumidoEmUtc = DateTime.UtcNow;
+            codigoAcesso.AtualizarDataModificacao();
+            codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            throw new RegraNegocioException(
+                resultado.Erro ?? "Não foi possível enviar o código de acesso por e-mail.");
+        }
+
+        return resultado.CodigoDesenvolvimento;
+    }
+
+    private async Task<CodigoAcessoEmail> ValidarCodigoAcessoAsync(
+        string emailNormalizado,
+        FinalidadeCodigoAcessoEmail finalidade,
+        string codigoInformado,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(codigoInformado))
+        {
+            throw new RegraNegocioException("Código de acesso é obrigatório.");
+        }
+
+        var agora = DateTime.UtcNow;
+        var codigoAcesso = await codigoAcessoEmailRepositorio.ObterAtivoPorEmailFinalidadeParaAtualizacaoAsync(
+            emailNormalizado,
+            finalidade,
+            agora,
+            cancellationToken);
+        if (codigoAcesso is null)
+        {
+            throw new RegraNegocioException("Código de acesso inválido ou expirado.");
+        }
+
+        if (codigoAcesso.Tentativas >= MaxTentativasCodigoAcesso)
+        {
+            throw new RegraNegocioException("Muitas tentativas inválidas. Solicite um novo código.");
+        }
+
+        if (!senhaServico.Verificar(codigoInformado, codigoAcesso.CodigoHash))
+        {
+            codigoAcesso.Tentativas++;
+            if (codigoAcesso.Tentativas >= MaxTentativasCodigoAcesso)
+            {
+                codigoAcesso.ConsumidoEmUtc = agora;
+            }
+            codigoAcesso.AtualizarDataModificacao();
+            codigoAcessoEmailRepositorio.Atualizar(codigoAcesso);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+            throw new RegraNegocioException(codigoAcesso.Tentativas >= MaxTentativasCodigoAcesso
+                ? "Muitas tentativas inválidas. Solicite um novo código."
+                : "Código de acesso inválido ou expirado.");
+        }
+
+        return codigoAcesso;
     }
 
     private async Task<RespostaAutenticacaoDto> CriarRespostaAutenticacaoAsync(
@@ -548,13 +844,49 @@ public class AutenticacaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
+        var usuarioDto = usuario.ParaDto() with
+        {
+            PoliticaPrivacidadePendente = await privacidadeServico.UsuarioPrecisaAceitarPoliticaAsync(
+                usuario.Id,
+                cancellationToken)
+        };
+
         return new RespostaAutenticacaoDto(
             token,
             refreshToken,
             expiracaoToken,
             expiracaoRefreshToken,
-            usuario.ParaDto());
+            usuarioDto);
     }
+
+    private static string NormalizarCodigoAcesso(string? codigo)
+    {
+        return string.IsNullOrWhiteSpace(codigo)
+            ? string.Empty
+            : codigo.Trim();
+    }
+
+    private static string MascararEmail(string email)
+    {
+        var partes = email.Split('@', 2);
+        if (partes.Length != 2)
+        {
+            return "***";
+        }
+
+        var inicio = partes[0].Length == 0 ? "*" : partes[0][0].ToString();
+        return $"{inicio}***@{partes[1]}";
+    }
+
+    private static ConfirmarCodigoAcessoRespostaDto RespostaCodigoAutenticado(RespostaAutenticacaoDto autenticacao)
+        => new(
+            StatusAutenticado,
+            autenticacao.Token,
+            autenticacao.RefreshToken,
+            autenticacao.TokenExpiraEmUtc,
+            autenticacao.RefreshTokenExpiraEmUtc,
+            autenticacao.Usuario,
+            EmailConfirmado: true);
 
     private static string GerarRefreshToken()
     {
@@ -573,5 +905,21 @@ public class AutenticacaoServico(
     {
         var numero = RandomNumberGenerator.GetInt32(100000, 1000000);
         return numero.ToString();
+    }
+
+    private static string GerarCadastroToken()
+    {
+        Span<byte> bytes = stackalloc byte[64];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes)
+            .Replace("+", "-", StringComparison.Ordinal)
+            .Replace("/", "_", StringComparison.Ordinal)
+            .TrimEnd('=');
+    }
+
+    private static string GerarHashCadastroToken(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

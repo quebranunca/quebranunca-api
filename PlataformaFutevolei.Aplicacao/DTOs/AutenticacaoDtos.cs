@@ -65,6 +65,49 @@ public record RenovarTokenRequisicaoDto(
     string RefreshToken
 );
 
+public record IniciarAcessoRequisicaoDto(
+    string Email
+);
+
+public record IniciarAcessoRespostaDto(
+    string Status,
+    string EmailMascarado,
+    bool PodeEntrarComSenha,
+    bool CadastroNovo,
+    string Mensagem,
+    string? CodigoDesenvolvimento = null
+);
+
+public record ConfirmarCodigoAcessoRequisicaoDto(
+    string Email,
+    string Codigo
+);
+
+public record ConfirmarCodigoAcessoRespostaDto(
+    string Status,
+    string? Token = null,
+    string? RefreshToken = null,
+    DateTime? TokenExpiraEmUtc = null,
+    DateTime? RefreshTokenExpiraEmUtc = null,
+    UsuarioLogadoDto? Usuario = null,
+    string? CadastroToken = null,
+    bool EmailConfirmado = false
+);
+
+public record CompletarCadastroPublicoRequisicaoDto(
+    string CadastroToken,
+    string NomeExibicao,
+    string? Apelido,
+    bool AceitouTermos,
+    string? VersaoTermos,
+    bool AceitouPoliticaPrivacidade,
+    string? VersaoPoliticaPrivacidade,
+    bool DeclarouMaiorDe18,
+    bool AceitouMarketing,
+    string? IpAddress = null,
+    string? UserAgent = null
+);
+
 public record SolicitarRedefinicaoSenhaRespostaDto(
     string Mensagem
 );

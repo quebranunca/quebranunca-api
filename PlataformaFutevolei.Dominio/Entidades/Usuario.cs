@@ -7,6 +7,8 @@ public class Usuario : EntidadeBase
     public string Nome { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string SenhaHash { get; set; } = string.Empty;
+    public DateTime? EmailConfirmadoEmUtc { get; set; }
+    public DateTime? CadastroCompletoEmUtc { get; set; }
     public DateTime? SenhaDefinidaEmUtc { get; set; }
     public DateTime? SenhaAtualizadaEmUtc { get; set; }
     public string? CodigoLoginHash { get; set; }
@@ -25,6 +27,8 @@ public class Usuario : EntidadeBase
     public bool ExibirEmail { get; set; }
     public bool PermitirUsoLocalizacao { get; set; }
     public bool PermitirUsoImagem { get; set; }
+    public DateTime? ConsentimentoMarketingEmUtc { get; set; }
+    public DateTime? RevogouMarketingEmUtc { get; set; }
     public string? FotoPerfilUrl { get; private set; }
     public string? FotoPerfilPublicId { get; private set; }
     public DateTime? ExclusaoSolicitadaEmUtc { get; set; }

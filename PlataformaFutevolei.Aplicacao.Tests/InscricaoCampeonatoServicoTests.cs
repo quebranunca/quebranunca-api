@@ -299,7 +299,7 @@ public class InscricaoCampeonatoServicoTests
             => Task.FromResult(new Atleta { Nome = nomeInformado ?? "Atleta resolvido", CadastroPendente = cadastroPendente });
         public Task<Atleta> ObterOuCriarAtletaAsync(string? nomeInformado, string? apelidoInformado, bool cadastroPendente, CancellationToken cancellationToken = default)
             => Task.FromResult(new Atleta { Nome = nomeInformado ?? "Atleta pendente", CadastroPendente = cadastroPendente });
-        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, CancellationToken cancellationToken = default)
+        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, string? apelidoInformado = null, CancellationToken cancellationToken = default)
             => Task.FromResult(new Atleta { Nome = nomeInformado, Email = emailInformado });
         public Task<Dupla> ObterOuCriarDuplaAsync(Atleta atleta1, Atleta atleta2, CancellationToken cancellationToken = default)
         {

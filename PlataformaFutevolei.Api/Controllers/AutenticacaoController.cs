@@ -24,6 +24,44 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(resposta);
     }
 
+    [HttpPost("iniciar-acesso")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IniciarAcessoRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> IniciarAcesso(
+        [FromBody] IniciarAcessoRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.IniciarAcessoAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
+    [HttpPost("confirmar-codigo")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ConfirmarCodigoAcessoRespostaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ConfirmarCodigo(
+        [FromBody] ConfirmarCodigoAcessoRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.ConfirmarCodigoAcessoAsync(dto, cancellationToken);
+        return Ok(resposta);
+    }
+
+    [HttpPost("completar-cadastro-publico")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CompletarCadastroPublico(
+        [FromBody] CompletarCadastroPublicoRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var dtoComAuditoria = dto with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        };
+        var resposta = await autenticacaoServico.CompletarCadastroPublicoAsync(dtoComAuditoria, cancellationToken);
+        return Ok(resposta);
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]

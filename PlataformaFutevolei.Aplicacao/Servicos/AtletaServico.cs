@@ -236,7 +236,7 @@ public class AtletaServico(
             atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
                 dados.Nome,
                 dados.Email!,
-                cancellationToken);
+                cancellationToken: cancellationToken);
         }
         else
         {

@@ -26,6 +26,25 @@ public interface IUsuarioConsentimentoLgpdRepositorio
     Task AdicionarAsync(UsuarioConsentimentoLgpd consentimento, CancellationToken cancellationToken = default);
 }
 
+public interface ICodigoAcessoEmailRepositorio
+{
+    Task<IReadOnlyList<CodigoAcessoEmail>> ListarPendentesPorEmailFinalidadeParaAtualizacaoAsync(
+        string emailNormalizado,
+        FinalidadeCodigoAcessoEmail finalidade,
+        CancellationToken cancellationToken = default);
+    Task<CodigoAcessoEmail?> ObterAtivoPorEmailFinalidadeParaAtualizacaoAsync(
+        string emailNormalizado,
+        FinalidadeCodigoAcessoEmail finalidade,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default);
+    Task<CodigoAcessoEmail?> ObterPorCadastroTokenHashParaAtualizacaoAsync(
+        string cadastroTokenHash,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default);
+    Task AdicionarAsync(CodigoAcessoEmail codigoAcessoEmail, CancellationToken cancellationToken = default);
+    void Atualizar(CodigoAcessoEmail codigoAcessoEmail);
+}
+
 public interface IConviteCadastroRepositorio
 {
     Task<IReadOnlyList<ConviteCadastro>> ListarAsync(CancellationToken cancellationToken = default);

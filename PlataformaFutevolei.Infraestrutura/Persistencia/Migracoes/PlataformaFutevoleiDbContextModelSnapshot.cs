@@ -2019,6 +2019,75 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.ToTable("solicitacoes_acesso", (string)null);
                 });
 
+            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.CodigoAcessoEmail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CadastroTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("cadastro_token_hash");
+
+                    b.Property<DateTime?>("CadastroTokenExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cadastro_token_expira_em_utc");
+
+                    b.Property<string>("CodigoHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("codigo_hash");
+
+                    b.Property<DateTime?>("ConsumidoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumido_em_utc");
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_atualizacao");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_criacao");
+
+                    b.Property<string>("EmailNormalizado")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("email_normalizado");
+
+                    b.Property<DateTime>("ExpiraEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em_utc");
+
+                    b.Property<int>("Finalidade")
+                        .HasColumnType("integer")
+                        .HasColumnName("finalidade");
+
+                    b.Property<int>("Tentativas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("tentativas");
+
+                    b.Property<DateTime>("UltimoEnvioEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ultimo_envio_em_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CadastroTokenHash");
+
+                    b.HasIndex("EmailNormalizado", "Finalidade", "ConsumidoEmUtc");
+
+                    b.HasIndex("ExpiraEmUtc");
+
+                    b.ToTable("codigos_acesso_email", (string)null);
+                });
+
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.Usuario", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2033,6 +2102,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Property<Guid?>("AtletaId")
                         .HasColumnType("uuid")
                         .HasColumnName("atleta_id");
+
+                    b.Property<DateTime?>("CadastroCompletoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cadastro_completo_em_utc");
 
                     b.Property<DateTime?>("CodigoLoginExpiraEmUtc")
                         .HasColumnType("timestamp with time zone")
@@ -2051,6 +2124,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("codigo_redefinicao_senha_hash");
+
+                    b.Property<DateTime?>("ConsentimentoMarketingEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consentimento_marketing_em_utc");
 
                     b.Property<bool>("DadosAnonimizados")
                         .ValueGeneratedOnAdd()
@@ -2071,6 +2148,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("email");
+
+                    b.Property<DateTime?>("EmailConfirmadoEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_confirmado_em_utc");
 
                     b.Property<DateTime?>("ExcluidoEm")
                         .HasColumnType("timestamp with time zone")
@@ -2137,6 +2218,10 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(255)")
                         .HasColumnName("refresh_token_hash");
 
+                    b.Property<DateTime?>("RevogouMarketingEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revogou_marketing_em_utc");
+
                     b.Property<DateTime?>("SenhaAtualizadaEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("senha_atualizada_em_utc");
@@ -2179,6 +2264,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("boolean")
                         .HasColumnName("aceitou_politica_privacidade");
 
+                    b.Property<bool>("AceitouMarketing")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("aceitou_marketing");
+
                     b.Property<bool>("AceitouTermosUso")
                         .HasColumnType("boolean")
                         .HasColumnName("aceitou_termos_uso");
@@ -2199,10 +2290,23 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
 
+                    b.Property<DateTime?>("ConsentimentoMarketingEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consentimento_marketing_em_utc");
+
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("ip_address");
+
+                    b.Property<DateTime?>("DeclarouMaioridadeEmUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("declarou_maioridade_em_utc");
+
+                    b.Property<string>("Origem")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("origem");
 
                     b.Property<string>("UserAgent")
                         .HasMaxLength(512)
@@ -2219,9 +2323,17 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("character varying(50)")
                         .HasColumnName("versao_politica_privacidade");
 
+                    b.Property<string>("VersaoTermosUso")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("versao_termos_uso");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UsuarioId", "VersaoPoliticaPrivacidade");
+
+                    b.HasIndex("UsuarioId", "VersaoTermosUso");
 
                     b.ToTable("usuarios_consentimentos_lgpd", (string)null);
                 });

@@ -19,6 +19,11 @@ public class UsuarioConsentimentoLgpdMapeamento : IEntityTypeConfiguration<Usuar
             .HasColumnName("usuario_id")
             .IsRequired();
 
+        builder.Property(x => x.VersaoTermosUso)
+            .HasColumnName("versao_termos_uso")
+            .HasMaxLength(50)
+            .IsRequired();
+
         builder.Property(x => x.VersaoPoliticaPrivacidade)
             .HasColumnName("versao_politica_privacidade")
             .HasMaxLength(50)
@@ -44,6 +49,21 @@ public class UsuarioConsentimentoLgpdMapeamento : IEntityTypeConfiguration<Usuar
             .HasColumnName("aceito_em_utc")
             .IsRequired();
 
+        builder.Property(x => x.DeclarouMaioridadeEmUtc)
+            .HasColumnName("declarou_maioridade_em_utc");
+
+        builder.Property(x => x.AceitouMarketing)
+            .HasColumnName("aceitou_marketing")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.ConsentimentoMarketingEmUtc)
+            .HasColumnName("consentimento_marketing_em_utc");
+
+        builder.Property(x => x.Origem)
+            .HasColumnName("origem")
+            .HasMaxLength(80);
+
         builder.Property(x => x.IpAddress)
             .HasColumnName("ip_address")
             .HasMaxLength(64);
@@ -61,6 +81,7 @@ public class UsuarioConsentimentoLgpdMapeamento : IEntityTypeConfiguration<Usuar
             .IsRequired();
 
         builder.HasIndex(x => new { x.UsuarioId, x.VersaoPoliticaPrivacidade });
+        builder.HasIndex(x => new { x.UsuarioId, x.VersaoTermosUso });
 
         builder.HasOne(x => x.Usuario)
             .WithMany(x => x.ConsentimentosLgpd)

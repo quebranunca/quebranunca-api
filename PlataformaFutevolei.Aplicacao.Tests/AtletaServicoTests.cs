@@ -699,7 +699,7 @@ public class AtletaServicoTests
         public Task<Atleta> ObterOuCriarAtletaAsync(string? nomeInformado, string? apelidoInformado, bool cadastroPendente, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, CancellationToken cancellationToken = default)
+        public Task<Atleta> ObterOuCriarAtletaParaUsuarioAsync(string nomeInformado, string emailInformado, string? apelidoInformado = null, CancellationToken cancellationToken = default)
         {
             var atleta = atletas.Itens.FirstOrDefault(x => string.Equals(x.Email, emailInformado, StringComparison.OrdinalIgnoreCase));
             if (atleta is not null)
