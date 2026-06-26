@@ -470,7 +470,9 @@ public class AutenticacaoServicoTests
         Assert.True(resposta.CadastroNovo);
         Assert.False(resposta.PodeEntrarComSenha);
         Assert.Equal("n***@example.com", resposta.EmailMascarado);
+        Assert.Null(resposta.CodigoDesenvolvimento);
         Assert.Equal("novo@example.com", cenario.EnvioEmailCodigo.UltimoEmail);
+        Assert.Empty(cenario.Usuarios.Itens);
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
         Assert.Equal("novo@example.com", codigoAcesso.EmailNormalizado);
         Assert.Equal(FinalidadeCodigoAcessoEmail.CadastroPublico, codigoAcesso.Finalidade);
@@ -488,6 +490,7 @@ public class AutenticacaoServicoTests
         Assert.Equal("CodigoEnviado", resposta.Status);
         Assert.False(resposta.CadastroNovo);
         Assert.False(resposta.PodeEntrarComSenha);
+        Assert.Single(cenario.Usuarios.Itens);
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
         Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
     }
@@ -503,6 +506,7 @@ public class AutenticacaoServicoTests
         Assert.Equal("CodigoEnviado", resposta.Status);
         Assert.False(resposta.CadastroNovo);
         Assert.True(resposta.PodeEntrarComSenha);
+        Assert.Single(cenario.Usuarios.Itens);
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
         Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
     }
@@ -523,6 +527,8 @@ public class AutenticacaoServicoTests
         Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
         Assert.NotNull(usuario.EmailConfirmadoEmUtc);
         Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
+        Assert.Null(cenario.ResolvedorAtleta.UltimoEmailInformado);
     }
 
     [Fact]
@@ -541,6 +547,9 @@ public class AutenticacaoServicoTests
         Assert.True(resposta.EmailConfirmado);
         Assert.False(string.IsNullOrWhiteSpace(resposta.CadastroToken));
         Assert.Null(resposta.Token);
+        Assert.Null(resposta.RefreshToken);
+        Assert.Null(resposta.Usuario);
+        Assert.Empty(cenario.Usuarios.Itens);
         Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
         Assert.NotNull(codigoAcesso.CadastroTokenHash);
         Assert.NotNull(codigoAcesso.CadastroTokenExpiraEmUtc);
@@ -584,6 +593,8 @@ public class AutenticacaoServicoTests
         Assert.True(consentimento.AceitouPoliticaPrivacidade);
         Assert.True(consentimento.DeclarouMaiorDe18);
         Assert.False(consentimento.AceitouMarketing);
+        Assert.Equal(PrivacidadeServico.VersaoTermosUsoAtual, consentimento.VersaoTermosUso);
+        Assert.Equal(PrivacidadeServico.VersaoPoliticaPrivacidadeAtual, consentimento.VersaoPoliticaPrivacidade);
         Assert.Equal("CadastroPublico", consentimento.Origem);
     }
 
@@ -598,6 +609,7 @@ public class AutenticacaoServicoTests
 
         Assert.Equal("Nome de exibição é obrigatório.", excecao.Message);
         Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]
@@ -611,6 +623,7 @@ public class AutenticacaoServicoTests
 
         Assert.Equal("É necessário aceitar os Termos de Uso para continuar.", excecao.Message);
         Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]
@@ -624,6 +637,7 @@ public class AutenticacaoServicoTests
 
         Assert.Equal("É necessário aceitar a Política de Privacidade para continuar.", excecao.Message);
         Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]
@@ -637,6 +651,7 @@ public class AutenticacaoServicoTests
 
         Assert.Equal("É necessário declarar que você tem 18 anos ou mais para continuar.", excecao.Message);
         Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]
@@ -650,6 +665,21 @@ public class AutenticacaoServicoTests
         var usuario = Assert.Single(cenario.Usuarios.Itens);
         Assert.Null(usuario.ConsentimentoMarketingEmUtc);
         Assert.False(Assert.Single(cenario.Privacidade.Consentimentos).AceitouMarketing);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_MarketingAceito_RegistraConsentimentoSeparado()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var resposta = await cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, aceitouMarketing: true));
+
+        var usuario = Assert.Single(cenario.Usuarios.Itens);
+        Assert.NotNull(usuario.ConsentimentoMarketingEmUtc);
+        Assert.True(Assert.Single(cenario.Privacidade.Consentimentos).AceitouMarketing);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
+        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
     }
 
     [Fact]
@@ -670,6 +700,25 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task ConfirmarCodigoAcessoAsync_CodigoInvalidoParaCadastroNovo_NaoCriaUsuario()
+    {
+        var cenario = new Cenario();
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "novo@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.CadastroPublico);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("novo@example.com", "000000")));
+
+        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.Equal(1, codigoAcesso.Tentativas);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
     public async Task ConfirmarCodigoAcessoAsync_CodigoExpirado_Bloqueia()
     {
         var cenario = new Cenario();
@@ -684,6 +733,7 @@ public class AutenticacaoServicoTests
             cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "123456")));
 
         Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.Null(cenario.Usuarios.Itens.Single().EmailConfirmadoEmUtc);
     }
 
     [Fact]
@@ -708,6 +758,36 @@ public class AutenticacaoServicoTests
         Assert.Equal("Muitas tentativas inválidas. Solicite um novo código.", excecao.Message);
         Assert.Equal(5, codigoAcesso.Tentativas);
         Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.Null(cenario.Usuarios.Itens.Single().EmailConfirmadoEmUtc);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_TokenTemporarioInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido("token-invalido")));
+
+        Assert.Equal("Cadastro expirado. Solicite um novo código para continuar.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_TokenTemporarioExpirado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        codigoAcesso.CadastroTokenExpiraEmUtc = DateTime.UtcNow.AddMinutes(-1);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken)));
+
+        Assert.Equal("Cadastro expirado. Solicite um novo código para continuar.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]

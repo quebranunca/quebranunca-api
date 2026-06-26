@@ -100,14 +100,12 @@ public class AutenticacaoServico(
         var cadastroNovo = usuario is null;
         var podeEntrarComSenha = usuarioAtivo && UsuarioPossuiSenha(usuario!);
         var mensagemPadrao = "Se o e-mail estiver correto, enviaremos as instruções de acesso.";
-        string? codigoDesenvolvimento = null;
-
         if (usuarioAtivo || cadastroNovo)
         {
             var finalidade = usuarioAtivo
                 ? FinalidadeCodigoAcessoEmail.Login
                 : FinalidadeCodigoAcessoEmail.CadastroPublico;
-            codigoDesenvolvimento = await CriarEEnviarCodigoAcessoAsync(
+            await CriarEEnviarCodigoAcessoAsync(
                 emailNormalizado,
                 finalidade,
                 usuarioAtivo ? usuario : null,
@@ -119,8 +117,7 @@ public class AutenticacaoServico(
             MascararEmail(emailNormalizado),
             podeEntrarComSenha,
             cadastroNovo,
-            mensagemPadrao,
-            codigoDesenvolvimento);
+            mensagemPadrao);
     }
 
     public async Task<ConfirmarCodigoAcessoRespostaDto> ConfirmarCodigoAcessoAsync(
