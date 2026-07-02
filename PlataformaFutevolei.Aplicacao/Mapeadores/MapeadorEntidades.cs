@@ -12,7 +12,20 @@ internal static class MapeadorEntidades
     private const string MarcadorMetadadosLados = "[[lados:";
 
     public static UsuarioLogadoDto ParaDto(this Usuario usuario)
-        => new(
+    {
+        var possuiSenha = usuario.SenhaDefinidaEmUtc.HasValue;
+        IReadOnlyList<PendenciaContaDto> pendenciasConta = possuiSenha
+            ? Array.Empty<PendenciaContaDto>()
+            : new[]
+            {
+                new PendenciaContaDto(
+                    "CriarSenha",
+                    Obrigatoria: true,
+                    Bloqueante: false,
+                    "Crie uma senha para continuar acessando sua conta com segurança.")
+            };
+
+        return new UsuarioLogadoDto(
             usuario.Id,
             usuario.Nome,
             usuario.Email,
@@ -25,10 +38,13 @@ internal static class MapeadorEntidades
             usuario.PermitirUsoLocalizacao,
             usuario.PermitirUsoImagem,
             usuario.FotoPerfilUrl,
-            usuario.SenhaDefinidaEmUtc.HasValue,
+            possuiSenha,
+            possuiSenha,
+            pendenciasConta,
             PoliticaPrivacidadePendente: false,
             usuario.ExclusaoSolicitadaEmUtc.HasValue
         );
+    }
 
     public static UsuarioDto ParaAdminDto(this Usuario usuario)
         => new(

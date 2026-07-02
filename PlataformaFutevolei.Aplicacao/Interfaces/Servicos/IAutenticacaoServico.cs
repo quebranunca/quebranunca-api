@@ -20,6 +20,9 @@ public interface IAutenticacaoServico
         EsqueciSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default);
     Task RedefinirSenhaAsync(RedefinirSenhaRequisicaoDto dto, CancellationToken cancellationToken = default);
+    Task<RespostaAutenticacaoDto> CriarSenhaComTokenAsync(
+        CriarSenhaComTokenRequisicaoDto dto,
+        CancellationToken cancellationToken = default);
     Task<SegurancaUsuarioDto> ObterSegurancaUsuarioAtualAsync(CancellationToken cancellationToken = default);
     Task<SegurancaUsuarioDto> DefinirSenhaAsync(DefinirSenhaRequisicaoDto dto, CancellationToken cancellationToken = default);
     Task<SegurancaUsuarioDto> AlterarSenhaAsync(AlterarSenhaRequisicaoDto dto, CancellationToken cancellationToken = default);

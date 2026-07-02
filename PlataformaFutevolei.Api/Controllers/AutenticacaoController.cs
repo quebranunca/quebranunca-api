@@ -136,6 +136,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     }
 
     [HttpPost("definir-senha")]
+    [HttpPost("criar-senha")]
     [Authorize]
     [ProducesResponseType(typeof(SegurancaUsuarioDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> DefinirSenha(
@@ -144,6 +145,17 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     {
         var seguranca = await autenticacaoServico.DefinirSenhaAsync(dto, cancellationToken);
         return Ok(seguranca);
+    }
+
+    [HttpPost("criar-senha-com-token")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CriarSenhaComToken(
+        [FromBody] CriarSenhaComTokenRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var resposta = await autenticacaoServico.CriarSenhaComTokenAsync(dto, cancellationToken);
+        return Ok(resposta);
     }
 
     [HttpPost("alterar-senha")]

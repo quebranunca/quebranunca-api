@@ -41,6 +41,10 @@ public interface ICodigoAcessoEmailRepositorio
         string cadastroTokenHash,
         DateTime dataUtc,
         CancellationToken cancellationToken = default);
+    Task<CodigoAcessoEmail?> ObterPorTokenTemporarioHashParaAtualizacaoAsync(
+        string tokenHash,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default);
     Task AdicionarAsync(CodigoAcessoEmail codigoAcessoEmail, CancellationToken cancellationToken = default);
     void Atualizar(CodigoAcessoEmail codigoAcessoEmail);
 }

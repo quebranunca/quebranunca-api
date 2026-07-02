@@ -13,7 +13,8 @@ public record RegistrarUsuarioRequisicaoDto(
     bool AceitouUsoLocalizacao = false,
     bool AceitouUsoImagem = false,
     string? IpAddress = null,
-    string? UserAgent = null
+    string? UserAgent = null,
+    string? ConfirmacaoSenha = null
 );
 
 public record LoginRequisicaoDto(
@@ -42,7 +43,8 @@ public record EsqueciSenhaRequisicaoDto(
 public record RedefinirSenhaRequisicaoDto(
     string Email,
     string Codigo,
-    string NovaSenha
+    string NovaSenha,
+    string? ConfirmacaoNovaSenha = null
 );
 
 public record DefinirSenhaRequisicaoDto(
@@ -80,7 +82,8 @@ public record IniciarAcessoRespostaDto(
 
 public record ConfirmarCodigoAcessoRequisicaoDto(
     string Email,
-    string Codigo
+    string Codigo,
+    string? Finalidade = null
 );
 
 public record ConfirmarCodigoAcessoRespostaDto(
@@ -91,7 +94,8 @@ public record ConfirmarCodigoAcessoRespostaDto(
     DateTime? RefreshTokenExpiraEmUtc = null,
     UsuarioLogadoDto? Usuario = null,
     string? CadastroToken = null,
-    bool EmailConfirmado = false
+    bool EmailConfirmado = false,
+    string? SenhaToken = null
 );
 
 public record CompletarCadastroPublicoRequisicaoDto(
@@ -105,7 +109,15 @@ public record CompletarCadastroPublicoRequisicaoDto(
     bool DeclarouMaiorDe18,
     bool AceitouMarketing,
     string? IpAddress = null,
-    string? UserAgent = null
+    string? UserAgent = null,
+    string? Senha = null,
+    string? ConfirmacaoSenha = null
+);
+
+public record CriarSenhaComTokenRequisicaoDto(
+    string SenhaToken,
+    string Senha,
+    string ConfirmacaoSenha
 );
 
 public record SolicitarRedefinicaoSenhaRespostaDto(
@@ -138,6 +150,13 @@ public record ResultadoEnvioEmailCodigoLoginDto(
     string? CodigoDesenvolvimento = null
 );
 
+public record PendenciaContaDto(
+    string Tipo,
+    bool Obrigatoria,
+    bool Bloqueante,
+    string Mensagem
+);
+
 public record UsuarioLogadoDto(
     Guid Id,
     string Nome,
@@ -152,6 +171,8 @@ public record UsuarioLogadoDto(
     bool PermitirUsoImagem,
     string? FotoPerfilUrl,
     bool PossuiSenha,
+    bool SenhaCadastrada,
+    IReadOnlyList<PendenciaContaDto> PendenciasConta,
     bool PoliticaPrivacidadePendente,
     bool ExclusaoSolicitada
 );

@@ -53,6 +53,20 @@ public class CodigoAcessoEmailRepositorio(PlataformaFutevoleiDbContext dbContext
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<CodigoAcessoEmail?> ObterPorTokenTemporarioHashParaAtualizacaoAsync(
+        string tokenHash,
+        DateTime dataUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.CodigosAcessoEmail
+            .Where(x =>
+                x.CadastroTokenHash == tokenHash &&
+                x.CadastroTokenExpiraEmUtc != null &&
+                x.CadastroTokenExpiraEmUtc >= dataUtc)
+            .OrderByDescending(x => x.DataCriacao)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task AdicionarAsync(CodigoAcessoEmail codigoAcessoEmail, CancellationToken cancellationToken = default)
     {
         await dbContext.CodigosAcessoEmail.AddAsync(codigoAcessoEmail, cancellationToken);

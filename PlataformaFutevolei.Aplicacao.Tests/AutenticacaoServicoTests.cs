@@ -306,7 +306,7 @@ public class AutenticacaoServicoTests
 
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
         Assert.Equal("joao@example.com", codigoAcesso.EmailNormalizado);
-        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.CriarSenhaPrimeiroAcesso, codigoAcesso.Finalidade);
         Assert.Null(codigoAcesso.ConsumidoEmUtc);
         Assert.True(codigoAcesso.ExpiraEmUtc > DateTime.UtcNow);
         Assert.Equal(HashSenha(cenario.EnvioEmailCodigo.UltimoCodigo), codigoAcesso.CodigoHash);
@@ -371,7 +371,7 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
-    public async Task LoginComCodigoAsync_CodigoValido_RetornaAuthELimpaCodigo()
+    public async Task LoginComCodigoAsync_CodigoValido_NaoAutenticaComoLoginDefinitivo()
     {
         var cenario = new Cenario();
         var usuario = new Usuario
@@ -385,15 +385,16 @@ public class AutenticacaoServicoTests
         cenario.Usuarios.Itens.Add(usuario);
         var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
 
-        var resposta = await cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456"));
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456")));
 
-        Assert.Equal("João", resposta.Usuario.Nome);
-        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
-        Assert.NotNull(usuario.EmailConfirmadoEmUtc);
+        Assert.Equal("Confirme o código pelo fluxo de criação de senha para continuar.", excecao.Message);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
+        Assert.Null(usuario.EmailConfirmadoEmUtc);
     }
 
     [Fact]
-    public async Task LoginComCodigoAsync_EmailNormalizado_CodigoValidoRetornaAuth()
+    public async Task LoginComCodigoAsync_EmailNormalizado_NaoAutenticaComoLoginDefinitivo()
     {
         var cenario = new Cenario();
         var usuario = new Usuario
@@ -407,10 +408,11 @@ public class AutenticacaoServicoTests
         cenario.Usuarios.Itens.Add(usuario);
         var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
 
-        var resposta = await cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456"));
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456")));
 
-        Assert.Equal(usuario.Id, resposta.Usuario.Id);
-        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.Equal("Confirme o código pelo fluxo de criação de senha para continuar.", excecao.Message);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -430,8 +432,8 @@ public class AutenticacaoServicoTests
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "654321")));
 
-        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
-        Assert.Equal(1, codigoAcesso.Tentativas);
+        Assert.Equal("Confirme o código pelo fluxo de criação de senha para continuar.", excecao.Message);
+        Assert.Equal(0, codigoAcesso.Tentativas);
         Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
@@ -455,7 +457,7 @@ public class AutenticacaoServicoTests
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() => cenario.Servico.LoginComCodigoAsync(new LoginCodigoRequisicaoDto("joao@example.com", "123456")));
 
-        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.Equal("Confirme o código pelo fluxo de criação de senha para continuar.", excecao.Message);
         Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
@@ -466,11 +468,11 @@ public class AutenticacaoServicoTests
 
         var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(" NOVO@EXAMPLE.COM "));
 
-        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.Equal("CadastroNovoCodigoEnviado", resposta.Status);
         Assert.True(resposta.CadastroNovo);
         Assert.False(resposta.PodeEntrarComSenha);
         Assert.Equal("n***@example.com", resposta.EmailMascarado);
-        Assert.Null(resposta.CodigoDesenvolvimento);
+        Assert.Equal("123456", resposta.CodigoDesenvolvimento);
         Assert.Equal("novo@example.com", cenario.EnvioEmailCodigo.UltimoEmail);
         Assert.Empty(cenario.Usuarios.Itens);
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
@@ -480,39 +482,38 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
-    public async Task IniciarAcessoAsync_UsuarioExistenteSemSenha_EnviaCodigoLogin()
+    public async Task IniciarAcessoAsync_UsuarioExistenteSemSenha_EnviaCodigoCriacaoSenha()
     {
         var cenario = new Cenario();
         cenario.Usuarios.Itens.Add(CriarUsuarioSemSenha());
 
         var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto("JOAO@EXAMPLE.COM"));
 
-        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.Equal("CriarSenhaNecessarioCodigoEnviado", resposta.Status);
         Assert.False(resposta.CadastroNovo);
         Assert.False(resposta.PodeEntrarComSenha);
         Assert.Single(cenario.Usuarios.Itens);
         var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
-        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.CriarSenhaPrimeiroAcesso, codigoAcesso.Finalidade);
     }
 
     [Fact]
-    public async Task IniciarAcessoAsync_UsuarioExistenteComSenha_PermiteSenhaEEnviaCodigoLogin()
+    public async Task IniciarAcessoAsync_UsuarioExistenteComSenha_PermiteSenhaSemEnviarCodigo()
     {
         var cenario = new Cenario();
         cenario.Usuarios.Itens.Add(CriarUsuarioComSenha("123456"));
 
         var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto("joao@example.com"));
 
-        Assert.Equal("CodigoEnviado", resposta.Status);
+        Assert.Equal("EntrarComSenha", resposta.Status);
         Assert.False(resposta.CadastroNovo);
         Assert.True(resposta.PodeEntrarComSenha);
         Assert.Single(cenario.Usuarios.Itens);
-        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
-        Assert.Equal(FinalidadeCodigoAcessoEmail.Login, codigoAcesso.Finalidade);
+        Assert.Empty(cenario.CodigosAcesso.Itens);
     }
 
     [Fact]
-    public async Task ConfirmarCodigoAcessoAsync_UsuarioExistente_AutenticaEMarcaEmailConfirmado()
+    public async Task ConfirmarCodigoAcessoAsync_UsuarioExistenteSemSenha_RetornaTokenTemporarioSemJwt()
     {
         var cenario = new Cenario();
         var usuario = CriarUsuarioSemSenha();
@@ -521,14 +522,67 @@ public class AutenticacaoServicoTests
 
         var resposta = await cenario.Servico.ConfirmarCodigoAcessoAsync(new ConfirmarCodigoAcessoRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456"));
 
-        Assert.Equal("Autenticado", resposta.Status);
-        Assert.Equal(usuario.Id, resposta.Usuario?.Id);
-        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
-        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+        Assert.Equal("CriarSenhaNecessario", resposta.Status);
+        Assert.Null(resposta.Usuario);
+        Assert.Null(resposta.Token);
+        Assert.Null(resposta.RefreshToken);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.SenhaToken));
         Assert.NotNull(usuario.EmailConfirmadoEmUtc);
         Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.NotNull(codigoAcesso.CadastroTokenHash);
+        Assert.NotNull(codigoAcesso.CadastroTokenExpiraEmUtc);
         Assert.Empty(cenario.Privacidade.Consentimentos);
         Assert.Null(cenario.ResolvedorAtleta.UltimoEmailInformado);
+    }
+
+    [Fact]
+    public async Task CriarSenhaComTokenAsync_UsuarioExistenteSemSenha_TokenValido_DefineSenhaEAutentica()
+    {
+        var cenario = new Cenario();
+        var usuario = CriarUsuarioSemSenha();
+        cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
+        var confirmacao = await cenario.Servico.ConfirmarCodigoAcessoAsync(
+            new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "123456"));
+
+        var resposta = await cenario.Servico.CriarSenhaComTokenAsync(new CriarSenhaComTokenRequisicaoDto(
+            confirmacao.SenhaToken!,
+            "nova123",
+            "nova123"));
+
+        Assert.Equal(usuario.Id, resposta.Usuario.Id);
+        Assert.True(resposta.Usuario.PossuiSenha);
+        Assert.True(resposta.Usuario.SenhaCadastrada);
+        Assert.Empty(resposta.Usuario.PendenciasConta);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
+        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+        Assert.Equal("hash:nova123", usuario.SenhaHash);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+        Assert.NotNull(usuario.EmailConfirmadoEmUtc);
+        Assert.Null(codigoAcesso.CadastroTokenHash);
+        Assert.Null(codigoAcesso.CadastroTokenExpiraEmUtc);
+    }
+
+    [Fact]
+    public async Task CriarSenhaComTokenAsync_TokenTemporarioExpirado_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var usuario = CriarUsuarioSemSenha();
+        cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(cenario, "joao@example.com", "123456");
+        var confirmacao = await cenario.Servico.ConfirmarCodigoAcessoAsync(
+            new ConfirmarCodigoAcessoRequisicaoDto("joao@example.com", "123456"));
+        codigoAcesso.CadastroTokenExpiraEmUtc = DateTime.UtcNow.AddMinutes(-1);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CriarSenhaComTokenAsync(new CriarSenhaComTokenRequisicaoDto(
+                confirmacao.SenhaToken!,
+                "nova123",
+                "nova123")));
+
+        Assert.Equal("Token de criação de senha inválido ou expirado.", excecao.Message);
+        Assert.Null(usuario.SenhaDefinidaEmUtc);
     }
 
     [Fact]
@@ -579,12 +633,16 @@ public class AutenticacaoServicoTests
         Assert.True(usuario.Ativo);
         Assert.NotNull(usuario.EmailConfirmadoEmUtc);
         Assert.NotNull(usuario.CadastroCompletoEmUtc);
-        Assert.Null(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+        Assert.Equal("hash:Senha123", usuario.SenhaHash);
         Assert.Equal(atletaExistente.Id, usuario.AtletaId);
         Assert.Equal("Gu QN", cenario.ResolvedorAtleta.UltimoApelidoInformado);
         Assert.Equal(atletaExistente.Id, cenario.PendenciaServico.UltimoAtletaSincronizado);
         Assert.Null(usuario.ConsentimentoMarketingEmUtc);
-        Assert.False(resposta.Usuario.PossuiSenha);
+        Assert.True(resposta.Usuario.PossuiSenha);
+        Assert.True(resposta.Usuario.SenhaCadastrada);
+        Assert.Empty(resposta.Usuario.PendenciasConta);
         Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
         Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
 
@@ -596,6 +654,34 @@ public class AutenticacaoServicoTests
         Assert.Equal(PrivacidadeServico.VersaoTermosUsoAtual, consentimento.VersaoTermosUso);
         Assert.Equal(PrivacidadeServico.VersaoPoliticaPrivacidadeAtual, consentimento.VersaoPoliticaPrivacidade);
         Assert.Equal("CadastroPublico", consentimento.Origem);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_SemSenha_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, senha: "   ", confirmacaoSenha: "   ")));
+
+        Assert.Equal("Senha é obrigatória.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
+    }
+
+    [Fact]
+    public async Task CompletarCadastroPublicoAsync_ConfirmacaoSenhaDiferente_Bloqueia()
+    {
+        var cenario = new Cenario();
+        var cadastroToken = await ObterCadastroTokenAsync(cenario, "novo@example.com");
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CompletarCadastroPublicoAsync(CadastroPublicoValido(cadastroToken, senha: "Senha123", confirmacaoSenha: "Outra123")));
+
+        Assert.Equal("Senha e confirmação devem ser iguais.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+        Assert.Empty(cenario.Privacidade.Consentimentos);
     }
 
     [Fact]
@@ -846,8 +932,13 @@ public class AutenticacaoServicoTests
         var resposta = await cenario.Servico.SolicitarRedefinicaoSenhaAsync(new EsqueciSenhaRequisicaoDto(" joao@example.com "));
 
         Assert.Equal("Se o e-mail estiver cadastrado, um código de redefinição foi gerado.", resposta.Mensagem);
-        Assert.NotNull(usuario.CodigoRedefinicaoSenhaHash);
-        Assert.NotNull(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
+        Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+        var codigoAcesso = Assert.Single(cenario.CodigosAcesso.Itens);
+        Assert.Equal(FinalidadeCodigoAcessoEmail.RedefinirSenha, codigoAcesso.Finalidade);
+        Assert.Equal("joao@example.com", codigoAcesso.EmailNormalizado);
+        Assert.Equal(HashSenha(cenario.EnvioEmailCodigo.UltimoCodigo!), codigoAcesso.CodigoHash);
+        Assert.True(codigoAcesso.ExpiraEmUtc > DateTime.UtcNow);
     }
 
     [Fact]
@@ -907,6 +998,11 @@ public class AutenticacaoServicoTests
             CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
         };
         cenario.Usuarios.Itens.Add(usuario);
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.RedefinirSenha);
 
         await cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto(" joao@example.com ", "123456", "nova123"));
 
@@ -915,6 +1011,7 @@ public class AutenticacaoServicoTests
         Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
         Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
         Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
+        Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -932,6 +1029,11 @@ public class AutenticacaoServicoTests
             CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
         };
         cenario.Usuarios.Itens.Add(usuario);
+        CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.RedefinirSenha);
 
         await cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto(" JOAO@EXAMPLE.COM ", "123456", "nova123"));
 
@@ -960,7 +1062,7 @@ public class AutenticacaoServicoTests
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "123456", "12345")));
 
-        Assert.Equal("A nova senha deve ter no mínimo 6 caracteres.", excecao.Message);
+        Assert.Equal("A senha deve ter no mínimo 6 caracteres.", excecao.Message);
     }
 
     [Fact]
@@ -973,17 +1075,20 @@ public class AutenticacaoServicoTests
             Email = "joao@example.com",
             SenhaHash = "hash-antigo",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoRedefinicaoSenhaHash = cenario.SenhaServico.GerarHash("123456"),
-            CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(10)
+            Ativo = true
         });
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.RedefinirSenha);
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "654321", "nova123")));
 
-        Assert.Equal("Código de redefinição inválido ou expirado.", excecao.Message);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaHash);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaExpiraEmUtc);
+        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.Equal(1, codigoAcesso.Tentativas);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -996,17 +1101,20 @@ public class AutenticacaoServicoTests
             Email = "joao@example.com",
             SenhaHash = "hash-antigo",
             Perfil = PerfilUsuario.Atleta,
-            Ativo = true,
-            CodigoRedefinicaoSenhaHash = cenario.SenhaServico.GerarHash("123456"),
-            CodigoRedefinicaoSenhaExpiraEmUtc = DateTime.UtcNow.AddMinutes(-1)
+            Ativo = true
         });
+        var codigoAcesso = CriarCodigoAcesso(
+            cenario,
+            "joao@example.com",
+            "123456",
+            FinalidadeCodigoAcessoEmail.RedefinirSenha,
+            expiraEmUtc: DateTime.UtcNow.AddMinutes(-1));
 
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.RedefinirSenhaAsync(new RedefinirSenhaRequisicaoDto("joao@example.com", "123456", "nova123")));
 
-        Assert.Equal("Código de redefinição inválido ou expirado.", excecao.Message);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaHash);
-        Assert.NotNull(cenario.Usuarios.Itens.Single().CodigoRedefinicaoSenhaExpiraEmUtc);
+        Assert.Equal("Código de acesso inválido ou expirado.", excecao.Message);
+        Assert.Null(codigoAcesso.ConsumidoEmUtc);
     }
 
     [Fact]
@@ -1041,6 +1149,39 @@ public class AutenticacaoServicoTests
         Assert.Equal("hash:nova123", usuario.SenhaHash);
         Assert.NotNull(usuario.SenhaDefinidaEmUtc);
         Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+    }
+
+    [Fact]
+    public async Task ObterUsuarioAtualAsync_UsuarioSemSenha_RetornaPendenciaCriarSenhaSemBloquear()
+    {
+        var usuario = CriarUsuarioSemSenha();
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        var resposta = await cenario.Servico.ObterUsuarioAtualAsync();
+
+        Assert.False(resposta.PossuiSenha);
+        Assert.False(resposta.SenhaCadastrada);
+        var pendencia = Assert.Single(resposta.PendenciasConta);
+        Assert.Equal("CriarSenha", pendencia.Tipo);
+        Assert.True(pendencia.Obrigatoria);
+        Assert.False(pendencia.Bloqueante);
+        Assert.Equal("Crie uma senha para continuar acessando sua conta com segurança.", pendencia.Mensagem);
+    }
+
+    [Fact]
+    public async Task ObterUsuarioAtualAsync_AposDefinirSenha_RemovePendenciaCriarSenha()
+    {
+        var usuario = CriarUsuarioSemSenha();
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+
+        await cenario.Servico.DefinirSenhaAsync(new DefinirSenhaRequisicaoDto("nova123", "nova123"));
+        var resposta = await cenario.Servico.ObterUsuarioAtualAsync();
+
+        Assert.True(resposta.PossuiSenha);
+        Assert.True(resposta.SenhaCadastrada);
+        Assert.Empty(resposta.PendenciasConta);
     }
 
     [Fact]
@@ -1321,7 +1462,7 @@ public class AutenticacaoServicoTests
         Cenario cenario,
         string email,
         string codigo,
-        FinalidadeCodigoAcessoEmail finalidade = FinalidadeCodigoAcessoEmail.Login,
+        FinalidadeCodigoAcessoEmail finalidade = FinalidadeCodigoAcessoEmail.CriarSenhaPrimeiroAcesso,
         DateTime? expiraEmUtc = null,
         DateTime? consumidoEmUtc = null)
     {
@@ -1356,7 +1497,9 @@ public class AutenticacaoServicoTests
         bool aceitouTermos = true,
         bool aceitouPoliticaPrivacidade = true,
         bool declarouMaiorDe18 = true,
-        bool aceitouMarketing = false)
+        bool aceitouMarketing = false,
+        string? senha = "Senha123",
+        string? confirmacaoSenha = "Senha123")
         => new(
             cadastroToken,
             nome,
@@ -1366,7 +1509,9 @@ public class AutenticacaoServicoTests
             aceitouPoliticaPrivacidade,
             PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
             declarouMaiorDe18,
-            aceitouMarketing);
+            aceitouMarketing,
+            Senha: senha,
+            ConfirmacaoSenha: confirmacaoSenha);
 
     private sealed class Cenario
     {
@@ -1543,6 +1688,21 @@ public class AutenticacaoServicoTests
                 .Where(x =>
                     x.Finalidade == FinalidadeCodigoAcessoEmail.CadastroPublico &&
                     x.CadastroTokenHash == cadastroTokenHash &&
+                    x.CadastroTokenExpiraEmUtc != null &&
+                    x.CadastroTokenExpiraEmUtc >= dataUtc)
+                .OrderByDescending(x => x.DataCriacao)
+                .FirstOrDefault();
+            return Task.FromResult(codigo);
+        }
+
+        public Task<CodigoAcessoEmail?> ObterPorTokenTemporarioHashParaAtualizacaoAsync(
+            string tokenHash,
+            DateTime dataUtc,
+            CancellationToken cancellationToken = default)
+        {
+            var codigo = Itens
+                .Where(x =>
+                    x.CadastroTokenHash == tokenHash &&
                     x.CadastroTokenExpiraEmUtc != null &&
                     x.CadastroTokenExpiraEmUtc >= dataUtc)
                 .OrderByDescending(x => x.DataCriacao)
