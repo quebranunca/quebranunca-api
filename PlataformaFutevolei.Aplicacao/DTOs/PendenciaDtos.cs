@@ -27,6 +27,7 @@ public record PendenciaUsuarioDto(
     string? NomeDuplaBAtleta2,
     int? PlacarDuplaA,
     int? PlacarDuplaB,
+    int? DuplaVencedora,
     Guid? CriadoPorUsuarioId,
     string? NomeCriadoPorUsuario,
     Guid? GrupoId,
@@ -37,7 +38,8 @@ public record PendenciasResumoDto(
     int Total,
     int AltaPrioridade,
     int MediaPrioridade,
-    int BaixaPrioridade
+    int BaixaPrioridade,
+    PendenciaUsuarioDto? ConfirmacaoPartidaMaisRecente = null
 );
 
 public record ResponderPendenciaPartidaDto(

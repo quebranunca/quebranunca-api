@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -26,7 +27,8 @@ public class PartidaServico(
     IPendenciaServico pendenciaServico,
     IRankingServico rankingServico,
     IMidiaPartidaService midiaPartidaService,
-    IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null
+    IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null,
+    PartidaDuplicidadeOpcoes? partidaDuplicidadeOpcoes = null
 ) : IPartidaServico
 {
     private const string MarcadorMetadadosChave = "[[chave:";
@@ -39,7 +41,7 @@ public class PartidaServico(
     private const string NomeFaseChavePerdedores = "Chave dos perdedores";
     private const string NomeFaseEliminatoriaGrupos = "Fase eliminatória";
     private const string NomeCategoriaSemCategoria = "Sem categoria";
-    private const string MensagemPartidaDuplicada = "Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.";
+    private const string MensagemPartidaDuplicada = "Encontramos uma partida muito parecida registrada recentemente.";
     private const string SecaoChaveVencedores = "VENCEDORES";
     private const string SecaoChavePerdedores = "PERDEDORES";
     private const string SecaoChaveFinal = "FINAL";
@@ -262,15 +264,17 @@ public class PartidaServico(
         CancellationToken cancellationToken = default)
     {
         var dataReferencia = dto.Data ?? DateTime.UtcNow;
-        var inicioDia = NormalizarParaUtc(dataReferencia).Date;
-        var fimDia = inicioDia.AddDays(1);
-        var partidasDoDia = await partidaRepositorio.ListarPorDiaAsync(inicioDia, fimDia, cancellationToken);
-        var partidaDuplicada = partidasDoDia.FirstOrDefault(partida => PartidaPossuiMesmaAssinatura(partida, dto));
+        var (inicioJanela, fimJanela) = ObterJanelaDuplicidade(dataReferencia);
+        var partidasDaJanela = await partidaRepositorio.ListarPorDiaAsync(inicioJanela, fimJanela, cancellationToken);
+        var partidaDuplicada = partidasDaJanela.FirstOrDefault(partida =>
+            PartidaValidaParaDuplicidade(partida) &&
+            PartidaPossuiMesmaAssinatura(partida, dto));
 
         return new VerificarDuplicidadePartidaResultadoDto(
             partidaDuplicada is not null,
             partidaDuplicada?.Id,
-            partidaDuplicada is not null ? MensagemPartidaDuplicada : string.Empty);
+            partidaDuplicada is not null ? MensagemPartidaDuplicada : string.Empty,
+            partidaDuplicada?.ParaDto());
     }
 
     private async Task<ConfirmacaoDuplicidadePartidaDto?> VerificarDuplicidadeNovaPartidaAsync(
@@ -286,11 +290,11 @@ public class PartidaServico(
             return null;
         }
 
-        var inicioDia = NormalizarParaUtc(dataPartida).Date;
-        var fimDia = inicioDia.AddDays(1);
-        var partidasDoDia = await partidaRepositorio.ListarPorDiaAsync(inicioDia, fimDia, cancellationToken);
+        var (inicioJanela, fimJanela) = ObterJanelaDuplicidade(dataPartida);
+        var partidasDaJanela = await partidaRepositorio.ListarPorDiaAsync(inicioJanela, fimJanela, cancellationToken);
 
-        var partidaDuplicada = partidasDoDia.FirstOrDefault(partida =>
+        var partidaDuplicada = partidasDaJanela.FirstOrDefault(partida =>
+            PartidaValidaParaDuplicidade(partida) &&
             PartidaPossuiMesmoContexto(partida, grupoId) &&
             PartidaPossuiMesmaAssinaturaCriacao(partida, duplaA, duplaB, dto));
 
@@ -303,7 +307,17 @@ public class PartidaServico(
             true,
             MensagemPartidaDuplicada,
             StatusCriacaoPartida.CodigoDuplicidadeConfirmar,
-            partidaDuplicada.Id);
+            partidaDuplicada.Id,
+            partidaDuplicada.ParaDto());
+    }
+
+    private (DateTime InicioUtc, DateTime FimUtc) ObterJanelaDuplicidade(DateTime dataReferencia)
+    {
+        var horas = partidaDuplicidadeOpcoes?.JanelaHoras ?? new PartidaDuplicidadeOpcoes().JanelaHoras;
+        var janela = TimeSpan.FromHours(Math.Max(1, horas));
+        var dataUtc = NormalizarParaUtc(dataReferencia);
+
+        return (dataUtc.Subtract(janela), dataUtc.Add(janela));
     }
 
     private static bool PartidaPossuiMesmoContexto(Partida partida, Guid? grupoId)
@@ -315,6 +329,13 @@ public class PartidaServico(
 
         return true;
     }
+
+    private static bool PartidaValidaParaDuplicidade(Partida partida)
+        => partida.Ativa &&
+           partida.Status == StatusPartida.Encerrada &&
+           partida.StatusAprovacao != StatusAprovacaoPartida.Contestada &&
+           partida.DuplaA is not null &&
+           partida.DuplaB is not null;
 
     private static string ObterNomeComparacaoAtleta(Atleta atleta)
         => string.IsNullOrWhiteSpace(atleta.Apelido) ? atleta.Nome : atleta.Apelido!;
@@ -818,7 +839,7 @@ public class PartidaServico(
         if (duplicidade is not null)
         {
             return new CriarPartidaResultadoDto(
-                StatusCriacaoPartida.RequerConfirmacaoDuplicidade,
+                StatusCriacaoPartida.PossivelDuplicidade,
                 null,
                 duplicidade,
                 duplicidade.Mensagem,

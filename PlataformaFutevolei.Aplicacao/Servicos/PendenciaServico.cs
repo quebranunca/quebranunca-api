@@ -50,7 +50,11 @@ public class PendenciaServico(
             pendencias.Count,
             pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Alta),
             pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Media),
-            pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Baixa));
+            pendencias.Count(x => x.Prioridade == PrioridadePendenciaUsuario.Baixa),
+            pendencias
+                .Where(x => x.Tipo == TipoPendenciaUsuario.ConfirmarParticipacaoPartida)
+                .OrderByDescending(x => x.DataCriacao)
+                .FirstOrDefault());
     }
 
     public async Task<bool> ExistePendenciaAsync(CancellationToken cancellationToken = default)
@@ -65,11 +69,17 @@ public class PendenciaServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var pendencia = await ObterPendenciaPendenteAsync(
-            pendenciaId,
-            TipoPendenciaUsuario.AprovarPartida,
-            usuario.Id,
-            cancellationToken);
+        var pendencia = await ObterPendenciaPendenteAsync(pendenciaId, usuario.Id, cancellationToken);
+        if (pendencia.Tipo == TipoPendenciaUsuario.ConfirmarParticipacaoPartida)
+        {
+            return await ConfirmarParticipacaoPartidaAsync(pendencia, dto, cancellationToken);
+        }
+
+        if (pendencia.Tipo != TipoPendenciaUsuario.AprovarPartida)
+        {
+            throw new RegraNegocioException("Tipo de pendência inválido para esta operação.");
+        }
+
         var aprovacao = await ObterAprovacaoDaPendenciaAsync(pendencia, usuario.Id, cancellationToken);
         await GarantirPartidaAindaAguardandoRespostaAsync(pendencia.Partida!, pendencia.AtletaId!.Value, cancellationToken);
 
@@ -112,11 +122,17 @@ public class PendenciaServico(
         CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var pendencia = await ObterPendenciaPendenteAsync(
-            pendenciaId,
-            TipoPendenciaUsuario.AprovarPartida,
-            usuario.Id,
-            cancellationToken);
+        var pendencia = await ObterPendenciaPendenteAsync(pendenciaId, usuario.Id, cancellationToken);
+        if (pendencia.Tipo == TipoPendenciaUsuario.ConfirmarParticipacaoPartida)
+        {
+            return await ContestarParticipacaoPartidaAsync(pendencia, dto, cancellationToken);
+        }
+
+        if (pendencia.Tipo != TipoPendenciaUsuario.AprovarPartida)
+        {
+            throw new RegraNegocioException("Tipo de pendência inválido para esta operação.");
+        }
+
         var aprovacao = await ObterAprovacaoDaPendenciaAsync(pendencia, usuario.Id, cancellationToken);
         await GarantirPartidaAindaAguardandoRespostaAsync(pendencia.Partida!, pendencia.AtletaId!.Value, cancellationToken);
 
@@ -412,6 +428,13 @@ public class PendenciaServico(
                 continue;
             }
 
+            await CriarPendenciaConfirmacaoParticipacaoAsync(
+                usuarioRegistradorId,
+                atleta.Usuario.Id,
+                partida,
+                atleta,
+                cancellationToken);
+
             if (!AtletaPertenceADuplaValidante(partida, atleta.Id))
             {
                 continue;
@@ -474,6 +497,13 @@ public class PendenciaServico(
                     await CriarPendenciaAprovacaoAsync(atleta.Usuario.Id, partida, atleta, cancellationToken);
                 }
             }
+
+            await CriarPendenciaConfirmacaoParticipacaoAsync(
+                partida.CriadoPorUsuarioId,
+                atleta.Usuario.Id,
+                partida,
+                atleta,
+                cancellationToken);
 
             var pendenciasContato = await pendenciaUsuarioRepositorio.ListarPendentesPorPartidaAsync(partida.Id, cancellationToken);
             foreach (var pendenciaContato in pendenciasContato.Where(x =>
@@ -818,6 +848,74 @@ public class PendenciaServico(
         return pendencia;
     }
 
+    private async Task<PendenciaUsuario> ObterPendenciaPendenteAsync(
+        Guid pendenciaId,
+        Guid usuarioId,
+        CancellationToken cancellationToken)
+    {
+        var pendencia = await pendenciaUsuarioRepositorio.ObterPorIdAsync(pendenciaId, cancellationToken);
+        if (pendencia is null)
+        {
+            throw new EntidadeNaoEncontradaException("Pendência não encontrada.");
+        }
+
+        if (pendencia.UsuarioId != usuarioId)
+        {
+            throw new RegraNegocioException("Você só pode atuar nas suas próprias pendências.");
+        }
+
+        if (pendencia.Status != StatusPendenciaUsuario.Pendente)
+        {
+            throw new RegraNegocioException("Esta pendência já foi concluída.");
+        }
+
+        return pendencia;
+    }
+
+    private async Task<PendenciaUsuarioDto> ConfirmarParticipacaoPartidaAsync(
+        PendenciaUsuario pendencia,
+        ResponderPendenciaPartidaDto dto,
+        CancellationToken cancellationToken)
+    {
+        GarantirPendenciaConfirmacaoValida(pendencia);
+
+        ConcluirPendencia(
+            pendencia,
+            string.IsNullOrWhiteSpace(dto.Observacao)
+                ? "Partida confirmada pelo atleta."
+                : dto.Observacao);
+
+        pendenciaUsuarioRepositorio.Atualizar(pendencia);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return pendencia.ParaDto();
+    }
+
+    private async Task<PendenciaUsuarioDto> ContestarParticipacaoPartidaAsync(
+        PendenciaUsuario pendencia,
+        ResponderPendenciaPartidaDto dto,
+        CancellationToken cancellationToken)
+    {
+        GarantirPendenciaConfirmacaoValida(pendencia);
+
+        ContestarPendencia(
+            pendencia,
+            string.IsNullOrWhiteSpace(dto.Observacao)
+                ? "Atleta não reconheceu esta partida."
+                : dto.Observacao);
+
+        pendenciaUsuarioRepositorio.Atualizar(pendencia);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return pendencia.ParaDto();
+    }
+
+    private static void GarantirPendenciaConfirmacaoValida(PendenciaUsuario pendencia)
+    {
+        if (!pendencia.PartidaId.HasValue || !pendencia.AtletaId.HasValue)
+        {
+            throw new RegraNegocioException("A pendência informada não possui partida vinculada.");
+        }
+    }
+
     private async Task<PendenciaUsuario> ObterPendenciaVinculoAcionavelAsync(
         Guid pendenciaId,
         Guid usuarioId,
@@ -914,6 +1012,41 @@ public class PendenciaServico(
         await pendenciaUsuarioRepositorio.AdicionarAsync(new PendenciaUsuario
         {
             Tipo = TipoPendenciaUsuario.AprovarPartida,
+            UsuarioId = usuarioId,
+            AtletaId = atleta.Id,
+            PartidaId = partida.Id,
+            Status = StatusPendenciaUsuario.Pendente,
+            Atleta = atleta,
+            Partida = partida
+        }, cancellationToken);
+    }
+
+    private async Task CriarPendenciaConfirmacaoParticipacaoAsync(
+        Guid? usuarioRegistradorId,
+        Guid usuarioId,
+        Partida partida,
+        Atleta atleta,
+        CancellationToken cancellationToken)
+    {
+        if (usuarioRegistradorId.HasValue && usuarioRegistradorId.Value == usuarioId)
+        {
+            return;
+        }
+
+        var pendenciaExistente = await pendenciaUsuarioRepositorio.ObterPendenteAsync(
+            TipoPendenciaUsuario.ConfirmarParticipacaoPartida,
+            usuarioId,
+            partida.Id,
+            atleta.Id,
+            cancellationToken);
+        if (pendenciaExistente is not null)
+        {
+            return;
+        }
+
+        await pendenciaUsuarioRepositorio.AdicionarAsync(new PendenciaUsuario
+        {
+            Tipo = TipoPendenciaUsuario.ConfirmarParticipacaoPartida,
             UsuarioId = usuarioId,
             AtletaId = atleta.Id,
             PartidaId = partida.Id,
@@ -1204,6 +1337,14 @@ public class PendenciaServico(
         pendencia.Status = StatusPendenciaUsuario.Concluida;
         pendencia.DataConclusao = DateTime.UtcNow;
         pendencia.Observacao = string.IsNullOrWhiteSpace(observacao) ? pendencia.Observacao : observacao.Trim();
+        pendencia.AtualizarDataModificacao();
+    }
+
+    private static void ContestarPendencia(PendenciaUsuario pendencia, string observacao)
+    {
+        pendencia.Status = StatusPendenciaUsuario.Contestada;
+        pendencia.DataConclusao = DateTime.UtcNow;
+        pendencia.Observacao = observacao;
         pendencia.AtualizarDataModificacao();
     }
 

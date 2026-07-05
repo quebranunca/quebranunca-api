@@ -143,14 +143,46 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
         Assert.Equal(StatusCriacaoPartida.CodigoDuplicidadeConfirmar, resultado.Codigo);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.NotNull(resultado.Duplicidade);
         Assert.True(resultado.Duplicidade!.RequerConfirmacao);
         Assert.Equal(StatusCriacaoPartida.CodigoDuplicidadeConfirmar, resultado.Duplicidade.Codigo);
         Assert.Single(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_DuplicidadeRetornaDadosDaPartidaEncontrada()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var dto = cenario.CriarDto(cenario.Grupo.Id);
+        var partidaExistente = await CriarPartidaAsync(cenario, dto);
+
+        var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
+
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
+        Assert.NotNull(resultado.Duplicidade);
+        Assert.Equal(partidaExistente.Id, resultado.Duplicidade!.PartidaId);
+        Assert.NotNull(resultado.Duplicidade.Partida);
+        Assert.Equal(partidaExistente.Id, resultado.Duplicidade.Partida!.Id);
+        Assert.Equal(cenario.Grupo.Id, resultado.Duplicidade.Partida.GrupoId);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_DuplicidadeForaDaJanelaConfigurada_RegistraNormalmente()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var agora = DateTime.UtcNow;
+        var dtoAntigo = cenario.CriarDto(cenario.Grupo.Id) with { DataPartida = agora.AddHours(-7) };
+        var dtoAtual = cenario.CriarDto(cenario.Grupo.Id) with { DataPartida = agora };
+        await CriarPartidaAsync(cenario, dtoAntigo);
+
+        var partida = await CriarPartidaAsync(cenario, dtoAtual);
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(2, cenario.Partidas.Partidas.Count);
     }
 
     [Fact]
@@ -178,9 +210,9 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
         Assert.Equal(5, cenario.GruposAtletas.Vinculos.Count);
     }
@@ -228,9 +260,9 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dtoInvertido);
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
@@ -261,9 +293,9 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(cenario.InverterLados(dto));
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
@@ -340,9 +372,9 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(dto);
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 
@@ -355,9 +387,9 @@ public class PartidaServicoGrupoTests
 
         var resultado = await cenario.Servico.CriarComResultadoAsync(cenario.InverterLados(dto));
 
-        Assert.Equal(StatusCriacaoPartida.RequerConfirmacaoDuplicidade, resultado.Status);
+        Assert.Equal(StatusCriacaoPartida.PossivelDuplicidade, resultado.Status);
         Assert.Null(resultado.Partida);
-        Assert.Equal("Já existe uma partida registrada hoje com os mesmos atletas e o mesmo placar.", resultado.Mensagem);
+        Assert.Equal("Encontramos uma partida muito parecida registrada recentemente.", resultado.Mensagem);
         Assert.Single(cenario.Partidas.Partidas);
     }
 

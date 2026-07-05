@@ -495,6 +495,7 @@ internal static class MapeadorEntidades
             pendencia.Partida?.DuplaB?.Atleta2?.Nome,
             pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaA : null,
             pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? pendencia.Partida.PlacarDuplaB : null,
+            pendencia.Partida?.Status == Dominio.Enums.StatusPartida.Encerrada ? ObterNumeroDuplaVencedora(pendencia.Partida) : null,
             pendencia.Partida?.CriadoPorUsuarioId,
             pendencia.Partida?.CriadoPorUsuario?.Nome,
             pendencia.Partida?.GrupoId,
@@ -525,6 +526,7 @@ internal static class MapeadorEntidades
         => tipo switch
         {
             TipoPendenciaUsuario.AprovarPartida => PrioridadePendenciaUsuario.Alta,
+            TipoPendenciaUsuario.ConfirmarParticipacaoPartida => PrioridadePendenciaUsuario.Alta,
             TipoPendenciaUsuario.CompletarContatoAtletaDaPartida => PrioridadePendenciaUsuario.Media,
             _ => PrioridadePendenciaUsuario.Baixa
         };

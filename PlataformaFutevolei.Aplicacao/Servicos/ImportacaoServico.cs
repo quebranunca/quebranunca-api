@@ -668,7 +668,7 @@ public class ImportacaoServico(
     {
         var resultado = await partidaServico.CriarComResultadoAsync(dto, cancellationToken);
 
-        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
+        if (resultado.Status is StatusCriacaoPartida.PossivelDuplicidade or StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
         {
             throw new RegraNegocioException(
                 resultado.Mensagem ??

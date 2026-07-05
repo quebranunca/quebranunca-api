@@ -10,6 +10,7 @@ using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Api.Inicializacao;
 using PlataformaFutevolei.Api.Middlewares;
 using PlataformaFutevolei.Api.Seguranca;
+using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.Dependencias;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Json;
@@ -85,6 +86,9 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection(PartidaDuplicidadeOpcoes.Secao).Get<PartidaDuplicidadeOpcoes>()
+    ?? new PartidaDuplicidadeOpcoes());
 
 builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration, builder.Environment.EnvironmentName);

@@ -74,6 +74,58 @@ public class PendenciaServicoContatoTests
     }
 
     [Fact]
+    public async Task InicializarFluxoPartidaAsync_CriaConfirmacaoParaParticipantesExcetoRegistrador()
+    {
+        var cenario = CenarioAprovacao.Criar();
+
+        await cenario.Servico.InicializarFluxoPartidaAsync(
+            cenario.Partida,
+            cenario.AtletaCriador1.Usuario!.Id);
+
+        var confirmacoes = cenario.Pendencias
+            .Where(x => x.Tipo == TipoPendenciaUsuario.ConfirmarParticipacaoPartida)
+            .ToList();
+
+        Assert.Equal(3, confirmacoes.Count);
+        Assert.DoesNotContain(confirmacoes, x => x.UsuarioId == cenario.AtletaCriador1.Usuario!.Id);
+        Assert.Contains(confirmacoes, x => x.UsuarioId == cenario.AtletaCriador2.Usuario!.Id);
+        Assert.Contains(confirmacoes, x => x.UsuarioId == cenario.AtletaValidante1.Usuario!.Id);
+        Assert.Contains(confirmacoes, x => x.UsuarioId == cenario.AtletaValidante2.Usuario!.Id);
+    }
+
+    [Fact]
+    public async Task AprovarPartidaAsync_ConfirmacaoParticipacaoConcluiSemAlterarStatusAprovacao()
+    {
+        var cenario = CenarioAprovacao.Criar();
+        var pendencia = cenario.CriarPendenciaConfirmacao(cenario.AtletaCriador2);
+        cenario.DefinirUsuarioAtual(cenario.AtletaCriador2.Usuario!);
+
+        await cenario.Servico.AprovarPartidaAsync(
+            pendencia.Id,
+            new ResponderPendenciaPartidaDto(null));
+
+        Assert.Equal(StatusPendenciaUsuario.Concluida, pendencia.Status);
+        Assert.Equal(StatusAprovacaoPartida.PendenteAprovacao, cenario.Partida.StatusAprovacao);
+        Assert.All(cenario.Aprovacoes.Itens, aprovacao => Assert.Equal(StatusPartidaAprovacao.Pendente, aprovacao.Status));
+    }
+
+    [Fact]
+    public async Task ContestarPartidaAsync_ConfirmacaoParticipacaoMarcaContestadaSemAlterarPartida()
+    {
+        var cenario = CenarioAprovacao.Criar();
+        var pendencia = cenario.CriarPendenciaConfirmacao(cenario.AtletaCriador2);
+        cenario.DefinirUsuarioAtual(cenario.AtletaCriador2.Usuario!);
+
+        await cenario.Servico.ContestarPartidaAsync(
+            pendencia.Id,
+            new ResponderPendenciaPartidaDto(null));
+
+        Assert.Equal(StatusPendenciaUsuario.Contestada, pendencia.Status);
+        Assert.Equal(StatusAprovacaoPartida.PendenteAprovacao, cenario.Partida.StatusAprovacao);
+        Assert.All(cenario.Aprovacoes.Itens, aprovacao => Assert.Equal(StatusPartidaAprovacao.Pendente, aprovacao.Status));
+    }
+
+    [Fact]
     public async Task AprovarPartidaAsync_AtletaForaDaDuplaValidanteNaoPodeResponder()
     {
         var cenario = CenarioAprovacao.CriarComUsuarioForaDaDuplaValidante();
@@ -385,6 +437,7 @@ public class PendenciaServicoContatoTests
         public PendenciaUsuario PendenciaValidante1 { get; private set; } = default!;
         public PendenciaUsuario PendenciaValidante2 { get; private set; } = default!;
         public PendenciaUsuario? PendenciaAtletaNaoAutorizado { get; private set; }
+        public IReadOnlyList<PendenciaUsuario> Pendencias => pendencias;
         public PartidaAprovacaoRepositorioMemoria Aprovacoes { get; } = new();
         public PendenciaServico Servico { get; private set; } = default!;
 
@@ -464,6 +517,12 @@ public class PendenciaServicoContatoTests
         private IReadOnlyList<Atleta> ObterAtletas()
             => [AtletaCriador1, AtletaCriador2, AtletaValidante1, AtletaValidante2];
 
+        public void DefinirUsuarioAtual(Usuario usuario)
+        {
+            UsuarioAtual = usuario;
+            CriarServico();
+        }
+
         private static Atleta CriarAtleta(string nome)
         {
             var atleta = new Atleta { Nome = nome, Apelido = nome.Split(' ')[0], Email = $"{nome.Replace(" ", ".").ToLowerInvariant()}@teste.com" };
@@ -507,6 +566,23 @@ public class PendenciaServicoContatoTests
             var pendencia = new PendenciaUsuario
             {
                 Tipo = TipoPendenciaUsuario.AprovarPartida,
+                UsuarioId = atleta.Usuario!.Id,
+                Usuario = atleta.Usuario,
+                AtletaId = atleta.Id,
+                Atleta = atleta,
+                PartidaId = Partida.Id,
+                Partida = Partida,
+                Status = StatusPendenciaUsuario.Pendente
+            };
+            pendencias.Add(pendencia);
+            return pendencia;
+        }
+
+        public PendenciaUsuario CriarPendenciaConfirmacao(Atleta atleta)
+        {
+            var pendencia = new PendenciaUsuario
+            {
+                Tipo = TipoPendenciaUsuario.ConfirmarParticipacaoPartida,
                 UsuarioId = atleta.Usuario!.Id,
                 Usuario = atleta.Usuario,
                 AtletaId = atleta.Id,

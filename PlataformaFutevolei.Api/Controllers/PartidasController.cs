@@ -137,7 +137,7 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
     {
         var resultado = await partidaServico.CriarComResultadoAsync(dto, cancellationToken);
 
-        if (resultado.Status == StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
+        if (resultado.Status is StatusCriacaoPartida.PossivelDuplicidade or StatusCriacaoPartida.RequerConfirmacaoDuplicidade)
         {
             return Ok(resultado);
         }

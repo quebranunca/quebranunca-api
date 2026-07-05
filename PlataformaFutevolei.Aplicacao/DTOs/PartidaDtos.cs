@@ -98,12 +98,14 @@ public record VerificarDuplicidadePartidaDto(
 public record VerificarDuplicidadePartidaResultadoDto(
     bool ExisteDuplicidade,
     Guid? PartidaId,
-    string Mensagem
+    string Mensagem,
+    PartidaDto? Partida = null
 );
 
 public static class StatusCriacaoPartida
 {
     public const string Criada = "Criada";
+    public const string PossivelDuplicidade = "PossivelDuplicidade";
     public const string RequerConfirmacaoDuplicidade = "RequerConfirmacaoDuplicidade";
     public const string CodigoDuplicidadeConfirmar = "PARTIDA_DUPLICADA_CONFIRMAR";
 }
@@ -120,7 +122,8 @@ public record ConfirmacaoDuplicidadePartidaDto(
     bool RequerConfirmacao,
     string Mensagem,
     string Codigo,
-    Guid? PartidaId = null
+    Guid? PartidaId = null,
+    PartidaDto? Partida = null
 );
 
 public record GerarTabelaCategoriaDto(
