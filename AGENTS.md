@@ -32,7 +32,7 @@
 - Quando `Database:MigrateOnStartup` estiver desabilitado em produção, aplicar migrations via `scripts/aplicar-migrations-producao.sh`; não substituir migration por SQL estrutural manual no startup
 - Antes de assumir que produção está migrada, validar `dotnet ef migrations list` contra o banco alvo e conferir se migrations críticas aparecem como aplicadas; no caso do endpoint `POST /api/partidas`, conferir especialmente `20260401103000_AdicionarCriadoPorUsuarioNaPartida`, `20260401233000_AdicionarFluxoAprovacaoResultados` e `20260402213000_CompatibilizarStatusAprovacaoPartidas`
 - Antes de subir `master`, revisar também `.gitignore`, artefatos de publish, documentação de deploy e checklist operacional
-- Toda feature criada ou alterada deve avaliar se `AGENTS.md`, `AGENTS.override.md` ou `.ai` precisam registrar uma decisão recorrente
+- Toda feature criada ou alterada deve avaliar se `AGENTS.md`, `AGENTS.override.md` ou `ai/` precisam registrar uma decisão recorrente
 
 ## Contexto local recorrente
 
@@ -75,21 +75,9 @@
 
 ## Fase atual do produto
 
-- A fase atual é atleta/grupo/ranking/scout-first, não campeonato-first
-- Priorizar registro rápido de partidas, grupos, scout individual, scout de duplas, ranking individual por grupo, ranking de duplas por grupo, histórico e qualidade dos dados
-- Grupos são o contexto principal da fase atual; campeonato, evento, categoria e liga são visão futura ou fluxo específico quando solicitado
+- A fase atual compartilhada fica em `ai/Contextos/FaseAtualProduto.md`
+- O backend permanece fonte final de regra, permissão, ownership, consistência, ranking, scout, pendências e vínculos
 - Partida comum de grupo não deve exigir competição, categoria ou liga
-- Partida é dupla contra dupla; cada dupla possui exatamente 2 atletas
-- Partida pode ter placar completo ou apenas vencedor
-- Com placar, validar regras aplicáveis e calcular pontos pró, pontos contra e saldo quando o fluxo exigir essas métricas
-- Em modo apenas vencedor, exigir dupla vencedora, não permitir empate, não aplicar mínimo/diferença de pontos e não calcular pontos pró, pontos contra ou saldo
-- Scout individual e scout de duplas são núcleo atual do produto
-- Dupla é derivada das partidas nesta fase; não exigir cadastro fixo de dupla para registrar partida comum
-- Normalizar dupla para estatística e histórico: Atleta A + Atleta B é equivalente a Atleta B + Atleta A
-- Ranking individual e ranking de duplas por grupo devem usar cálculo centralizado, recalculável e testável
 - Não confundir pontuação de competição com ranking da plataforma
-- Regras configuráveis de competição só se aplicam aos fluxos de competição; ranking da plataforma deve manter regra central própria
-- Pendências e vínculos impactam partida, grupo, ranking, scout individual e scout de dupla
-- Pendência pode ser resolvida por `atletaId` ou e-mail quando o fluxo suportar; preservar o status `AguardandoCadastro` quando o atleta ainda não existir
 - Resolver vínculo não deve corromper partida, histórico, nome informado, ranking ou scout; evitar duplicidade de atleta
 - Alterações em domínio, aplicação, partida, ranking, scout, grupo, vínculo ou autenticação devem criar ou ajustar testes compatíveis com o risco da mudança
