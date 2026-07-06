@@ -19,11 +19,15 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
             .FirstOrDefaultAsync(x => x.AtletaId == atletaId, cancellationToken);
     }
 
-    public Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaParaAtualizacaoAsync(
+    public async Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaParaAtualizacaoAsync(
         Guid atletaId,
         CancellationToken cancellationToken = default)
     {
-        return dbContext.PontuacoesBeneficiosAtletas
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM pontuacoes_beneficios_atletas WHERE atleta_id = {atletaId} FOR UPDATE",
+            cancellationToken);
+
+        return await dbContext.PontuacoesBeneficiosAtletas
             .FirstOrDefaultAsync(x => x.AtletaId == atletaId, cancellationToken);
     }
 
@@ -281,6 +285,18 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
             .FirstOrDefaultAsync(x => x.Id == beneficioId, cancellationToken);
     }
 
+    public async Task<BeneficioPontuacao?> ObterBeneficioPorIdParaAtualizacaoAsync(
+        Guid beneficioId,
+        CancellationToken cancellationToken = default)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM beneficios_pontuacao WHERE id = {beneficioId} FOR UPDATE",
+            cancellationToken);
+
+        return await dbContext.BeneficiosPontuacao
+            .FirstOrDefaultAsync(x => x.Id == beneficioId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesPorAtletaAsync(
         Guid atletaId,
         CancellationToken cancellationToken = default)
@@ -316,9 +332,7 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
         Guid resgateId,
         CancellationToken cancellationToken = default)
     {
-        return dbContext.ResgatesBeneficiosPontuacao
-            .Include(x => x.Beneficio)
-            .FirstOrDefaultAsync(x => x.Id == resgateId, cancellationToken);
+        return ObterResgatePorIdParaAtualizacaoInternoAsync(resgateId, cancellationToken);
     }
 
     public Task<bool> ExisteResgateSolicitadoAsync(
@@ -353,6 +367,26 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
     public void AtualizarResgate(ResgateBeneficioPontuacao resgate)
     {
         dbContext.ResgatesBeneficiosPontuacao.Update(resgate);
+    }
+
+    private async Task<ResgateBeneficioPontuacao?> ObterResgatePorIdParaAtualizacaoInternoAsync(
+        Guid resgateId,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM resgates_beneficios_pontuacao WHERE id = {resgateId} FOR UPDATE",
+            cancellationToken);
+
+        var resgate = await dbContext.ResgatesBeneficiosPontuacao
+            .FirstOrDefaultAsync(x => x.Id == resgateId, cancellationToken);
+        if (resgate is not null)
+        {
+            await dbContext.Entry(resgate)
+                .Reference(x => x.Beneficio)
+                .LoadAsync(cancellationToken);
+        }
+
+        return resgate;
     }
 
     private IQueryable<ExtratoPontuacaoBeneficio> FiltrarEventos(

@@ -26,20 +26,36 @@ public static class PontuacaoBeneficioRegras
     public const int LimiteCompartilhamentoDiarioPorTipo = 3;
     public const int LimiteCompartilhamentoSemanalTotal = 12;
 
+    private static readonly IReadOnlyList<string> TermosCopyFinanceiraIndevida =
+    [
+        "100 QN",
+        "R$",
+        "cashback",
+        "dinheiro",
+        "saldo financeiro",
+        "carteira",
+        "conversao",
+        "conversão",
+        "credito financeiro",
+        "crédito financeiro",
+        "equivale",
+        "reais"
+    ];
+
     public static readonly IReadOnlyList<BeneficioPontuacaoPadrao> BeneficiosPadrao =
     [
         new(
             Guid.Parse("11111111-1111-4111-8111-111111111111"),
-            "R$ 5 off na loja",
-            "Cupom manual de R$ 5 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
+            "Cupom especial QuebraNunca",
+            "Beneficio promocional interno para campanhas QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao.",
             TipoBeneficioPontuacao.DescontoLoja,
             500,
             1,
             true),
         new(
             Guid.Parse("22222222-2222-4222-8222-222222222222"),
-            "R$ 10 off na loja",
-            "Cupom manual de R$ 10 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
+            "Condicao especial em produto QN",
+            "Beneficio promocional interno em produto de campanha QuebraNunca, sujeito a disponibilidade e validacao.",
             TipoBeneficioPontuacao.DescontoLoja,
             1000,
             2,
@@ -55,24 +71,24 @@ public static class PontuacaoBeneficioRegras
             "pontos-qn/beneficio-chaveiro-qn.png"),
         new(
             Guid.Parse("33333333-3333-4333-8333-333333333333"),
-            "R$ 20 off na loja",
-            "Cupom manual de R$ 20 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
+            "Desconto promocional em campanha",
+            "Condicao promocional interna para campanhas QuebraNunca, sujeita a disponibilidade, regras da campanha e validacao.",
             TipoBeneficioPontuacao.DescontoLoja,
             2000,
             4,
             false),
         new(
             Guid.Parse("44444444-4444-4444-8444-444444444444"),
-            "R$ 30 off na loja",
-            "Cupom manual de R$ 30 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
+            "Beneficio promocional da comunidade",
+            "Beneficio interno para participantes da comunidade QuebraNunca, sujeito a disponibilidade e regras da campanha.",
             TipoBeneficioPontuacao.DescontoLoja,
             3000,
             5,
             false),
         new(
             Guid.Parse("55555555-5555-4555-8555-555555555555"),
-            "R$ 50 off na loja",
-            "Cupom manual de R$ 50 off para campanhas QuebraNunca. Pode cobrir ate 30% do pedido e nao inclui frete, salvo campanha especifica.",
+            "Condicao especial QuebraNunca",
+            "Condicao promocional interna para campanhas selecionadas QuebraNunca, sujeita a disponibilidade e validacao.",
             TipoBeneficioPontuacao.DescontoLoja,
             5000,
             6,
@@ -112,6 +128,47 @@ public static class PontuacaoBeneficioRegras
             or TipoEventoPontuacaoBeneficio.CompartilhamentoRanking
             or TipoEventoPontuacaoBeneficio.CompartilhamentoScoutAtleta
             or TipoEventoPontuacaoBeneficio.CompartilhamentoScoutDupla;
+
+    public static bool ContemCopyFinanceiraIndevida(string? texto)
+        => !string.IsNullOrWhiteSpace(texto) &&
+            TermosCopyFinanceiraIndevida.Any(termo => texto.Contains(termo, StringComparison.OrdinalIgnoreCase));
+
+    public static string ObterTituloBeneficioPublicoSeguro(TipoBeneficioPontuacao tipo, int pontosNecessarios, string? titulo)
+    {
+        if (!string.IsNullOrWhiteSpace(titulo) && !ContemCopyFinanceiraIndevida(titulo))
+        {
+            return titulo;
+        }
+
+        return tipo switch
+        {
+            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 5000 => "Condicao especial QuebraNunca",
+            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 3000 => "Beneficio promocional da comunidade",
+            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 2000 => "Desconto promocional em campanha",
+            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 1000 => "Condicao especial em produto QN",
+            TipoBeneficioPontuacao.DescontoLoja => "Cupom especial QuebraNunca",
+            TipoBeneficioPontuacao.Brinde => "Brinde QuebraNunca",
+            TipoBeneficioPontuacao.Experiencia => "Experiencia QuebraNunca",
+            TipoBeneficioPontuacao.Produto => "Produto QuebraNunca em campanha",
+            _ => "Beneficio promocional QuebraNunca"
+        };
+    }
+
+    public static string ObterDescricaoBeneficioPublicaSegura(TipoBeneficioPontuacao tipo, string? descricao)
+    {
+        if (!string.IsNullOrWhiteSpace(descricao) && !ContemCopyFinanceiraIndevida(descricao))
+        {
+            return descricao;
+        }
+
+        return tipo switch
+        {
+            TipoBeneficioPontuacao.Produto => "Produto promocional QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao.",
+            TipoBeneficioPontuacao.Brinde => "Brinde promocional QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao.",
+            TipoBeneficioPontuacao.Experiencia => "Experiencia promocional QuebraNunca, sujeita a disponibilidade, regras da campanha e validacao.",
+            _ => "Beneficio promocional interno para campanhas QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao."
+        };
+    }
 }
 
 public record FaixaPontuacaoBeneficio(string Nome, int PontosMinimos, int? PontosProximaFaixa);

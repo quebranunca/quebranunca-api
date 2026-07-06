@@ -125,27 +125,34 @@ public class PontuacaoBeneficioServico(
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var atletaId = usuario.AtletaId ?? throw new RegraNegocioException("Seu usuário precisa estar vinculado a um atleta para resgatar benefícios.");
-        var beneficio = await pontuacaoRepositorio.ObterBeneficioPorIdAsync(beneficioId, cancellationToken)
-            ?? throw new EntidadeNaoEncontradaException("Benefício não encontrado.");
-        if (!beneficio.Ativo || beneficio.QuantidadeDisponivel == 0)
-        {
-            throw new RegraNegocioException("Benefício indisponível para resgate.");
-        }
-
-        if (await pontuacaoRepositorio.ExisteResgateSolicitadoAsync(atletaId, beneficioId, cancellationToken))
-        {
-            throw new RegraNegocioException("Já existe um resgate solicitado para este benefício.");
-        }
-
-        var saldo = await ObterOuCriarSaldoParaAtualizacaoAsync(atletaId, cancellationToken);
-        if (saldo.SaldoAtual < beneficio.PontosNecessarios)
-        {
-            throw new RegraNegocioException("Saldo insuficiente para este benefício.");
-        }
 
         ResgateBeneficioPontuacao? resgateCriado = null;
         await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
         {
+            var saldo = await pontuacaoRepositorio.ObterSaldoPorAtletaParaAtualizacaoAsync(atletaId, ct);
+            var beneficio = await pontuacaoRepositorio.ObterBeneficioPorIdParaAtualizacaoAsync(beneficioId, ct)
+                ?? throw new EntidadeNaoEncontradaException("Benefício não encontrado.");
+            if (!beneficio.Ativo || beneficio.QuantidadeDisponivel == 0)
+            {
+                throw new RegraNegocioException("Benefício indisponível no momento.");
+            }
+
+            if (await pontuacaoRepositorio.ExisteResgateSolicitadoAsync(atletaId, beneficioId, ct))
+            {
+                throw new RegraNegocioException("Já existe um resgate solicitado para este benefício.");
+            }
+
+            if (saldo is null || saldo.SaldoAtual < beneficio.PontosNecessarios)
+            {
+                throw new RegraNegocioException("Pontos QN insuficientes para este benefício.");
+            }
+
+            if (beneficio.QuantidadeDisponivel.HasValue)
+            {
+                beneficio.QuantidadeDisponivel--;
+                beneficio.AtualizarDataModificacao();
+            }
+
             var resgate = new ResgateBeneficioPontuacao
             {
                 AtletaId = atletaId,
@@ -158,11 +165,15 @@ public class PontuacaoBeneficioServico(
             };
 
             await pontuacaoRepositorio.AdicionarResgateAsync(resgate, ct);
+            var tituloSeguro = PontuacaoBeneficioRegras.ObterTituloBeneficioPublicoSeguro(
+                beneficio.Tipo,
+                beneficio.PontosNecessarios,
+                beneficio.Titulo);
             await RegistrarMovimentacaoAsync(
                 atletaId,
                 -beneficio.PontosNecessarios,
                 TipoEventoPontuacaoBeneficio.ResgateBeneficio,
-                $"Resgate solicitado: {beneficio.Titulo}",
+                $"Resgate solicitado: {tituloSeguro}",
                 "Resgate",
                 $"RESGATE:{resgate.Id}:ATLETA:{atletaId}",
                 null,
@@ -170,7 +181,8 @@ public class PontuacaoBeneficioServico(
                 resgate.Id,
                 usuario.Id,
                 ct,
-                salvarAoFinal: false);
+                salvarAoFinal: false,
+                saldoParaAtualizacao: saldo);
 
             await unidadeTrabalho.SalvarAlteracoesAsync(ct);
             resgate.Beneficio = beneficio;
@@ -180,7 +192,7 @@ public class PontuacaoBeneficioServico(
         logger.LogInformation("Resgate de benefício Pontos QN solicitado. ResgateId={ResgateId} AtletaId={AtletaId} BeneficioId={BeneficioId}", resgateCriado?.Id, atletaId, beneficioId);
         var resgatePersistido = await pontuacaoRepositorio.ObterResgatePorIdAsync(resgateCriado!.Id, cancellationToken)
             ?? resgateCriado;
-        resgatePersistido.Beneficio ??= beneficio;
+        resgatePersistido.Beneficio ??= resgateCriado.Beneficio;
         return MapearResgate(resgatePersistido);
     }
 
@@ -589,52 +601,70 @@ public class PontuacaoBeneficioServico(
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
-        var resgate = await pontuacaoRepositorio.ObterResgatePorIdParaAtualizacaoAsync(resgateId, cancellationToken)
-            ?? throw new EntidadeNaoEncontradaException("Resgate não encontrado.");
-        if (resgate.Status != StatusResgateBeneficioPontuacao.Solicitado)
-        {
-            throw new RegraNegocioException("Apenas resgates solicitados podem ser atualizados.");
-        }
 
-        resgate.Status = novoStatus;
-        resgate.ObservacaoAdmin = dto.ObservacaoAdmin?.Trim();
-        resgate.CodigoCupom = dto.CodigoCupom?.Trim();
-        resgate.AtualizadoPorUsuarioId = usuario.Id;
+        ResgateBeneficioPontuacao? resgateAtualizado = null;
+        await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
+        {
+            var resgate = await pontuacaoRepositorio.ObterResgatePorIdParaAtualizacaoAsync(resgateId, ct)
+                ?? throw new EntidadeNaoEncontradaException("Resgate não encontrado.");
+            if (resgate.Status != StatusResgateBeneficioPontuacao.Solicitado)
+            {
+                throw new RegraNegocioException("Resgate não pode ser alterado neste status.");
+            }
 
-        if (novoStatus == StatusResgateBeneficioPontuacao.Aprovado)
-        {
-            resgate.AprovadoEm = DateTime.UtcNow;
-        }
-        else if (novoStatus == StatusResgateBeneficioPontuacao.Rejeitado)
-        {
-            resgate.RejeitadoEm = DateTime.UtcNow;
-            await RegistrarEstornoResgateAsync(resgate, usuario.Id, cancellationToken, salvarAoFinal: false);
-        }
-        else if (novoStatus == StatusResgateBeneficioPontuacao.Cancelado)
-        {
-            resgate.CanceladoEm = DateTime.UtcNow;
-            await RegistrarEstornoResgateAsync(resgate, usuario.Id, cancellationToken, salvarAoFinal: false);
-        }
+            resgate.Status = novoStatus;
+            resgate.ObservacaoAdmin = dto.ObservacaoAdmin?.Trim();
+            resgate.CodigoCupom = dto.CodigoCupom?.Trim();
+            resgate.AtualizadoPorUsuarioId = usuario.Id;
 
-        resgate.AtualizarDataModificacao();
-        pontuacaoRepositorio.AtualizarResgate(resgate);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+            if (novoStatus == StatusResgateBeneficioPontuacao.Aprovado)
+            {
+                resgate.AprovadoEm = DateTime.UtcNow;
+            }
+            else if (novoStatus == StatusResgateBeneficioPontuacao.Rejeitado)
+            {
+                resgate.RejeitadoEm = DateTime.UtcNow;
+                var saldo = await ObterOuCriarSaldoParaAtualizacaoAsync(resgate.AtletaId, ct);
+                await RegistrarEstornoResgateAsync(resgate, usuario.Id, ct, salvarAoFinal: false, saldoParaAtualizacao: saldo);
+                await DevolverEstoqueReservadoAsync(resgate, ct);
+            }
+            else if (novoStatus == StatusResgateBeneficioPontuacao.Cancelado)
+            {
+                resgate.CanceladoEm = DateTime.UtcNow;
+                var saldo = await ObterOuCriarSaldoParaAtualizacaoAsync(resgate.AtletaId, ct);
+                await RegistrarEstornoResgateAsync(resgate, usuario.Id, ct, salvarAoFinal: false, saldoParaAtualizacao: saldo);
+                await DevolverEstoqueReservadoAsync(resgate, ct);
+            }
+
+            resgate.AtualizarDataModificacao();
+            pontuacaoRepositorio.AtualizarResgate(resgate);
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+            resgateAtualizado = resgate;
+        }, cancellationToken);
 
         logger.LogInformation("Status de resgate Pontos QN atualizado. ResgateId={ResgateId} Status={Status}", resgateId, novoStatus);
-        return MapearResgate(resgate);
+        return MapearResgate(resgateAtualizado!);
     }
 
     private Task RegistrarEstornoResgateAsync(
         ResgateBeneficioPontuacao resgate,
         Guid usuarioId,
         CancellationToken cancellationToken,
-        bool salvarAoFinal)
+        bool salvarAoFinal,
+        PontuacaoBeneficioAtleta? saldoParaAtualizacao = null)
     {
+        var tituloSeguro = resgate.Beneficio is null
+            ? "benefício"
+            : PontuacaoBeneficioRegras.ObterTituloBeneficioPublicoSeguro(
+                resgate.Beneficio.Tipo,
+                resgate.Beneficio.PontosNecessarios,
+                resgate.Beneficio.Titulo);
+
         return RegistrarMovimentacaoAsync(
             resgate.AtletaId,
             resgate.PontosUtilizados,
             TipoEventoPontuacaoBeneficio.EstornoResgate,
-            $"Estorno de resgate: {resgate.Beneficio?.Titulo ?? "benefício"}",
+            $"Estorno de resgate: {tituloSeguro}",
             "Resgate",
             $"ESTORNO_RESGATE:{resgate.Id}:ATLETA:{resgate.AtletaId}",
             null,
@@ -642,7 +672,28 @@ public class PontuacaoBeneficioServico(
             resgate.Id,
             usuarioId,
             cancellationToken,
-            salvarAoFinal);
+            salvarAoFinal,
+            saldoParaAtualizacao);
+    }
+
+    private async Task DevolverEstoqueReservadoAsync(
+        ResgateBeneficioPontuacao resgate,
+        CancellationToken cancellationToken)
+    {
+        if (resgate.Beneficio?.QuantidadeDisponivel is null)
+        {
+            return;
+        }
+
+        var beneficio = await pontuacaoRepositorio.ObterBeneficioPorIdParaAtualizacaoAsync(resgate.BeneficioId, cancellationToken);
+        if (beneficio?.QuantidadeDisponivel is null)
+        {
+            return;
+        }
+
+        beneficio.QuantidadeDisponivel++;
+        beneficio.AtualizarDataModificacao();
+        resgate.Beneficio = beneficio;
     }
 
     private async Task RegistrarMovimentacaoAsync(
@@ -657,14 +708,15 @@ public class PontuacaoBeneficioServico(
         Guid? resgateId,
         Guid? criadoPorUsuarioId,
         CancellationToken cancellationToken,
-        bool salvarAoFinal = true)
+        bool salvarAoFinal = true,
+        PontuacaoBeneficioAtleta? saldoParaAtualizacao = null)
     {
         if (pontos == 0 || await pontuacaoRepositorio.ExisteExtratoPorChaveAsync(chaveIdempotencia, cancellationToken))
         {
             return;
         }
 
-        var saldo = await ObterOuCriarSaldoParaAtualizacaoAsync(atletaId, cancellationToken);
+        var saldo = saldoParaAtualizacao ?? await ObterOuCriarSaldoParaAtualizacaoAsync(atletaId, cancellationToken);
         if (saldo.SaldoAtual + pontos < 0)
         {
             throw new RegraNegocioException("Saldo insuficiente para esta movimentação.");
@@ -791,10 +843,18 @@ public class PontuacaoBeneficioServico(
 
     private static BeneficioPontuacaoDto MapearBeneficio(BeneficioPontuacao beneficio, int saldoAtual)
     {
+        var titulo = PontuacaoBeneficioRegras.ObterTituloBeneficioPublicoSeguro(
+            beneficio.Tipo,
+            beneficio.PontosNecessarios,
+            beneficio.Titulo);
+        var descricao = PontuacaoBeneficioRegras.ObterDescricaoBeneficioPublicaSegura(
+            beneficio.Tipo,
+            beneficio.Descricao);
+
         return new BeneficioPontuacaoDto(
             beneficio.Id,
-            beneficio.Titulo,
-            beneficio.Descricao,
+            titulo,
+            descricao,
             beneficio.Tipo,
             NomeTipoBeneficio(beneficio.Tipo),
             beneficio.PontosNecessarios,
@@ -809,11 +869,18 @@ public class PontuacaoBeneficioServico(
 
     private static ResgateBeneficioPontuacaoDto MapearResgate(ResgateBeneficioPontuacao resgate)
     {
+        var beneficioTitulo = resgate.Beneficio is null
+            ? "Benefício"
+            : PontuacaoBeneficioRegras.ObterTituloBeneficioPublicoSeguro(
+                resgate.Beneficio.Tipo,
+                resgate.Beneficio.PontosNecessarios,
+                resgate.Beneficio.Titulo);
+
         return new ResgateBeneficioPontuacaoDto(
             resgate.Id,
             resgate.AtletaId,
             resgate.BeneficioId,
-            resgate.Beneficio?.Titulo ?? "Benefício",
+            beneficioTitulo,
             resgate.Beneficio?.Tipo ?? TipoBeneficioPontuacao.Outro,
             resgate.PontosUtilizados,
             resgate.Status,
@@ -979,7 +1046,7 @@ public class PontuacaoBeneficioServico(
     {
         return tipo switch
         {
-            TipoBeneficioPontuacao.DescontoLoja => "Desconto na loja",
+            TipoBeneficioPontuacao.DescontoLoja => "Campanha promocional",
             TipoBeneficioPontuacao.Brinde => "Brinde",
             TipoBeneficioPontuacao.Experiencia => "Experiência",
             TipoBeneficioPontuacao.Produto => "Produto",

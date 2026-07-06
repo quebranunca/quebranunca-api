@@ -53,6 +53,8 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
                 new RegraNegocioException("Esta dupla já existe."),
             "ix_partidas_aprovacoes_partida_id_atleta_id" =>
                 new RegraNegocioException("A aprovação desta partida já existe para o atleta."),
+            "ix_extratos_pontuacao_beneficio_chave_idempotencia" =>
+                new RegraNegocioException("Esta movimentação de Pontos QN já foi processada."),
             _ => new RegraNegocioException("Já existe um registro com estes dados.")
         };
     }

@@ -65,7 +65,7 @@ public class PontuacaoBeneficioServicoTests
         var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
             cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null)));
 
-        Assert.Equal("Saldo insuficiente para este benefício.", excecao.Message);
+        Assert.Equal("Pontos QN insuficientes para este benefício.", excecao.Message);
         Assert.Empty(cenario.Repositorio.Resgates);
     }
 
@@ -82,12 +82,164 @@ public class PontuacaoBeneficioServicoTests
             new SolicitarResgateBeneficioDto("Quero usar na loja."));
 
         Assert.Equal(StatusResgateBeneficioPontuacao.Solicitado, resgate.Status);
+        Assert.Null(beneficio.QuantidadeDisponivel);
         Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
         Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
         Assert.Contains(cenario.Repositorio.Extratos, x =>
             x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio &&
             x.Pontos == -10 &&
             x.ResgateId == resgate.Id);
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_ComEstoqueDisponivel_DebitaPontosEReservaEstoque()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 1);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+
+        var resgate = await cenario.Servico.SolicitarResgateAsync(
+            beneficio.Id,
+            new SolicitarResgateBeneficioDto(null));
+
+        Assert.Equal(StatusResgateBeneficioPontuacao.Solicitado, resgate.Status);
+        Assert.Equal(0, beneficio.QuantidadeDisponivel);
+        Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_ComEstoqueZerado_BloqueiaSemDebitar()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 0);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null)));
+
+        Assert.Equal("Benefício indisponível no momento.", excecao.Message);
+        Assert.Equal(0, beneficio.QuantidadeDisponivel);
+        Assert.Equal(23, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Empty(cenario.Repositorio.Resgates);
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_DuplicadoNaoDebitaNemReservaNovamente()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 2);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        await cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null)));
+
+        Assert.Equal("Já existe um resgate solicitado para este benefício.", excecao.Message);
+        Assert.Equal(1, beneficio.QuantidadeDisponivel);
+        Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Single(cenario.Repositorio.Resgates);
+        Assert.Single(cenario.Repositorio.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio));
+    }
+
+    [Fact]
+    public async Task RejeitarResgateAsync_DevolvePontosEEstoqueReservado()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 1);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        var resgate = await cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null));
+        cenario.Usuario.Perfil = PerfilUsuario.Administrador;
+
+        var rejeitado = await cenario.Servico.RejeitarResgateAsync(
+            resgate.Id,
+            new AtualizarStatusResgateBeneficioDto("Sem disponibilidade operacional.", null));
+
+        Assert.Equal(StatusResgateBeneficioPontuacao.Rejeitado, rejeitado.Status);
+        Assert.Equal(1, beneficio.QuantidadeDisponivel);
+        Assert.Equal(23, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(0, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
+        Assert.Single(cenario.Repositorio.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoResgate));
+    }
+
+    [Fact]
+    public async Task CancelarResgateAsync_DevolvePontosEEstoqueUmaVez()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 1);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        var resgate = await cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null));
+        cenario.Usuario.Perfil = PerfilUsuario.Administrador;
+
+        var cancelado = await cenario.Servico.CancelarResgateAsync(
+            resgate.Id,
+            new AtualizarStatusResgateBeneficioDto("Cancelado manualmente.", null));
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CancelarResgateAsync(resgate.Id, new AtualizarStatusResgateBeneficioDto(null, null)));
+
+        Assert.Equal(StatusResgateBeneficioPontuacao.Cancelado, cancelado.Status);
+        Assert.Equal("Resgate não pode ser alterado neste status.", excecao.Message);
+        Assert.Equal(1, beneficio.QuantidadeDisponivel);
+        Assert.Equal(23, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(0, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
+        Assert.Single(cenario.Repositorio.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoResgate));
+    }
+
+    [Fact]
+    public async Task AprovarResgateAsync_MantemEstoqueConsumidoENaoDebitaNovamente()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 1);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        var resgate = await cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null));
+        cenario.Usuario.Perfil = PerfilUsuario.Administrador;
+
+        var aprovado = await cenario.Servico.AprovarResgateAsync(
+            resgate.Id,
+            new AtualizarStatusResgateBeneficioDto("Aprovado.", "CAMPANHA-QN"));
+
+        Assert.Equal(StatusResgateBeneficioPontuacao.Aprovado, aprovado.Status);
+        Assert.Equal(0, beneficio.QuantidadeDisponivel);
+        Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
+        Assert.DoesNotContain(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoResgate);
+        Assert.Single(cenario.Repositorio.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio));
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_DuasSolicitacoesParaUltimoEstoque_NaoGeraEstoqueNegativo()
+    {
+        var cenario = new Cenario();
+        var outroUsuario = cenario.AdicionarUsuarioComAtleta("Outro usuário", "outro@qnf.test");
+        var outroServico = cenario.CriarServicoParaUsuario(outroUsuario);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, quantidadeDisponivel: 1);
+        cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value] = new PontuacaoBeneficioAtleta
+        {
+            AtletaId = cenario.Usuario.AtletaId!.Value,
+            SaldoAtual = 20,
+            TotalAcumulado = 20
+        };
+        cenario.Repositorio.Saldos[outroUsuario.AtletaId!.Value] = new PontuacaoBeneficioAtleta
+        {
+            AtletaId = outroUsuario.AtletaId!.Value,
+            SaldoAtual = 20,
+            TotalAcumulado = 20
+        };
+
+        var resultados = await Task.WhenAll(
+            SolicitarComResultadoAsync(cenario.Servico, beneficio.Id),
+            SolicitarComResultadoAsync(outroServico, beneficio.Id));
+
+        Assert.Single(resultados.Where(x => x));
+        Assert.Single(resultados.Where(x => !x));
+        Assert.Equal(0, beneficio.QuantidadeDisponivel);
+        Assert.Single(cenario.Repositorio.Resgates);
+        Assert.All(cenario.Repositorio.Saldos.Values, saldo => Assert.True(saldo.SaldoAtual >= 0));
     }
 
     [Fact]
@@ -165,9 +317,9 @@ public class PontuacaoBeneficioServicoTests
     }
 
     [Fact]
-    public void BeneficiosPadrao_MantemCuponsEIncluiProdutosFisicos()
+    public void BeneficiosPadrao_MantemCampanhasPromocionaisEIncluiProdutosFisicos()
     {
-        var pontosCupons = PontuacaoBeneficioRegras.BeneficiosPadrao
+        var pontosCampanhas = PontuacaoBeneficioRegras.BeneficiosPadrao
             .Where(x => x.Tipo == TipoBeneficioPontuacao.DescontoLoja)
             .OrderBy(x => x.Ordem)
             .Select(x => x.PontosNecessarios)
@@ -175,13 +327,55 @@ public class PontuacaoBeneficioServicoTests
         var chaveiro = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Chaveiro QuebraNunca");
         var bone = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Boné QuebraNunca");
 
-        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontosCupons);
+        Assert.All(PontuacaoBeneficioRegras.BeneficiosPadrao, beneficio =>
+        {
+            Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(beneficio.Titulo));
+            Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(beneficio.Descricao));
+        });
+        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontosCampanhas);
         Assert.Equal(TipoBeneficioPontuacao.Produto, chaveiro.Tipo);
         Assert.Equal(2000, chaveiro.PontosNecessarios);
         Assert.Equal("pontos-qn/beneficio-chaveiro-qn.png", chaveiro.ImagemUrl);
         Assert.Equal(TipoBeneficioPontuacao.Produto, bone.Tipo);
         Assert.Equal(8000, bone.PontosNecessarios);
         Assert.Equal("pontos-qn/beneficio-bone-qn.png", bone.ImagemUrl);
+    }
+
+    [Fact]
+    public async Task ListarBeneficiosAsync_NaoExpoeCopyFinanceiraLegada()
+    {
+        var cenario = new Cenario();
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(5000);
+        beneficio.Titulo = "R$ 50 off na loja";
+        beneficio.Descricao = "Cupom manual de R$ 50 off para campanhas QuebraNunca.";
+        beneficio.Tipo = TipoBeneficioPontuacao.DescontoLoja;
+
+        var beneficios = await cenario.Servico.ListarBeneficiosAsync(null, null, null);
+        var dto = Assert.Single(beneficios);
+
+        Assert.Equal("Condicao especial QuebraNunca", dto.Titulo);
+        Assert.Equal("Campanha promocional", dto.TipoNome);
+        Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(dto.Titulo));
+        Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(dto.Descricao));
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_NaoExpoeTituloFinanceiroLegado()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10);
+        beneficio.Titulo = "R$ 5 off na loja";
+        beneficio.Descricao = "Cupom manual de R$ 5 off para campanhas QuebraNunca.";
+        beneficio.Tipo = TipoBeneficioPontuacao.DescontoLoja;
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+
+        var resgate = await cenario.Servico.SolicitarResgateAsync(
+            beneficio.Id,
+            new SolicitarResgateBeneficioDto("Quero usar em uma campanha."));
+
+        Assert.Equal("Cupom especial QuebraNunca", resgate.BeneficioTitulo);
+        Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(resgate.BeneficioTitulo));
     }
 
     [Fact]
@@ -244,6 +438,21 @@ public class PontuacaoBeneficioServicoTests
         Assert.Single(cenario.Repositorio.Extratos);
     }
 
+    private static async Task<bool> SolicitarComResultadoAsync(
+        PontuacaoBeneficioServico servico,
+        Guid beneficioId)
+    {
+        try
+        {
+            await servico.SolicitarResgateAsync(beneficioId, new SolicitarResgateBeneficioDto(null));
+            return true;
+        }
+        catch (RegraNegocioException ex) when (ex.Message == "Benefício indisponível no momento.")
+        {
+            return false;
+        }
+    }
+
     private class Cenario
     {
         public Cenario(PerfilUsuario perfilUsuario = PerfilUsuario.Atleta)
@@ -268,12 +477,7 @@ public class PontuacaoBeneficioServicoTests
             ];
             Atletas.AddRange(OutrosAtletas);
             Repositorio = new PontuacaoBeneficioRepositorioFake();
-            Servico = new PontuacaoBeneficioServico(
-                Repositorio,
-                Usuarios,
-                new UnidadeTrabalhoFake(),
-                new AutorizacaoUsuarioServicoFake(Usuario),
-                NullLogger<PontuacaoBeneficioServico>.Instance);
+            Servico = CriarServicoParaUsuario(Usuario);
         }
 
         public Usuario Usuario { get; }
@@ -281,7 +485,35 @@ public class PontuacaoBeneficioServicoTests
         public IReadOnlyList<Atleta> OutrosAtletas { get; }
         public UsuarioRepositorioFake Usuarios { get; } = new();
         public PontuacaoBeneficioRepositorioFake Repositorio { get; }
+        public UnidadeTrabalhoFake UnidadeTrabalho { get; } = new();
         public PontuacaoBeneficioServico Servico { get; }
+
+        public Usuario AdicionarUsuarioComAtleta(string nome, string email)
+        {
+            var atleta = new Atleta { Nome = nome };
+            var usuario = new Usuario
+            {
+                Nome = nome,
+                Email = email,
+                Perfil = PerfilUsuario.Atleta,
+                AtletaId = atleta.Id,
+                Atleta = atleta
+            };
+
+            Atletas.Add(atleta);
+            Usuarios.Adicionar(usuario);
+            return usuario;
+        }
+
+        public PontuacaoBeneficioServico CriarServicoParaUsuario(Usuario usuario)
+        {
+            return new PontuacaoBeneficioServico(
+                Repositorio,
+                Usuarios,
+                UnidadeTrabalho,
+                new AutorizacaoUsuarioServicoFake(usuario),
+                NullLogger<PontuacaoBeneficioServico>.Instance);
+        }
 
         public Partida CriarPartidaValida(TipoRegistroResultado tipoRegistro)
         {
@@ -326,7 +558,7 @@ public class PontuacaoBeneficioServicoTests
         public List<ResgateBeneficioPontuacao> Resgates { get; } = [];
         public List<SaldoInicialRetroativoAtletaDto> CalculosSaldoInicial { get; } = [];
 
-        public BeneficioPontuacao AdicionarBeneficio(int pontos, bool ativo = true)
+        public BeneficioPontuacao AdicionarBeneficio(int pontos, bool ativo = true, int? quantidadeDisponivel = null)
         {
             var beneficio = new BeneficioPontuacao
             {
@@ -334,7 +566,8 @@ public class PontuacaoBeneficioServicoTests
                 Descricao = "Benefício para teste.",
                 Tipo = TipoBeneficioPontuacao.Brinde,
                 PontosNecessarios = pontos,
-                Ativo = ativo
+                Ativo = ativo,
+                QuantidadeDisponivel = quantidadeDisponivel
             };
             Beneficios.Add(beneficio);
             return beneficio;
@@ -455,6 +688,9 @@ public class PontuacaoBeneficioServicoTests
         public Task<BeneficioPontuacao?> ObterBeneficioPorIdAsync(Guid beneficioId, CancellationToken cancellationToken = default)
             => Task.FromResult(Beneficios.FirstOrDefault(x => x.Id == beneficioId));
 
+        public Task<BeneficioPontuacao?> ObterBeneficioPorIdParaAtualizacaoAsync(Guid beneficioId, CancellationToken cancellationToken = default)
+            => ObterBeneficioPorIdAsync(beneficioId, cancellationToken);
+
         public Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ResgateBeneficioPontuacao>>(Resgates.Where(x => x.AtletaId == atletaId).ToList());
 
@@ -541,11 +777,23 @@ public class PontuacaoBeneficioServicoTests
 
     private class UnidadeTrabalhoFake : IUnidadeTrabalho
     {
+        private readonly SemaphoreSlim semaforoTransacao = new(1, 1);
+
         public Task<int> SalvarAlteracoesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
-        public Task ExecutarEmTransacaoAsync(Func<CancellationToken, Task> operacao, CancellationToken cancellationToken = default)
-            => operacao(cancellationToken);
+        public async Task ExecutarEmTransacaoAsync(Func<CancellationToken, Task> operacao, CancellationToken cancellationToken = default)
+        {
+            await semaforoTransacao.WaitAsync(cancellationToken);
+            try
+            {
+                await operacao(cancellationToken);
+            }
+            finally
+            {
+                semaforoTransacao.Release();
+            }
+        }
     }
 
     private class AutorizacaoUsuarioServicoFake(Usuario usuario) : IAutorizacaoUsuarioServico

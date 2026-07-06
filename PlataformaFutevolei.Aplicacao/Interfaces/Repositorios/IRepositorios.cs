@@ -411,6 +411,7 @@ public interface IPontuacaoBeneficioRepositorio
         bool? destaque,
         CancellationToken cancellationToken = default);
     Task<BeneficioPontuacao?> ObterBeneficioPorIdAsync(Guid beneficioId, CancellationToken cancellationToken = default);
+    Task<BeneficioPontuacao?> ObterBeneficioPorIdParaAtualizacaoAsync(Guid beneficioId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ResgateBeneficioPontuacao>> ListarResgatesAdministracaoAsync(CancellationToken cancellationToken = default);
     Task<ResgateBeneficioPontuacao?> ObterResgatePorIdAsync(Guid resgateId, CancellationToken cancellationToken = default);
