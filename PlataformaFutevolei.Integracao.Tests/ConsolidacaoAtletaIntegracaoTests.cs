@@ -372,6 +372,14 @@ public sealed class PostgresIntegracaoFixture : IAsyncLifetime
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"delete from teste_consolidacao_atleta_fk_residual where prefixo like {prefixo + "%"}");
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"delete from extratos_pontuacao_beneficio where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or resgate_id in (select r.id from resgates_beneficios_pontuacao r join beneficios_pontuacao b on b.id = r.beneficio_id where b.titulo like {prefixo + "%"})");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"delete from resgates_beneficios_pontuacao where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or beneficio_id in (select id from beneficios_pontuacao where titulo like {prefixo + "%"})");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"delete from pontuacoes_beneficios_atletas where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"})");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"delete from beneficios_pontuacao where titulo like {prefixo + "%"}");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"delete from pendencias_usuarios where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or usuario_id in (select id from usuarios where email like {prefixo + "%@example.com"})");
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"delete from convites_cadastro where email like {prefixo + "%@example.com"} or atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or criado_por_usuario_id in (select id from usuarios where email like {prefixo + "%@example.com"})");
