@@ -263,9 +263,20 @@ public class GrupoServico(
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+
+        if (grupo.UsuarioOrganizadorId != usuario.Id)
+        {
+            throw new AcessoNegadoException("Apenas o criador do grupo pode excluir este grupo.");
+        }
+
+        var partidas = await partidaRepositorio.ListarPorGrupoAsync(id, cancellationToken);
+        if (partidas.Count > 0)
+        {
+            throw new RegraNegocioException("Não é possível excluir grupo com partidas vinculadas. Preserve o histórico esportivo.");
+        }
 
         var publicIdAnterior = grupo.ImagemPublicId;
         grupoRepositorio.Remover(grupo);

@@ -233,6 +233,72 @@ public class GrupoServicoTests
     }
 
     [Fact]
+    public async Task RemoverAsync_CriadorSemPartidas_RemoveGrupo()
+    {
+        var usuario = new Usuario { Nome = "Owner", Perfil = PerfilUsuario.Atleta, Ativo = true };
+        var grupo = new Grupo
+        {
+            Nome = "Grupo",
+            DataInicio = DateTime.UtcNow,
+            UsuarioOrganizadorId = usuario.Id,
+            ImagemPublicId = "grupo-public-id"
+        };
+        var grupos = new GrupoRepositorioStub([grupo]);
+        var fotos = new FotoPerfilServiceStub();
+        var servico = CriarServico(
+            grupos: [grupo],
+            grupoRepositorio: grupos,
+            autorizacao: new AutorizacaoUsuarioServicoStub(usuario),
+            fotos: fotos);
+
+        await servico.RemoverAsync(grupo.Id);
+
+        Assert.Empty(await grupos.ListarAsync());
+        Assert.Contains("grupo-public-id", fotos.PublicIdsRemovidos);
+    }
+
+    [Fact]
+    public async Task RemoverAsync_AdministradorNaoCriador_BloqueiaExclusao()
+    {
+        var usuarioCriadorId = Guid.NewGuid();
+        var admin = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
+        var grupo = new Grupo
+        {
+            Nome = "Grupo",
+            DataInicio = DateTime.UtcNow,
+            UsuarioOrganizadorId = usuarioCriadorId
+        };
+        var servico = CriarServico(
+            grupos: [grupo],
+            autorizacao: new AutorizacaoUsuarioServicoStub(admin));
+
+        var erro = await Assert.ThrowsAsync<AcessoNegadoException>(() => servico.RemoverAsync(grupo.Id));
+
+        Assert.Equal("Apenas o criador do grupo pode excluir este grupo.", erro.Message);
+    }
+
+    [Fact]
+    public async Task RemoverAsync_GrupoComPartidas_BloqueiaParaPreservarHistorico()
+    {
+        var usuario = new Usuario { Nome = "Owner", Perfil = PerfilUsuario.Atleta, Ativo = true };
+        var grupo = new Grupo
+        {
+            Nome = "Grupo com partidas",
+            DataInicio = DateTime.UtcNow,
+            UsuarioOrganizadorId = usuario.Id
+        };
+        var partida = CriarPartidaDoGrupo(grupo.Id);
+        var servico = CriarServico(
+            grupos: [grupo],
+            partidas: [partida],
+            autorizacao: new AutorizacaoUsuarioServicoStub(usuario));
+
+        var erro = await Assert.ThrowsAsync<RegraNegocioException>(() => servico.RemoverAsync(grupo.Id));
+
+        Assert.Equal("Não é possível excluir grupo com partidas vinculadas. Preserve o histórico esportivo.", erro.Message);
+    }
+
+    [Fact]
     public async Task ObterDashboardAsync_ComMembrosPartidasERanking_RetornaResumoRankingEAtivos()
     {
         var grupo = new Grupo { Nome = "Grupo dashboard", DataInicio = DateTime.UtcNow, Publico = true };
