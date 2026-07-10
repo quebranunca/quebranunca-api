@@ -62,12 +62,50 @@ public class DashboardController(
         return Ok(partidas);
     }
 
+    [HttpGet("atleta/jogos")]
+    [ProducesResponseType(typeof(DashboardAtletaJogosDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarJogosAtleta(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanhoPagina = 20,
+        [FromQuery] string? resultado = null,
+        [FromQuery] string? tipoRegistro = null,
+        [FromQuery] Guid? grupoId = null,
+        [FromQuery] string? periodo = null,
+        CancellationToken cancellationToken = default)
+    {
+        var jogos = await dashboardAtletaServico.ListarJogosAsync(
+            pagina,
+            tamanhoPagina,
+            resultado,
+            tipoRegistro,
+            grupoId,
+            periodo,
+            cancellationToken);
+        return Ok(jogos);
+    }
+
     [HttpGet("atleta/conexoes")]
     [ProducesResponseType(typeof(DashboardAtletaConexoesDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObterConexoesAtleta(CancellationToken cancellationToken)
     {
         var conexoes = await dashboardAtletaServico.ObterConexoesAsync(cancellationToken);
         return Ok(conexoes);
+    }
+
+    [HttpGet("atleta/grupos")]
+    [ProducesResponseType(typeof(IReadOnlyList<DashboardAtletaGrupoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterDesempenhoPorGrupoAtleta(CancellationToken cancellationToken)
+    {
+        var grupos = await dashboardAtletaServico.ObterDesempenhoPorGrupoAsync(cancellationToken);
+        return Ok(grupos);
+    }
+
+    [HttpGet("atleta/duplas")]
+    [ProducesResponseType(typeof(IReadOnlyList<DashboardDuplaParceiroDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarDuplasDisponiveisAtleta(CancellationToken cancellationToken)
+    {
+        var duplas = await dashboardAtletaServico.ListarDuplasDisponiveisAsync(cancellationToken);
+        return Ok(duplas);
     }
 
     [HttpGet("atleta/frequencia")]

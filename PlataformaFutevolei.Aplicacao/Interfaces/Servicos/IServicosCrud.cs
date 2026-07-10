@@ -62,7 +62,17 @@ public interface IDashboardAtletaServico
     Task<DashboardAtletaResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> ObterInsightsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DashboardAtletaPartidaDto>> ListarUltimasPartidasAsync(CancellationToken cancellationToken = default);
+    Task<DashboardAtletaJogosDto> ListarJogosAsync(
+        int pagina = 1,
+        int tamanhoPagina = 20,
+        string? resultado = null,
+        string? tipoRegistro = null,
+        Guid? grupoId = null,
+        string? periodo = null,
+        CancellationToken cancellationToken = default);
     Task<DashboardAtletaConexoesDto> ObterConexoesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DashboardAtletaGrupoDto>> ObterDesempenhoPorGrupoAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DashboardDuplaParceiroDto>> ListarDuplasDisponiveisAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DashboardAtletaHeatmapDiaDto>> ObterFrequenciaAsync(CancellationToken cancellationToken = default);
 }
 

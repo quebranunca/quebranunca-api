@@ -11,7 +11,12 @@ public record DashboardAtletaDto(
     IReadOnlyList<DashboardAtletaRelacaoDto> ParceirosRecentes,
     IReadOnlyList<DashboardAtletaRelacaoDto> RivaisRecentes,
     IReadOnlyList<DashboardAtletaHeatmapDiaDto> Heatmap,
-    IReadOnlyList<string> Insights
+    IReadOnlyList<string> Insights,
+    DashboardScoutSequenciaDto? Sequencia = null,
+    DashboardScoutEstatisticasPontosDto? EstatisticasPontos = null,
+    IReadOnlyList<DashboardScoutResultadoRecenteDto>? FormaRecente = null,
+    IReadOnlyList<DashboardAtletaGrupoDto>? DesempenhoPorGrupo = null,
+    IReadOnlyList<DashboardDuplaParceiroDto>? DuplasDisponiveis = null
 );
 
 public record DashboardAtletaPerfilDto(
@@ -34,7 +39,13 @@ public record DashboardAtletaResumoDto(
     int SaldoPontos,
     int SequenciaAtual,
     string? MelhorParceiro,
-    string? RivalMaisFrequente
+    string? RivalMaisFrequente,
+    int PontosPro = 0,
+    int PontosContra = 0,
+    int PartidasComPlacar = 0,
+    int MelhorSequenciaVitorias = 0,
+    string? TipoSequenciaAtual = null,
+    string? TextoSequenciaAtual = null
 );
 
 public record DashboardAtletaMetricaDto(
@@ -53,7 +64,9 @@ public record DashboardAtletaEvolucaoDto(
     int Partidas,
     int Vitorias,
     decimal Aproveitamento,
-    int? PosicaoRanking
+    int? PosicaoRanking,
+    decimal? AproveitamentoDados = null,
+    bool PossuiDados = true
 );
 
 public record DashboardAtletaPartidaDto(
@@ -81,7 +94,12 @@ public record DashboardAtletaPartidaDto(
     string Parceiro,
     string Adversarios,
     int? PlacarSuaDupla,
-    int? PlacarAdversarios
+    int? PlacarAdversarios,
+    bool PossuiPlacarDetalhado = false,
+    string? TipoRegistroResultado = null,
+    string? GrupoOuContexto = null,
+    IReadOnlyList<DashboardDuplaAtletaDto>? SuaDupla = null,
+    IReadOnlyList<DashboardDuplaAtletaDto>? DuplaAdversaria = null
 );
 
 public record DashboardAtletaRelacaoDto(
@@ -93,7 +111,13 @@ public record DashboardAtletaRelacaoDto(
     int Derrotas,
     decimal Aproveitamento,
     DateTime? UltimaPartida,
-    string? FotoPerfilUrl
+    string? FotoPerfilUrl,
+    string? TipoSequenciaAtual = null,
+    int SequenciaAtual = 0,
+    int PontosPro = 0,
+    int PontosContra = 0,
+    int SaldoPontos = 0,
+    int PartidasComPlacar = 0
 );
 
 public record DashboardAtletaHeatmapDiaDto(
@@ -105,7 +129,75 @@ public record DashboardAtletaConexoesDto(
     IReadOnlyList<DashboardAtletaRelacaoDto> MelhoresParceiros,
     IReadOnlyList<DashboardAtletaRelacaoDto> RivaisMaisEnfrentados,
     IReadOnlyList<DashboardAtletaRelacaoDto> ParceirosRecentes,
-    IReadOnlyList<DashboardAtletaRelacaoDto> RivaisRecentes
+    IReadOnlyList<DashboardAtletaRelacaoDto> RivaisRecentes,
+    DashboardAtletaRelacaoDto? ParceiroMaisJogou = null,
+    DashboardAtletaRelacaoDto? ParceiroMaisVitorias = null,
+    DashboardAtletaRelacaoDto? MelhorParceria = null,
+    DashboardAtletaRelacaoDto? AdversarioMaisEnfrentado = null,
+    DashboardAtletaRelacaoDto? AdversarioMaisVencido = null,
+    DashboardAtletaRelacaoDto? AdversarioMaisDificil = null
+);
+
+public record DashboardScoutSequenciaDto(
+    string Tipo,
+    int Quantidade,
+    string Texto,
+    int MelhorSequenciaVitorias
+);
+
+public record DashboardScoutEstatisticasPontosDto(
+    bool Disponivel,
+    int PartidasComPlacar,
+    int? PontosPro,
+    int? PontosContra,
+    int? Saldo,
+    decimal? MediaPontosPro,
+    decimal? MediaPontosContra,
+    decimal? MediaSaldo,
+    int? MaiorVitoriaMargem,
+    int? DerrotaMaisApertadaMargem,
+    int JogosDiferencaMinima
+);
+
+public record DashboardScoutResultadoRecenteDto(
+    Guid PartidaId,
+    string Resultado,
+    DateTime? DataPartida
+);
+
+public record DashboardAtletaGrupoDto(
+    Guid? GrupoId,
+    string Nome,
+    bool PartidasAvulsas,
+    int Jogos,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento,
+    string? TipoSequenciaAtual,
+    int SequenciaAtual,
+    int? PosicaoRanking,
+    decimal? PontosRanking,
+    DashboardScoutEstatisticasPontosDto EstatisticasPontos
+);
+
+public record DashboardDuplaParceiroDto(
+    Guid ParceiroId,
+    string Nome,
+    string? Apelido,
+    string? FotoPerfilUrl,
+    int Jogos,
+    int Vitorias,
+    int Derrotas,
+    decimal Aproveitamento,
+    DateTime? UltimaPartida
+);
+
+public record DashboardAtletaJogosDto(
+    IReadOnlyList<DashboardAtletaPartidaDto> Itens,
+    int Total,
+    int Pagina,
+    int TamanhoPagina,
+    bool TemMais
 );
 
 public record DashboardDuplaDto(
@@ -115,7 +207,10 @@ public record DashboardDuplaDto(
     IReadOnlyList<DashboardDuplaPartidaDto> UltimasPartidas,
     IReadOnlyList<DashboardDuplaAdversarioDto> MelhoresAdversarios,
     IReadOnlyList<DashboardDuplaEvolucaoDto> Evolucao,
-    IReadOnlyList<string> Insights
+    IReadOnlyList<string> Insights,
+    DashboardScoutEstatisticasPontosDto? EstatisticasPontos = null,
+    IReadOnlyList<DashboardScoutResultadoRecenteDto>? FormaRecente = null,
+    IReadOnlyList<DashboardAtletaGrupoDto>? Grupos = null
 );
 
 public record DashboardDuplaDadosDto(
@@ -140,7 +235,9 @@ public record DashboardDuplaResumoDto(
     int PontosContra,
     int SaldoPontos,
     int MaiorSequenciaVitorias,
-    int SequenciaAtual
+    int SequenciaAtual,
+    int PartidasComPlacar = 0,
+    string? TipoSequenciaAtual = null
 );
 
 public record DashboardDuplaMetricaDto(
@@ -173,7 +270,12 @@ public record DashboardDuplaAdversarioDto(
     int Partidas,
     int Vitorias,
     int Derrotas,
-    decimal Aproveitamento
+    decimal Aproveitamento,
+    DateTime? UltimaPartida = null,
+    int PontosPro = 0,
+    int PontosContra = 0,
+    int SaldoPontos = 0,
+    int PartidasComPlacar = 0
 );
 
 public record DashboardDuplaEvolucaoDto(
@@ -183,7 +285,9 @@ public record DashboardDuplaEvolucaoDto(
     int Partidas,
     int Vitorias,
     int Derrotas,
-    decimal Aproveitamento
+    decimal Aproveitamento,
+    decimal? AproveitamentoDados = null,
+    bool PossuiDados = true
 );
 
 public record DashboardPublicoDto(

@@ -94,6 +94,89 @@ public class DashboardAtletaServicoTests
     }
 
     [Fact]
+    public async Task ObterDashboardAsync_AtletaSemPartidas_DiferenciaMesSemDadosDeAproveitamentoZero()
+    {
+        var atleta = new Atleta { Nome = "Ana Silva" };
+        var servico = CriarServico(atleta: atleta);
+
+        var dashboard = await servico.ObterDashboardAsync();
+
+        Assert.Equal(6, dashboard.Evolucao.Count);
+        Assert.All(dashboard.Evolucao, mes =>
+        {
+            Assert.False(mes.PossuiDados);
+            Assert.Null(mes.AproveitamentoDados);
+            Assert.Equal(0, mes.Aproveitamento);
+        });
+        Assert.NotNull(dashboard.EstatisticasPontos);
+        Assert.False(dashboard.EstatisticasPontos!.Disponivel);
+    }
+
+    [Fact]
+    public async Task ObterDashboardAsync_PartidaApenasComVencedor_ContaResultadoMasNaoEstatisticasDePontos()
+    {
+        var atleta = new Atleta { Nome = "Ana Silva", Apelido = "Ana" };
+        var parceiro = new Atleta { Nome = "Bruno Costa", Apelido = "Bruno" };
+        var rival1 = new Atleta { Nome = "Carlos Lima", Apelido = "Carlos" };
+        var rival2 = new Atleta { Nome = "Daniel Rocha", Apelido = "Daniel" };
+        var partida = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: true);
+        var servico = CriarServico(atleta: atleta, partidas: [partida]);
+
+        var dashboard = await servico.ObterDashboardAsync();
+
+        Assert.Equal(1, dashboard.Resumo.TotalPartidas);
+        Assert.Equal(1, dashboard.Resumo.Vitorias);
+        Assert.Equal(100, dashboard.Resumo.Aproveitamento);
+        Assert.Equal(0, dashboard.Resumo.PartidasComPlacar);
+        Assert.False(dashboard.EstatisticasPontos!.Disponivel);
+        Assert.Null(dashboard.EstatisticasPontos.PontosPro);
+        Assert.Equal("ApenasResultado", dashboard.UltimasPartidas[0].TipoRegistroResultado);
+        Assert.False(dashboard.UltimasPartidas[0].PossuiPlacarDetalhado);
+    }
+
+    [Fact]
+    public async Task ObterDashboardAsync_SequenciaAtualConsideraDerrotasEFormaRecente()
+    {
+        var atleta = new Atleta { Nome = "Ana Silva", Apelido = "Ana" };
+        var parceiro = new Atleta { Nome = "Bruno Costa", Apelido = "Bruno" };
+        var rival1 = new Atleta { Nome = "Carlos Lima", Apelido = "Carlos" };
+        var rival2 = new Atleta { Nome = "Daniel Rocha", Apelido = "Daniel" };
+        var derrotaRecente = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: false, placarA: 12, placarB: 18, dataPartida: DateTime.UtcNow.AddDays(-1));
+        var derrotaAnterior = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: false, placarA: 16, placarB: 18, dataPartida: DateTime.UtcNow.AddDays(-2));
+        var vitoriaAntiga = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: true, placarA: 18, placarB: 11, dataPartida: DateTime.UtcNow.AddDays(-3));
+        var servico = CriarServico(atleta: atleta, partidas: [vitoriaAntiga, derrotaRecente, derrotaAnterior]);
+
+        var dashboard = await servico.ObterDashboardAsync();
+
+        Assert.Equal("derrota", dashboard.Resumo.TipoSequenciaAtual);
+        Assert.Equal(2, dashboard.Resumo.SequenciaAtual);
+        Assert.Equal("2 derrotas seguidas", dashboard.Resumo.TextoSequenciaAtual);
+        Assert.Equal(1, dashboard.Resumo.MelhorSequenciaVitorias);
+        Assert.Equal(["D", "D", "V"], dashboard.FormaRecente!.Select(x => x.Resultado));
+    }
+
+    [Fact]
+    public async Task ListarJogosAsync_AplicaFiltrosEPaginacao()
+    {
+        var atleta = new Atleta { Nome = "Ana Silva", Apelido = "Ana" };
+        var parceiro = new Atleta { Nome = "Bruno Costa", Apelido = "Bruno" };
+        var rival1 = new Atleta { Nome = "Carlos Lima", Apelido = "Carlos" };
+        var rival2 = new Atleta { Nome = "Daniel Rocha", Apelido = "Daniel" };
+        var vitoriaComPlacar = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: true, placarA: 18, placarB: 12);
+        var vitoriaSemPlacar = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: true);
+        var derrotaComPlacar = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: false, placarA: 14, placarB: 18);
+        var servico = CriarServico(atleta: atleta, partidas: [vitoriaComPlacar, vitoriaSemPlacar, derrotaComPlacar]);
+
+        var jogos = await servico.ListarJogosAsync(pagina: 1, tamanhoPagina: 1, resultado: "vitorias", tipoRegistro: "com-placar");
+
+        Assert.Equal(1, jogos.Total);
+        Assert.Single(jogos.Itens);
+        Assert.False(jogos.TemMais);
+        Assert.Equal(vitoriaComPlacar.Id, jogos.Itens[0].Id);
+        Assert.True(jogos.Itens[0].PossuiPlacarDetalhado);
+    }
+
+    [Fact]
     public async Task ObterResumoAsync_DadosIncompletosNaPartida_IgnoraPartidaSemGerarErro500()
     {
         var atleta = new Atleta { Nome = "Ana Silva" };
@@ -142,7 +225,8 @@ public class DashboardAtletaServicoTests
         Atleta rival2,
         bool atletaVenceu,
         int? placarA = null,
-        int? placarB = null)
+        int? placarB = null,
+        DateTime? dataPartida = null)
     {
         var duplaAtleta = new Dupla
         {
@@ -173,7 +257,7 @@ public class DashboardAtletaServicoTests
                 : TipoRegistroResultado.ApenasResultado,
             PlacarDuplaA = placarA,
             PlacarDuplaB = placarB,
-            DataPartida = DateTime.UtcNow
+            DataPartida = dataPartida ?? DateTime.UtcNow
         };
     }
 
@@ -185,6 +269,8 @@ public class DashboardAtletaServicoTests
         Assert.Equal(0, resumo.Aproveitamento);
         Assert.Equal(0, resumo.SaldoPontos);
         Assert.Equal(0, resumo.SequenciaAtual);
+        Assert.Equal(0, resumo.PartidasComPlacar);
+        Assert.Equal(0, resumo.MelhorSequenciaVitorias);
         Assert.Null(resumo.MelhorParceiro);
         Assert.Null(resumo.RivalMaisFrequente);
     }

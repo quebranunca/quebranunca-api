@@ -51,6 +51,13 @@ public class DashboardDuplaServicoTests
         Assert.Empty(resultado.UltimasPartidas);
         Assert.Empty(resultado.MelhoresAdversarios);
         Assert.Equal(6, resultado.Evolucao.Count);
+        Assert.All(resultado.Evolucao, mes =>
+        {
+            Assert.False(mes.PossuiDados);
+            Assert.Null(mes.AproveitamentoDados);
+        });
+        Assert.NotNull(resultado.EstatisticasPontos);
+        Assert.False(resultado.EstatisticasPontos!.Disponivel);
         Assert.Contains(resultado.Metricas, x => x.Id == "partidas" && x.Valor == "0");
         Assert.Contains("Saldo positivo de 0 pontos.", resultado.Insights);
     }
@@ -128,6 +135,35 @@ public class DashboardDuplaServicoTests
         Assert.Contains(resultado.Insights, x => x.Contains("Dupla venceu 2 dos últimos 3 jogos."));
         Assert.Contains(resultado.Insights, x => x.Contains("Maior rivalidade contra Carla e Daniel."));
         Assert.Contains(resultado.Insights, x => x.Contains("Sequência atual de 2 vitórias."));
+    }
+
+    [Fact]
+    public async Task ObterDashboardAsync_OrdemInvertida_NormalizaDupla()
+    {
+        var atleta1 = CriarAtleta("Ana Silva", "Ana");
+        var atleta2 = CriarAtleta("Bruno Costa", "Bruno");
+        var rival1 = CriarAtleta("Carla Lima", "Carla");
+        var rival2 = CriarAtleta("Daniel Rocha", "Daniel");
+        var partida = CriarPartida(
+            atleta1,
+            atleta2,
+            rival1,
+            rival2,
+            null,
+            null,
+            DateTime.UtcNow,
+            duplaAlvoNaA: true,
+            alvoVenceu: true,
+            placarAlvo: 18,
+            placarRival: 12);
+        var cenario = new Cenario([atleta1, atleta2, rival1, rival2], [partida]);
+
+        var resultado = await cenario.Servico.ObterDashboardAsync(atleta2.Id, atleta1.Id);
+
+        Assert.Equal(1, resultado.Resumo.TotalPartidas);
+        Assert.Equal(1, resultado.Resumo.Vitorias);
+        Assert.Equal(18, resultado.EstatisticasPontos!.PontosPro);
+        Assert.Equal(12, resultado.EstatisticasPontos.PontosContra);
     }
 
     [Fact]

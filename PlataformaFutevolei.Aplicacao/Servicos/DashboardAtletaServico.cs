@@ -23,6 +23,8 @@ public class DashboardAtletaServico(
     private const int QuantidadeDiasHeatmap = 112;
     private const int QuantidadeUltimasPartidas = 5;
     private const int QuantidadeRelacoes = 8;
+    private const int QuantidadeFormaRecente = 5;
+    private const int MinimoJogosDestaqueRelacao = 3;
 
     private sealed record DashboardAtletaContexto(
         Guid UsuarioId,
@@ -36,11 +38,14 @@ public class DashboardAtletaServico(
         var partidasValidas = contexto.PartidasValidas;
 
         var resumo = MontarResumo(atleta.Id, partidasValidas);
+        var sequencia = CalcularSequencia(atleta.Id, partidasValidas);
+        var estatisticasPontos = MontarEstatisticasPontos(atleta.Id, partidasValidas);
         var posicaoRanking = await ObterPosicaoRankingAsync(atleta.Id, cancellationToken);
         var parceiros = MontarRelacoes(atleta.Id, partidasValidas, obterParceiros: true);
         var rivais = MontarRelacoes(atleta.Id, partidasValidas, obterParceiros: false);
         var parceirosRecentes = MontarRelacoesRecentes(parceiros);
         var rivaisRecentes = MontarRelacoesRecentes(rivais);
+        var desempenhoPorGrupo = await MontarDesempenhoPorGrupoAsync(atleta.Id, partidasValidas, cancellationToken);
         var melhorParceiro = parceiros.FirstOrDefault();
         var rivalMaisFrequente = rivais.FirstOrDefault();
         var resumoComNomes = resumo with
@@ -69,7 +74,12 @@ public class DashboardAtletaServico(
             parceirosRecentes.Take(QuantidadeRelacoes).ToList(),
             rivaisRecentes.Take(QuantidadeRelacoes).ToList(),
             MontarHeatmap(partidasValidas),
-            MontarInsights(resumoComNomes, melhorParceiro, rivais.FirstOrDefault(), partidasValidas));
+            MontarInsights(resumoComNomes, melhorParceiro, rivais.FirstOrDefault(), partidasValidas),
+            sequencia,
+            estatisticasPontos,
+            MontarFormaRecente(atleta.Id, partidasValidas),
+            desempenhoPorGrupo,
+            MontarDuplasDisponiveis(parceiros));
     }
 
     public async Task<DashboardAtletaPerfilDto> ObterPerfilAsync(CancellationToken cancellationToken = default)
@@ -86,7 +96,7 @@ public class DashboardAtletaServico(
             posicaoRanking,
             resumo.Aproveitamento,
             resumo.SequenciaAtual,
-            MontarTextoSequencia(resumo.SequenciaAtual),
+            resumo.TextoSequenciaAtual ?? MontarTextoSequencia("vitoria", resumo.SequenciaAtual),
             FotoPerfilAtletaUtil.ObterUrlPublica(contexto.Atleta));
     }
 
@@ -152,6 +162,41 @@ public class DashboardAtletaServico(
             .ToList();
     }
 
+    public async Task<DashboardAtletaJogosDto> ListarJogosAsync(
+        int pagina = 1,
+        int tamanhoPagina = 20,
+        string? resultado = null,
+        string? tipoRegistro = null,
+        Guid? grupoId = null,
+        string? periodo = null,
+        CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var paginaNormalizada = Math.Max(1, pagina);
+        var tamanhoNormalizado = Math.Clamp(tamanhoPagina, 1, 50);
+        var partidasFiltradas = AplicarFiltrosJogos(
+                contexto.Atleta.Id,
+                contexto.PartidasValidas,
+                resultado,
+                tipoRegistro,
+                grupoId,
+                periodo)
+            .ToList();
+        var total = partidasFiltradas.Count;
+        var itens = partidasFiltradas
+            .Skip((paginaNormalizada - 1) * tamanhoNormalizado)
+            .Take(tamanhoNormalizado)
+            .Select(x => MontarPartidaRecente(contexto.Atleta.Id, x))
+            .ToList();
+
+        return new DashboardAtletaJogosDto(
+            itens,
+            total,
+            paginaNormalizada,
+            tamanhoNormalizado,
+            paginaNormalizada * tamanhoNormalizado < total);
+    }
+
     public async Task<DashboardAtletaConexoesDto> ObterConexoesAsync(CancellationToken cancellationToken = default)
     {
         var contexto = await CarregarContextoAsync(cancellationToken);
@@ -162,7 +207,32 @@ public class DashboardAtletaServico(
             parceiros.Take(QuantidadeRelacoes).ToList(),
             rivais.Take(QuantidadeRelacoes).ToList(),
             MontarRelacoesRecentes(parceiros).Take(QuantidadeRelacoes).ToList(),
-            MontarRelacoesRecentes(rivais).Take(QuantidadeRelacoes).ToList());
+            MontarRelacoesRecentes(rivais).Take(QuantidadeRelacoes).ToList(),
+            parceiros.FirstOrDefault(),
+            parceiros.OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Partidas).FirstOrDefault(),
+            parceiros.Where(x => x.Partidas >= MinimoJogosDestaqueRelacao)
+                .OrderByDescending(x => x.Aproveitamento)
+                .ThenByDescending(x => x.Partidas)
+                .FirstOrDefault(),
+            rivais.FirstOrDefault(),
+            rivais.OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Partidas).FirstOrDefault(),
+            rivais.Where(x => x.Partidas >= MinimoJogosDestaqueRelacao)
+                .OrderBy(x => x.Aproveitamento)
+                .ThenByDescending(x => x.Partidas)
+                .FirstOrDefault());
+    }
+
+    public async Task<IReadOnlyList<DashboardAtletaGrupoDto>> ObterDesempenhoPorGrupoAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        return await MontarDesempenhoPorGrupoAsync(contexto.Atleta.Id, contexto.PartidasValidas, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DashboardDuplaParceiroDto>> ListarDuplasDisponiveisAsync(CancellationToken cancellationToken = default)
+    {
+        var contexto = await CarregarContextoAsync(cancellationToken);
+        var parceiros = MontarRelacoes(contexto.Atleta.Id, contexto.PartidasValidas, obterParceiros: true);
+        return MontarDuplasDisponiveis(parceiros);
     }
 
     public async Task<IReadOnlyList<DashboardAtletaHeatmapDiaDto>> ObterFrequenciaAsync(CancellationToken cancellationToken = default)
@@ -240,26 +310,24 @@ public class DashboardAtletaServico(
         var vitorias = partidas.Count(x => AtletaVenceu(atletaId, x));
         var derrotas = total - vitorias;
         var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
-        var partidasComPlacar = partidas.Where(x => x.PossuiPlacarDetalhado()).ToList();
-        var saldoPontos = partidasComPlacar.Sum(x =>
-        {
-            var pontosAtleta = ObterPontosAtleta(atletaId, x);
-            var pontosAdversario = ObterPontosAdversario(atletaId, x);
-            return pontosAtleta.HasValue && pontosAdversario.HasValue
-                ? pontosAtleta.Value - pontosAdversario.Value
-                : 0;
-        });
-        var sequenciaAtual = CalcularSequenciaAtual(atletaId, partidas);
+        var estatisticasPontos = MontarEstatisticasPontos(atletaId, partidas);
+        var sequencia = CalcularSequencia(atletaId, partidas);
 
         return new DashboardAtletaResumoDto(
             total,
             vitorias,
             derrotas,
             aproveitamento,
-            saldoPontos,
-            sequenciaAtual,
+            estatisticasPontos.Saldo ?? 0,
+            sequencia.Quantidade,
             null,
-            null);
+            null,
+            estatisticasPontos.PontosPro ?? 0,
+            estatisticasPontos.PontosContra ?? 0,
+            estatisticasPontos.PartidasComPlacar,
+            sequencia.MelhorSequenciaVitorias,
+            sequencia.Tipo,
+            sequencia.Texto);
     }
 
     private static IReadOnlyList<DashboardAtletaMetricaDto> MontarMetricas(DashboardAtletaResumoDto resumo)
@@ -270,8 +338,8 @@ public class DashboardAtletaServico(
             new("vitorias", "Vitórias", resumo.Vitorias.ToString(CultureInfo.InvariantCulture), null, "vitorias", true),
             new("derrotas", "Derrotas", resumo.Derrotas.ToString(CultureInfo.InvariantCulture), null, "derrotas"),
             new("aproveitamento", "Aproveitamento", $"{resumo.Aproveitamento:0.#}%", null, "aproveitamento", true),
-            new("saldo", "Saldo de pontos", resumo.SaldoPontos.ToString("+0;-0;0", CultureInfo.InvariantCulture), null, "saldo"),
-            new("sequencia", "Sequência", resumo.SequenciaAtual.ToString(CultureInfo.InvariantCulture), "vitórias", "sequencia"),
+            new("saldo", "Saldo de pontos", resumo.PartidasComPlacar > 0 ? resumo.SaldoPontos.ToString("+0;-0;0", CultureInfo.InvariantCulture) : "-", resumo.PartidasComPlacar > 0 ? null : "sem placar", "saldo"),
+            new("sequencia", "Sequência", resumo.SequenciaAtual.ToString(CultureInfo.InvariantCulture), resumo.TipoSequenciaAtual == "derrota" ? "derrotas" : "vitórias", "sequencia"),
             new("parceiro", "Melhor parceiro", resumo.MelhorParceiro ?? "-", null, "parceiro"),
             new("rival", "Rival frequente", resumo.RivalMaisFrequente ?? "-", null, "rival")
         ];
@@ -293,6 +361,7 @@ public class DashboardAtletaServico(
                 var total = partidasMes.Count;
                 var vitorias = partidasMes.Count(x => AtletaVenceu(atletaId, x));
                 var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
+                decimal? aproveitamentoDados = total == 0 ? null : aproveitamento;
 
                 return new DashboardAtletaEvolucaoDto(
                     cultura.DateTimeFormat.GetAbbreviatedMonthName(mes.Month).TrimEnd('.'),
@@ -301,7 +370,9 @@ public class DashboardAtletaServico(
                     total,
                     vitorias,
                     aproveitamento,
-                    null);
+                    null,
+                    aproveitamentoDados,
+                    total > 0);
             })
             .ToList();
     }
@@ -341,7 +412,12 @@ public class DashboardAtletaServico(
             parceiro,
             adversarios,
             ObterPontosAtleta(atletaId, partida),
-            ObterPontosAdversario(atletaId, partida));
+            ObterPontosAdversario(atletaId, partida),
+            partida.PossuiPlacarDetalhado(),
+            partida.TipoRegistroResultado.ToString(),
+            partida.Grupo?.Nome ?? "Partidas avulsas",
+            ObterAtletas(duplaAtleta!).Select(ParaAtletaDto).ToList(),
+            ObterAtletas(duplaAdversaria).Select(ParaAtletaDto).ToList());
     }
 
     private static IReadOnlyList<DashboardAtletaRelacaoDto> MontarRelacoes(
@@ -356,11 +432,17 @@ public class DashboardAtletaServico(
             .Select(grupo =>
             {
                 var primeiro = grupo.First().Atleta;
+                var partidasRelacao = grupo.Select(x => x.Partida)
+                    .OrderByDescending(ObterDataReferencia)
+                    .ThenByDescending(x => x.DataCriacao)
+                    .ToList();
                 var partidasJuntos = grupo.Count();
                 var vitorias = grupo.Count(x => x.Vitoria);
                 var derrotas = partidasJuntos - vitorias;
                 var aproveitamento = partidasJuntos == 0 ? 0 : decimal.Round(vitorias * 100m / partidasJuntos, 1);
                 var ultimaPartida = grupo.Max(x => ObterDataReferencia(x.Partida));
+                var sequencia = CalcularSequencia(atletaId, partidasRelacao);
+                var estatisticasPontos = MontarEstatisticasPontos(atletaId, partidasRelacao);
 
                 return new DashboardAtletaRelacaoDto(
                     primeiro.Id,
@@ -371,7 +453,13 @@ public class DashboardAtletaServico(
                     derrotas,
                     aproveitamento,
                     ultimaPartida,
-                    FotoPerfilAtletaUtil.ObterUrlPublica(primeiro));
+                    FotoPerfilAtletaUtil.ObterUrlPublica(primeiro),
+                    sequencia.Tipo,
+                    sequencia.Quantidade,
+                    estatisticasPontos.PontosPro ?? 0,
+                    estatisticasPontos.PontosContra ?? 0,
+                    estatisticasPontos.Saldo ?? 0,
+                    estatisticasPontos.PartidasComPlacar);
             })
             .OrderByDescending(x => x.Partidas)
             .ThenByDescending(x => x.Aproveitamento)
@@ -452,20 +540,269 @@ public class DashboardAtletaServico(
             ?.Posicao;
     }
 
-    private static int CalcularSequenciaAtual(Guid atletaId, IReadOnlyList<Partida> partidas)
+    private static IEnumerable<Partida> AplicarFiltrosJogos(
+        Guid atletaId,
+        IReadOnlyList<Partida> partidas,
+        string? resultado,
+        string? tipoRegistro,
+        Guid? grupoId,
+        string? periodo)
     {
-        var sequencia = 0;
+        var consulta = partidas.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(resultado))
+        {
+            var resultadoNormalizado = resultado.Trim().ToLowerInvariant();
+            consulta = resultadoNormalizado switch
+            {
+                "vitorias" or "vitórias" or "vitoria" or "vitória" => consulta.Where(x => AtletaVenceu(atletaId, x)),
+                "derrotas" or "derrota" => consulta.Where(x => !AtletaVenceu(atletaId, x)),
+                _ => consulta
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(tipoRegistro))
+        {
+            var tipoNormalizado = tipoRegistro.Trim().ToLowerInvariant();
+            consulta = tipoNormalizado switch
+            {
+                "com-placar" or "placar" => consulta.Where(x => x.PossuiPlacarDetalhado()),
+                "apenas-vencedor" or "sem-placar" => consulta.Where(x => !x.PossuiPlacarDetalhado()),
+                _ => consulta
+            };
+        }
+
+        if (grupoId.HasValue)
+        {
+            consulta = consulta.Where(x => x.GrupoId == grupoId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(periodo))
+        {
+            var hoje = DateTime.UtcNow.Date;
+            var inicio = periodo.Trim().ToLowerInvariant() switch
+            {
+                "30d" or "30" => hoje.AddDays(-30),
+                "90d" or "90" => hoje.AddDays(-90),
+                "ano" or "ano-atual" => new DateTime(hoje.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                _ => (DateTime?)null
+            };
+
+            if (inicio.HasValue)
+            {
+                consulta = consulta.Where(x => ObterDataReferencia(x).Date >= inicio.Value);
+            }
+        }
+
+        return consulta;
+    }
+
+    private async Task<IReadOnlyList<DashboardAtletaGrupoDto>> MontarDesempenhoPorGrupoAsync(
+        Guid atletaId,
+        IReadOnlyList<Partida> partidas,
+        CancellationToken cancellationToken)
+    {
+        var gruposRanking = new Dictionary<Guid, RankingAtletaDto?>();
+
+        async Task<RankingAtletaDto?> ObterRankingAtletaGrupoAsync(Guid grupoId)
+        {
+            if (!gruposRanking.TryGetValue(grupoId, out var rankingAtleta))
+            {
+                var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupoId, cancellationToken);
+                rankingAtleta = ranking
+                    .SelectMany(x => x.Atletas)
+                    .FirstOrDefault(x => x.AtletaId == atletaId);
+                gruposRanking[grupoId] = rankingAtleta;
+            }
+
+            return rankingAtleta;
+        }
+
+        var grupos = new List<DashboardAtletaGrupoDto>();
+        foreach (var grupo in partidas.GroupBy(x => x.GrupoId))
+        {
+            var partidasGrupo = grupo
+                .OrderByDescending(ObterDataReferencia)
+                .ThenByDescending(x => x.DataCriacao)
+                .ToList();
+            var jogos = partidasGrupo.Count;
+            var vitorias = partidasGrupo.Count(x => AtletaVenceu(atletaId, x));
+            var derrotas = jogos - vitorias;
+            var aproveitamento = jogos == 0 ? 0 : decimal.Round(vitorias * 100m / jogos, 1);
+            var sequencia = CalcularSequencia(atletaId, partidasGrupo);
+            RankingAtletaDto? rankingAtleta = null;
+
+            if (grupo.Key.HasValue)
+            {
+                rankingAtleta = await ObterRankingAtletaGrupoAsync(grupo.Key.Value);
+            }
+
+            grupos.Add(new DashboardAtletaGrupoDto(
+                grupo.Key,
+                grupo.Key.HasValue ? partidasGrupo.FirstOrDefault()?.Grupo?.Nome ?? "Grupo" : "Partidas avulsas",
+                !grupo.Key.HasValue,
+                jogos,
+                vitorias,
+                derrotas,
+                aproveitamento,
+                sequencia.Tipo,
+                sequencia.Quantidade,
+                rankingAtleta?.Posicao,
+                rankingAtleta?.Pontos,
+                MontarEstatisticasPontos(atletaId, partidasGrupo)));
+        }
+
+        return grupos
+            .OrderBy(x => x.PartidasAvulsas)
+            .ThenByDescending(x => x.Jogos)
+            .ThenBy(x => x.Nome)
+            .ToList();
+    }
+
+    private static IReadOnlyList<DashboardDuplaParceiroDto> MontarDuplasDisponiveis(IReadOnlyList<DashboardAtletaRelacaoDto> parceiros)
+    {
+        return parceiros
+            .Select(parceiro => new DashboardDuplaParceiroDto(
+                parceiro.AtletaId,
+                parceiro.Nome,
+                parceiro.Apelido,
+                parceiro.FotoPerfilUrl,
+                parceiro.Partidas,
+                parceiro.Vitorias,
+                parceiro.Derrotas,
+                parceiro.Aproveitamento,
+                parceiro.UltimaPartida))
+            .ToList();
+    }
+
+    private static IReadOnlyList<DashboardScoutResultadoRecenteDto> MontarFormaRecente(Guid atletaId, IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .Take(QuantidadeFormaRecente)
+            .Select(partida => new DashboardScoutResultadoRecenteDto(
+                partida.Id,
+                AtletaVenceu(atletaId, partida) ? "V" : "D",
+                partida.DataPartida))
+            .ToList();
+    }
+
+    private static DashboardScoutSequenciaDto CalcularSequencia(Guid atletaId, IReadOnlyList<Partida> partidas)
+    {
+        if (partidas.Count == 0)
+        {
+            return new DashboardScoutSequenciaDto("sem-jogos", 0, "Sem partidas", 0);
+        }
+
+        var primeiraEhVitoria = AtletaVenceu(atletaId, partidas[0]);
+        var quantidadeAtual = 0;
+
         foreach (var partida in partidas)
         {
-            if (!AtletaVenceu(atletaId, partida))
+            if (AtletaVenceu(atletaId, partida) != primeiraEhVitoria)
             {
                 break;
             }
 
-            sequencia++;
+            quantidadeAtual++;
         }
 
-        return sequencia;
+        var tipo = primeiraEhVitoria ? "vitoria" : "derrota";
+        return new DashboardScoutSequenciaDto(
+            tipo,
+            quantidadeAtual,
+            MontarTextoSequencia(tipo, quantidadeAtual),
+            CalcularMelhorSequenciaVitorias(atletaId, partidas));
+    }
+
+    private static int CalcularMelhorSequenciaVitorias(Guid atletaId, IReadOnlyList<Partida> partidas)
+    {
+        var melhor = 0;
+        var atual = 0;
+
+        foreach (var partida in partidas.OrderBy(ObterDataReferencia).ThenBy(x => x.DataCriacao))
+        {
+            if (AtletaVenceu(atletaId, partida))
+            {
+                atual++;
+                melhor = Math.Max(melhor, atual);
+                continue;
+            }
+
+            atual = 0;
+        }
+
+        return melhor;
+    }
+
+    private static DashboardScoutEstatisticasPontosDto MontarEstatisticasPontos(Guid atletaId, IReadOnlyList<Partida> partidas)
+    {
+        var jogosComPlacar = partidas
+            .Where(x => x.PossuiPlacarDetalhado())
+            .Select(partida => new
+            {
+                Partida = partida,
+                Pro = ObterPontosAtleta(atletaId, partida),
+                Contra = ObterPontosAdversario(atletaId, partida),
+                Vitoria = AtletaVenceu(atletaId, partida)
+            })
+            .Where(x => x.Pro.HasValue && x.Contra.HasValue)
+            .ToList();
+
+        if (jogosComPlacar.Count == 0)
+        {
+            return new DashboardScoutEstatisticasPontosDto(
+                false,
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0);
+        }
+
+        var pontosPro = jogosComPlacar.Sum(x => x.Pro!.Value);
+        var pontosContra = jogosComPlacar.Sum(x => x.Contra!.Value);
+        var saldo = pontosPro - pontosContra;
+        var maiorVitoria = jogosComPlacar
+            .Where(x => x.Vitoria)
+            .Select(x => x.Pro!.Value - x.Contra!.Value)
+            .DefaultIfEmpty()
+            .Max();
+        var derrotaMaisApertada = jogosComPlacar
+            .Where(x => !x.Vitoria)
+            .Select(x => x.Contra!.Value - x.Pro!.Value)
+            .Where(x => x > 0)
+            .DefaultIfEmpty()
+            .Min();
+
+        return new DashboardScoutEstatisticasPontosDto(
+            true,
+            jogosComPlacar.Count,
+            pontosPro,
+            pontosContra,
+            saldo,
+            decimal.Round(pontosPro / (decimal)jogosComPlacar.Count, 1),
+            decimal.Round(pontosContra / (decimal)jogosComPlacar.Count, 1),
+            decimal.Round(saldo / (decimal)jogosComPlacar.Count, 1),
+            maiorVitoria == 0 ? null : maiorVitoria,
+            derrotaMaisApertada == 0 ? null : derrotaMaisApertada,
+            jogosComPlacar.Count(x => Math.Abs(x.Pro!.Value - x.Contra!.Value) <= 2));
+    }
+
+    private static string MontarTextoSequencia(string tipo, int sequencia)
+    {
+        return tipo switch
+        {
+            "vitoria" when sequencia == 1 => "1 vitória seguida",
+            "vitoria" when sequencia > 1 => $"{sequencia} vitórias seguidas",
+            "derrota" when sequencia == 1 => "1 derrota seguida",
+            "derrota" when sequencia > 1 => $"{sequencia} derrotas seguidas",
+            _ => "Sem sequência"
+        };
     }
 
     private static string MontarTextoSequencia(int sequencia)
@@ -541,6 +878,11 @@ public class DashboardAtletaServico(
             .Where(x => x is not null)
             .Cast<Atleta>()
             .ToList();
+    }
+
+    private static DashboardDuplaAtletaDto ParaAtletaDto(Atleta atleta)
+    {
+        return new DashboardDuplaAtletaDto(atleta.Id, atleta.Nome, atleta.Apelido);
     }
 
     private static DateTime ObterDataReferencia(Partida partida)

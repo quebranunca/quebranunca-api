@@ -15,6 +15,7 @@ public class DashboardDuplaServico(
 ) : IDashboardDuplaServico
 {
     private const int QuantidadeMesesEvolucao = 6;
+    private const int QuantidadeFormaRecente = 5;
 
     public async Task<DashboardDuplaDto> ObterDashboardAsync(
         Guid atleta1Id,
@@ -41,6 +42,7 @@ public class DashboardDuplaServico(
 
         var resumo = MontarResumo(atleta1Id, atleta2Id, partidasValidas);
         var adversarios = MontarAdversarios(atleta1Id, atleta2Id, partidasValidas);
+        var estatisticasPontos = MontarEstatisticasPontosDupla(atleta1Id, atleta2Id, partidasValidas);
 
         return new DashboardDuplaDto(
             new DashboardDuplaDadosDto(
@@ -53,7 +55,10 @@ public class DashboardDuplaServico(
             partidasValidas.Take(6).Select(x => MontarPartidaRecente(atleta1Id, atleta2Id, x)).ToList(),
             adversarios.Take(8).ToList(),
             MontarEvolucao(atleta1Id, atleta2Id, partidasValidas),
-            MontarInsights(atleta1Id, atleta2Id, resumo, adversarios.FirstOrDefault(), partidasValidas));
+            MontarInsights(atleta1Id, atleta2Id, resumo, adversarios.FirstOrDefault(), partidasValidas),
+            estatisticasPontos,
+            MontarFormaRecente(atleta1Id, atleta2Id, partidasValidas),
+            MontarGruposDupla(atleta1Id, atleta2Id, partidasValidas));
     }
 
     private static bool PartidaContaParaDashboard(Partida partida)
@@ -83,7 +88,9 @@ public class DashboardDuplaServico(
             pontosContra,
             pontosPro - pontosContra,
             CalcularMaiorSequenciaVitorias(atleta1Id, atleta2Id, partidas),
-            CalcularSequenciaAtual(atleta1Id, atleta2Id, partidas));
+            CalcularSequenciaAtual(atleta1Id, atleta2Id, partidas),
+            partidasComPlacar.Count,
+            partidas.Count > 0 && !DuplaVenceu(atleta1Id, atleta2Id, partidas[0]) ? "derrota" : "vitoria");
     }
 
     private static IReadOnlyList<DashboardDuplaMetricaDto> MontarMetricas(DashboardDuplaResumoDto resumo)
@@ -94,8 +101,8 @@ public class DashboardDuplaServico(
             new("vitorias", "Vitórias", resumo.Vitorias.ToString(CultureInfo.InvariantCulture), null, "vitorias", true),
             new("derrotas", "Derrotas", resumo.Derrotas.ToString(CultureInfo.InvariantCulture), null, "derrotas"),
             new("aproveitamento", "Aproveitamento", $"{resumo.Aproveitamento:0.#}%", null, "aproveitamento", true),
-            new("saldo", "Saldo de pontos", resumo.SaldoPontos.ToString("+0;-0;0", CultureInfo.InvariantCulture), null, "saldo"),
-            new("sequencia", "Sequência atual", resumo.SequenciaAtual.ToString(CultureInfo.InvariantCulture), "vitórias", "sequencia")
+            new("saldo", "Saldo de pontos", resumo.PartidasComPlacar > 0 ? resumo.SaldoPontos.ToString("+0;-0;0", CultureInfo.InvariantCulture) : "-", resumo.PartidasComPlacar > 0 ? null : "sem placar", "saldo"),
+            new("sequencia", "Sequência atual", resumo.SequenciaAtual.ToString(CultureInfo.InvariantCulture), resumo.TipoSequenciaAtual == "derrota" ? "derrotas" : "vitórias", "sequencia")
         ];
     }
 
@@ -127,6 +134,7 @@ public class DashboardDuplaServico(
         return partidas
             .Select(partida => new
             {
+                Partida = partida,
                 Dupla = ObterDuplaAdversaria(atleta1Id, atleta2Id, partida),
                 Vitoria = DuplaVenceu(atleta1Id, atleta2Id, partida)
             })
@@ -138,13 +146,20 @@ public class DashboardDuplaServico(
                 var total = grupo.Count();
                 var vitorias = grupo.Count(x => x.Vitoria);
                 var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
+                var partidasGrupo = grupo.Select(x => x.Partida).ToList();
+                var estatisticasPontos = MontarEstatisticasPontosDupla(atleta1Id, atleta2Id, partidasGrupo);
 
                 return new DashboardDuplaAdversarioDto(
                     ObterAtletas(dupla).Select(ParaAtletaDto).ToList(),
                     total,
                     vitorias,
                     total - vitorias,
-                    aproveitamento);
+                    aproveitamento,
+                    grupo.Max(x => ObterDataReferencia(x.Partida)),
+                    estatisticasPontos.PontosPro ?? 0,
+                    estatisticasPontos.PontosContra ?? 0,
+                    estatisticasPontos.Saldo ?? 0,
+                    estatisticasPontos.PartidasComPlacar);
             })
             .OrderByDescending(x => x.Partidas)
             .ThenByDescending(x => x.Aproveitamento)
@@ -172,6 +187,7 @@ public class DashboardDuplaServico(
                 var vitorias = partidasMes.Count(x => DuplaVenceu(atleta1Id, atleta2Id, x));
                 var derrotas = total - vitorias;
                 var aproveitamento = total == 0 ? 0 : decimal.Round(vitorias * 100m / total, 1);
+                decimal? aproveitamentoDados = total == 0 ? null : aproveitamento;
 
                 return new DashboardDuplaEvolucaoDto(
                     cultura.DateTimeFormat.GetAbbreviatedMonthName(mes.Month).TrimEnd('.'),
@@ -180,7 +196,9 @@ public class DashboardDuplaServico(
                     total,
                     vitorias,
                     derrotas,
-                    aproveitamento);
+                    aproveitamento,
+                    aproveitamentoDados,
+                    total > 0);
             })
             .ToList();
     }
@@ -225,10 +243,17 @@ public class DashboardDuplaServico(
 
     private static int CalcularSequenciaAtual(Guid atleta1Id, Guid atleta2Id, IReadOnlyList<Partida> partidas)
     {
+        if (partidas.Count == 0)
+        {
+            return 0;
+        }
+
+        var primeiraEhVitoria = DuplaVenceu(atleta1Id, atleta2Id, partidas[0]);
         var sequencia = 0;
+
         foreach (var partida in partidas)
         {
-            if (!DuplaVenceu(atleta1Id, atleta2Id, partida))
+            if (DuplaVenceu(atleta1Id, atleta2Id, partida) != primeiraEhVitoria)
             {
                 break;
             }
@@ -257,6 +282,123 @@ public class DashboardDuplaServico(
         }
 
         return maior;
+    }
+
+    private static IReadOnlyList<DashboardScoutResultadoRecenteDto> MontarFormaRecente(
+        Guid atleta1Id,
+        Guid atleta2Id,
+        IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .Take(QuantidadeFormaRecente)
+            .Select(partida => new DashboardScoutResultadoRecenteDto(
+                partida.Id,
+                DuplaVenceu(atleta1Id, atleta2Id, partida) ? "V" : "D",
+                partida.DataPartida))
+            .ToList();
+    }
+
+    private static IReadOnlyList<DashboardAtletaGrupoDto> MontarGruposDupla(
+        Guid atleta1Id,
+        Guid atleta2Id,
+        IReadOnlyList<Partida> partidas)
+    {
+        return partidas
+            .GroupBy(x => x.GrupoId)
+            .Select(grupo =>
+            {
+                var partidasGrupo = grupo
+                    .OrderByDescending(ObterDataReferencia)
+                    .ThenByDescending(x => x.DataCriacao)
+                    .ToList();
+                var jogos = partidasGrupo.Count;
+                var vitorias = partidasGrupo.Count(x => DuplaVenceu(atleta1Id, atleta2Id, x));
+                var derrotas = jogos - vitorias;
+                var aproveitamento = jogos == 0 ? 0 : decimal.Round(vitorias * 100m / jogos, 1);
+                var tipoSequencia = jogos > 0 && !DuplaVenceu(atleta1Id, atleta2Id, partidasGrupo[0])
+                    ? "derrota"
+                    : "vitoria";
+
+                return new DashboardAtletaGrupoDto(
+                    grupo.Key,
+                    grupo.Key.HasValue ? partidasGrupo.FirstOrDefault()?.Grupo?.Nome ?? "Grupo" : "Partidas avulsas",
+                    !grupo.Key.HasValue,
+                    jogos,
+                    vitorias,
+                    derrotas,
+                    aproveitamento,
+                    tipoSequencia,
+                    CalcularSequenciaAtual(atleta1Id, atleta2Id, partidasGrupo),
+                    null,
+                    null,
+                    MontarEstatisticasPontosDupla(atleta1Id, atleta2Id, partidasGrupo));
+            })
+            .OrderBy(x => x.PartidasAvulsas)
+            .ThenByDescending(x => x.Jogos)
+            .ThenBy(x => x.Nome)
+            .ToList();
+    }
+
+    private static DashboardScoutEstatisticasPontosDto MontarEstatisticasPontosDupla(
+        Guid atleta1Id,
+        Guid atleta2Id,
+        IReadOnlyList<Partida> partidas)
+    {
+        var jogosComPlacar = partidas
+            .Where(x => x.PossuiPlacarDetalhado())
+            .Select(partida => new
+            {
+                Partida = partida,
+                Pro = ObterPontosDupla(atleta1Id, atleta2Id, partida),
+                Contra = ObterPontosAdversario(atleta1Id, atleta2Id, partida),
+                Vitoria = DuplaVenceu(atleta1Id, atleta2Id, partida)
+            })
+            .Where(x => x.Pro.HasValue && x.Contra.HasValue)
+            .ToList();
+
+        if (jogosComPlacar.Count == 0)
+        {
+            return new DashboardScoutEstatisticasPontosDto(
+                false,
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0);
+        }
+
+        var pontosPro = jogosComPlacar.Sum(x => x.Pro!.Value);
+        var pontosContra = jogosComPlacar.Sum(x => x.Contra!.Value);
+        var saldo = pontosPro - pontosContra;
+        var maiorVitoria = jogosComPlacar
+            .Where(x => x.Vitoria)
+            .Select(x => x.Pro!.Value - x.Contra!.Value)
+            .DefaultIfEmpty()
+            .Max();
+        var derrotaMaisApertada = jogosComPlacar
+            .Where(x => !x.Vitoria)
+            .Select(x => x.Contra!.Value - x.Pro!.Value)
+            .Where(x => x > 0)
+            .DefaultIfEmpty()
+            .Min();
+
+        return new DashboardScoutEstatisticasPontosDto(
+            true,
+            jogosComPlacar.Count,
+            pontosPro,
+            pontosContra,
+            saldo,
+            decimal.Round(pontosPro / (decimal)jogosComPlacar.Count, 1),
+            decimal.Round(pontosContra / (decimal)jogosComPlacar.Count, 1),
+            decimal.Round(saldo / (decimal)jogosComPlacar.Count, 1),
+            maiorVitoria == 0 ? null : maiorVitoria,
+            derrotaMaisApertada == 0 ? null : derrotaMaisApertada,
+            jogosComPlacar.Count(x => Math.Abs(x.Pro!.Value - x.Contra!.Value) <= 2));
     }
 
     private static string? ObterCategoriaPrincipal(IReadOnlyList<Partida> partidas)
