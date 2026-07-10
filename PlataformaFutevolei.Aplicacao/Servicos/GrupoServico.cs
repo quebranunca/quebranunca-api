@@ -79,6 +79,9 @@ public class GrupoServico(
             .DefaultIfEmpty()
             .Max();
         var totalMembros = membros.Select(x => x.AtletaId).Distinct().Count();
+        var usuarioPertenceAoGrupo = usuario?.AtletaId.HasValue == true &&
+            membros.Any(x => x.AtletaId == usuario.AtletaId.Value);
+        var podeEditarGrupo = usuarioPertenceAoGrupo && PodeEditarGrupo(usuario, grupo);
 
         return new GrupoDashboardDetalheDto(
             new GrupoDashboardCabecalhoDto(
@@ -90,7 +93,9 @@ public class GrupoServico(
                 totalMembros,
                 partidasEncerradas.Count,
                 ultimaPartidaEm == default ? null : ultimaPartidaEm,
-                PodeEditarGrupo(usuario, grupo)),
+                podeEditarGrupo,
+                usuarioPertenceAoGrupo,
+                usuarioPertenceAoGrupo),
             new GrupoDashboardResumoDto(
                 totalMembros,
                 partidasEncerradas.Count,

@@ -111,7 +111,9 @@ public record GrupoDashboardCabecalhoDto(
     int TotalMembros,
     int TotalPartidas,
     DateTime? UltimaPartidaEm,
-    bool PodeEditar
+    bool PodeEditar,
+    bool PertenceAoGrupo,
+    bool PodeRegistrarPartida
 );
 
 public record GrupoDashboardResumoDto(

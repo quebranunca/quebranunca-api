@@ -65,6 +65,68 @@ public class GrupoServicoTests
     }
 
     [Fact]
+    public async Task ObterDashboardAsync_UsuarioMembro_HabilitaRegistroDePartida()
+    {
+        var grupo = new Grupo
+        {
+            Nome = "Grupo com membro",
+            DataInicio = DateTime.UtcNow,
+            Publico = true
+        };
+        var atleta = new Atleta { Nome = "Usuário Membro" };
+        var usuario = new Usuario
+        {
+            Nome = "Usuário Membro",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            AtletaId = atleta.Id
+        };
+        var membro = new GrupoAtleta
+        {
+            GrupoId = grupo.Id,
+            AtletaId = atleta.Id,
+            Atleta = atleta
+        };
+        var servico = CriarServico(
+            grupos: [grupo],
+            grupoAtletas: new GrupoAtletaRepositorioStub([membro]),
+            autorizacao: new AutorizacaoUsuarioServicoStub(usuario));
+
+        var dashboard = await servico.ObterDashboardAsync(grupo.Id);
+
+        Assert.True(dashboard.Grupo.PertenceAoGrupo);
+        Assert.True(dashboard.Grupo.PodeRegistrarPartida);
+    }
+
+    [Fact]
+    public async Task ObterDashboardAsync_UsuarioNaoMembroGrupoPublico_NaoHabilitaRegistroNemEdicao()
+    {
+        var grupo = new Grupo
+        {
+            Nome = "Grupo público",
+            DataInicio = DateTime.UtcNow,
+            Publico = true
+        };
+        var atleta = new Atleta { Nome = "Visitante" };
+        var usuario = new Usuario
+        {
+            Nome = "Visitante",
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            AtletaId = atleta.Id
+        };
+        var servico = CriarServico(
+            grupos: [grupo],
+            autorizacao: new AutorizacaoUsuarioServicoStub(usuario));
+
+        var dashboard = await servico.ObterDashboardAsync(grupo.Id);
+
+        Assert.False(dashboard.Grupo.PertenceAoGrupo);
+        Assert.False(dashboard.Grupo.PodeRegistrarPartida);
+        Assert.False(dashboard.Grupo.PodeEditar);
+    }
+
+    [Fact]
     public async Task ObterDashboardAsync_PartidaComAtletasSemFoto_RetornaAvataresNulos()
     {
         var grupo = new Grupo

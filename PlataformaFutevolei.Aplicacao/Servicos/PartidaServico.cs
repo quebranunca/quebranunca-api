@@ -805,6 +805,7 @@ public class PartidaServico(
             dto.DuplaBAtleta2Nome,
             null,
             validarPermissaoCategoria: true,
+            permitirAdministradorForaDoGrupo: false,
             cancellationToken
         );
 
@@ -950,6 +951,7 @@ public class PartidaServico(
             dto.DuplaBAtleta2Nome,
             metadadosLados,
             validarPermissaoCategoria: !PodeEditarPartida(usuarioAtual, partida),
+            permitirAdministradorForaDoGrupo: true,
             cancellationToken
         );
 
@@ -1068,6 +1070,7 @@ public class PartidaServico(
             dto.DuplaBAtleta2Nome,
             metadadosLados,
             validarPermissaoCategoria: false,
+            permitirAdministradorForaDoGrupo: true,
             cancellationToken
         );
 
@@ -1237,6 +1240,7 @@ public class PartidaServico(
         string? duplaBAtleta2Nome,
         MetadadosLados? metadadosLadosExistentes,
         bool validarPermissaoCategoria,
+        bool permitirAdministradorForaDoGrupo,
         CancellationToken cancellationToken
     )
     {
@@ -1284,7 +1288,7 @@ public class PartidaServico(
             var grupoEspecificoSelecionado = grupoEspecificoExistenteInformado && !EhGrupoGeral(grupo);
             if (grupoEspecificoSelecionado)
             {
-                await GarantirUsuarioPertenceAoGrupoAsync(grupo.Id, cancellationToken);
+                await GarantirUsuarioPertenceAoGrupoAsync(grupo.Id, permitirAdministradorForaDoGrupo, cancellationToken);
             }
 
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
@@ -1427,17 +1431,18 @@ public class PartidaServico(
 
     private async Task GarantirUsuarioPertenceAoGrupoAsync(
         Guid grupoId,
+        bool permitirAdministradorForaDoGrupo,
         CancellationToken cancellationToken)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (autorizacaoUsuarioServico.EhAdministrador(usuario))
+        if (permitirAdministradorForaDoGrupo && autorizacaoUsuarioServico.EhAdministrador(usuario))
         {
             return;
         }
 
         if (!usuario.AtletaId.HasValue)
         {
-            throw new RegraNegocioException("Você precisa fazer parte deste grupo para registrar partidas nele.");
+            throw new AcessoNegadoException("Você precisa fazer parte deste grupo para registrar partidas nele.");
         }
 
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(
@@ -1447,7 +1452,7 @@ public class PartidaServico(
 
         if (grupoAtleta is null)
         {
-            throw new RegraNegocioException("Você precisa fazer parte deste grupo para registrar partidas nele.");
+            throw new AcessoNegadoException("Você precisa fazer parte deste grupo para registrar partidas nele.");
         }
     }
 

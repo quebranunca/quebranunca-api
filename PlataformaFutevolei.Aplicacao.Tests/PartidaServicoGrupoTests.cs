@@ -64,7 +64,21 @@ public class PartidaServicoGrupoTests
     {
         var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
 
-        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+        var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>
+            CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id)));
+
+        Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+        Assert.Empty(cenario.GruposAtletas.Vinculos);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupo_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
+        cenario.Usuario.Perfil = PerfilUsuario.Administrador;
+
+        var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>
             CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id)));
 
         Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
@@ -730,7 +744,7 @@ public class PartidaServicoGrupoTests
         var partidaCriada = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
         cenario.Pendencias.PartidasInicializadas.Clear();
 
-        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+        var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>
             cenario.Servico.AtualizarBasicaAsync(
                 partidaCriada.Id,
                 cenario.AtualizarBasicaDto(22, 20, duplaVencedora: 1) with
