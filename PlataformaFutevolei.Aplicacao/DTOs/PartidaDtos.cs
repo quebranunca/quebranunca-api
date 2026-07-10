@@ -256,6 +256,43 @@ public record MidiaPartidaRespostaDto(
     string? MidiaTipo
 );
 
+public record SolicitarCancelamentoPartidaDto(
+    MotivoCancelamentoPartida? Motivo,
+    string? Observacao
+);
+
+public record ExcluirPartidaDefinitivamenteDto(
+    string? Motivo
+);
+
+public record RespostaCancelamentoPartidaPendenciaDto(
+    Guid PendenciaId,
+    Guid? AtletaId,
+    string? NomeAtleta,
+    StatusPendenciaUsuario Status,
+    bool UsuarioAtualPodeResponder
+);
+
+public record SolicitacaoCancelamentoPartidaDto(
+    Guid Id,
+    Guid PartidaId,
+    Guid SolicitadaPorUsuarioId,
+    string? NomeSolicitante,
+    DateTime SolicitadaEm,
+    Guid DuplaSolicitanteId,
+    Guid DuplaAdversariaId,
+    MotivoCancelamentoPartida Motivo,
+    string MotivoTexto,
+    string? Observacao,
+    StatusSolicitacaoCancelamentoPartida Status,
+    Guid? RespondidaPorUsuarioId,
+    string? NomeRespondente,
+    DateTime? RespondidaEm,
+    DateTime? CanceladaPeloSolicitanteEm,
+    string? RespostaUsuarioAtual,
+    IReadOnlyList<RespostaCancelamentoPartidaPendenciaDto> Pendencias
+);
+
 public record FeedPartidaDuplaDto(
     string? Atleta1Nome,
     string? Atleta2Nome
@@ -340,5 +377,15 @@ public record PartidaDto(
     DateTime DataAtualizacao,
     int QuantidadeAtletasPendentes,
     int QuantidadeAtletasPendentesSemEmail,
-    IReadOnlyList<PartidaAtletaPendenteDto> AtletasPendentes
+    IReadOnlyList<PartidaAtletaPendenteDto> AtletasPendentes,
+    bool Cancelada = false,
+    DateTime? CanceladaEm = null,
+    bool CancelamentoPendente = false,
+    SolicitacaoCancelamentoPartidaDto? SolicitacaoCancelamento = null,
+    bool PodeSolicitarCancelamento = false,
+    bool PodeResponderCancelamento = false,
+    bool PodeCancelarSolicitacao = false,
+    bool PodeEditar = false,
+    bool PodeExcluirDefinitivamente = false,
+    bool ExcluidaDefinitivamente = false
 );

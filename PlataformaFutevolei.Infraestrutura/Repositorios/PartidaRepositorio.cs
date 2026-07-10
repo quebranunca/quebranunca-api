@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
@@ -34,6 +35,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         return dbContext.Partidas
             .AsNoTracking()
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .CountAsync(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada, cancellationToken);
     }
 
@@ -100,6 +103,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         return await CriarConsultaDetalhadaPartidas()
             .Where(x => x.Status != StatusPartida.Agendada || x.DuplaAId.HasValue || x.DuplaBId.HasValue)
+            .Where(x => !x.Cancelada)
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
             .ThenByDescending(x => x.DataCriacao)
             .Skip(skip)
@@ -113,6 +117,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         CancellationToken cancellationToken = default)
     {
         return await CriarConsultaDetalhadaPartidas()
+            .Where(x => !x.Cancelada)
             .Where(x => (x.DataPartida ?? x.DataCriacao) >= inicioUtc)
             .Where(x => (x.DataPartida ?? x.DataCriacao) < fimUtc)
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
@@ -158,6 +163,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         return CriarConsultaDetalhadaPartidas()
             .Where(x => x.GrupoId == grupoId)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
             .Where(x => x.DuplaA != null && x.DuplaB != null)
             .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
@@ -173,6 +180,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         return CriarConsultaDetalhadaPartidas()
             .Where(x => x.GrupoId == grupoId)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
             .Where(x => x.DuplaA != null && x.DuplaB != null)
             .Where(x =>
@@ -191,6 +200,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         return await CriarConsultaDetalhadaPartidas()
             .Where(x => x.CriadoPorUsuarioId == usuarioId)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x =>
                 x.DuplaA != null &&
                 x.DuplaB != null &&
@@ -209,6 +220,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
     {
         return await CriarConsultaDetalhadaPartidas(usarNoTracking: false)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x => x.StatusAprovacao == StatusAprovacaoPartida.PendenteDeVinculos)
             .Where(x =>
                 x.DuplaA != null &&
@@ -321,6 +334,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
         var consulta = dbContext.Partidas
             .AsNoTracking()
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x =>
                 x.StatusAprovacao == StatusAprovacaoPartida.Aprovada ||
                 (x.GrupoId.HasValue ||
@@ -503,6 +518,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .AsNoTracking()
             .Where(x => x.Status == StatusPartida.Encerrada)
             .Where(x => x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
             .Where(x => x.DuplaA != null && x.DuplaB != null)
             .Where(x =>
@@ -548,6 +565,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
 
         var partidasDoAtleta = dbContext.Partidas
             .AsNoTracking()
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x =>
                 (x.DuplaAId.HasValue && duplasDoAtleta.Contains(x.DuplaAId.Value)) ||
                 (x.DuplaBId.HasValue && duplasDoAtleta.Contains(x.DuplaBId.Value)));
@@ -627,6 +646,15 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public async Task<Partida?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM partidas WHERE id = {id} FOR UPDATE",
+            cancellationToken);
+
+        return await ObterPorIdAsync(id, cancellationToken);
+    }
+
     public async Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default)
     {
         // A partida é persistida pelas FKs. Limpar as navegações evita que o EF tente
@@ -697,6 +725,7 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
                 .ThenInclude(x => x!.Competicao)
             .Include(x => x.Grupo)
             .Include(x => x.CriadoPorUsuario)
+            .Include(x => x.ExcluidaDefinitivamentePorUsuario)
             .Include(x => x.DuplaA)
                 .ThenInclude(x => x!.Atleta1)
                     .ThenInclude(x => x.Usuario)
@@ -709,7 +738,19 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
             .Include(x => x.DuplaB)
                 .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
-            .Include(x => x.DuplaVencedora);
+            .Include(x => x.DuplaVencedora)
+            .Include(x => x.SolicitacoesCancelamento)
+                .ThenInclude(x => x.SolicitadaPorUsuario)
+            .Include(x => x.SolicitacoesCancelamento)
+                .ThenInclude(x => x.RespondidaPorUsuario)
+            .Include(x => x.SolicitacoesCancelamento)
+                .ThenInclude(x => x.DuplaSolicitante)
+            .Include(x => x.SolicitacoesCancelamento)
+                .ThenInclude(x => x.DuplaAdversaria)
+            .Include(x => x.SolicitacoesCancelamento)
+                .ThenInclude(x => x.Pendencias)
+                    .ThenInclude(x => x.Atleta)
+            .SemExclusaoAdministrativa();
 
         return usarNoTracking ? consulta.AsNoTracking() : consulta;
     }
@@ -735,6 +776,8 @@ public class PartidaRepositorio(PlataformaFutevoleiDbContext dbContext) : IParti
                 .ThenInclude(x => x!.Atleta2)
                     .ThenInclude(x => x.Usuario)
             .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm == null)
             .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
             .Where(x => x.DuplaA != null && x.DuplaB != null);
     }

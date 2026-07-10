@@ -152,6 +152,23 @@ public class RankingServicoGrupoTests
     }
 
     [Fact]
+    public async Task ListarAtletasPorGrupoAsync_PartidaCancelada_NaoEntraNoRanking()
+    {
+        var cenario = Cenario.Criar();
+        var vencedor1 = cenario.CriarAtleta("Vencedor Um");
+        var vencedor2 = cenario.CriarAtleta("Vencedor Dois");
+        var perdedor1 = cenario.CriarAtleta("Perdedor Um");
+        var perdedor2 = cenario.CriarAtleta("Perdedor Dois");
+        var partidaCancelada = cenario.AdicionarPartida(vencedor1, vencedor2, perdedor1, perdedor2);
+        partidaCancelada.Cancelada = true;
+        partidaCancelada.CanceladaEm = DateTime.UtcNow;
+
+        var ranking = await cenario.Servico.ListarAtletasPorGrupoAsync(cenario.Grupo.Id);
+
+        Assert.Empty(ranking);
+    }
+
+    [Fact]
     public async Task ListarAtletasPorGrupoAsync_PendenteDeVinculosContaComoPontuacaoPendente()
     {
         var cenario = Cenario.Criar();
@@ -312,7 +329,7 @@ public class RankingServicoGrupoTests
                 Atleta = atleta
             });
 
-        public void AdicionarPartida(
+        public Partida AdicionarPartida(
             Atleta duplaAAtleta1,
             Atleta duplaAAtleta2,
             Atleta duplaBAtleta1,
@@ -354,6 +371,7 @@ public class RankingServicoGrupoTests
             }
 
             partidas.Add(partida);
+            return partida;
         }
 
         public async Task<RankingCategoriaDto> ObterRankingGrupoAsync()

@@ -16,6 +16,7 @@ public record PendenciaUsuarioDto(
     string? EmailAtleta,
     bool? AtletaPossuiUsuarioVinculado,
     Guid? PartidaId,
+    Guid? SolicitacaoCancelamentoPartidaId,
     DateTime? DataPartida,
     StatusPartida? StatusPartida,
     StatusAprovacaoPartida? StatusAprovacaoPartida,

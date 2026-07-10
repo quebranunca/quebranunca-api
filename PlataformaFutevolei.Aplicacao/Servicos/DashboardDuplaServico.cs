@@ -3,6 +3,7 @@ using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
@@ -57,8 +58,7 @@ public class DashboardDuplaServico(
 
     private static bool PartidaContaParaDashboard(Partida partida)
     {
-        return partida.Status == StatusPartida.Encerrada &&
-            partida.StatusAprovacao != StatusAprovacaoPartida.Contestada &&
+        return partida.EsportivamenteValida() &&
             partida.DuplaVencedoraId.HasValue &&
             partida.DuplaA is not null &&
             partida.DuplaB is not null;

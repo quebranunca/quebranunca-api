@@ -44,6 +44,12 @@ public class Partida : EntidadeBase
     public string? MidiaPublicId { get; set; }
     public MidiaPartidaTipo? MidiaTipo { get; set; }
     public string? Observacoes { get; set; }
+    public bool Cancelada { get; set; }
+    public DateTime? CanceladaEm { get; set; }
+    public Guid? SolicitacaoCancelamentoOrigemId { get; set; }
+    public DateTime? ExcluidaDefinitivamenteEm { get; set; }
+    public Guid? ExcluidaDefinitivamentePorUsuarioId { get; set; }
+    public string? MotivoExclusaoDefinitiva { get; set; }
 
     public CategoriaCompeticao? CategoriaCompeticao { get; set; }
     public Grupo? Grupo { get; set; }
@@ -51,8 +57,10 @@ public class Partida : EntidadeBase
     public Dupla? DuplaA { get; set; }
     public Dupla? DuplaB { get; set; }
     public Dupla? DuplaVencedora { get; set; }
+    public Usuario? ExcluidaDefinitivamentePorUsuario { get; set; }
     public ICollection<PartidaAprovacao> Aprovacoes { get; set; } = new List<PartidaAprovacao>();
     public ICollection<PendenciaUsuario> Pendencias { get; set; } = new List<PendenciaUsuario>();
+    public ICollection<SolicitacaoCancelamentoPartida> SolicitacoesCancelamento { get; set; } = new List<SolicitacaoCancelamentoPartida>();
 
     public bool PossuiParticipantesDefinidos() => DuplaAId.HasValue && DuplaBId.HasValue;
 

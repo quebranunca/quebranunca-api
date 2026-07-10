@@ -4,5 +4,6 @@ public enum TipoPendenciaUsuario
 {
     AprovarPartida = 1,
     CompletarContatoAtletaDaPartida = 2,
-    ConfirmarParticipacaoPartida = 3
+    ConfirmarParticipacaoPartida = 3,
+    ResponderCancelamentoPartida = 4
 }

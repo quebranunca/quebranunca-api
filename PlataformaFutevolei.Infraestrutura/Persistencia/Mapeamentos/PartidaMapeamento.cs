@@ -66,6 +66,12 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
         builder.Property(x => x.MidiaPublicId).HasColumnName("midia_public_id").HasMaxLength(255);
         builder.Property(x => x.MidiaTipo).HasColumnName("midia_tipo").HasConversion<int>();
         builder.Property(x => x.Observacoes).HasColumnName("observacoes").HasMaxLength(1000);
+        builder.Property(x => x.Cancelada).HasColumnName("cancelada").HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.CanceladaEm).HasColumnName("cancelada_em");
+        builder.Property(x => x.SolicitacaoCancelamentoOrigemId).HasColumnName("solicitacao_cancelamento_origem_id");
+        builder.Property(x => x.ExcluidaDefinitivamenteEm).HasColumnName("excluida_definitivamente_em");
+        builder.Property(x => x.ExcluidaDefinitivamentePorUsuarioId).HasColumnName("excluida_definitivamente_por_usuario_id");
+        builder.Property(x => x.MotivoExclusaoDefinitiva).HasColumnName("motivo_exclusao_definitiva").HasMaxLength(200);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
@@ -99,12 +105,20 @@ public class PartidaMapeamento : IEntityTypeConfiguration<Partida>
             .HasForeignKey(x => x.DuplaVencedoraId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.ExcluidaDefinitivamentePorUsuario)
+            .WithMany()
+            .HasForeignKey(x => x.ExcluidaDefinitivamentePorUsuarioId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.CategoriaCompeticaoId);
         builder.HasIndex(x => x.GrupoId);
         builder.HasIndex(x => x.CriadoPorUsuarioId);
         builder.HasIndex(x => x.DuplaAId);
         builder.HasIndex(x => x.DuplaBId);
         builder.HasIndex(x => x.DuplaVencedoraId);
+        builder.HasIndex(x => x.Cancelada);
+        builder.HasIndex(x => x.SolicitacaoCancelamentoOrigemId);
+        builder.HasIndex(x => x.ExcluidaDefinitivamentePorUsuarioId);
         builder.HasIndex(x => x.LadoDaChave);
         builder.HasIndex(x => x.PartidaOrigemParticipanteAId);
         builder.HasIndex(x => x.PartidaOrigemParticipanteBId);

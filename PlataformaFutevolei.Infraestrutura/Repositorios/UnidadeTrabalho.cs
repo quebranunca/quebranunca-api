@@ -35,7 +35,7 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
         await transacao.CommitAsync(cancellationToken);
     }
 
-    private static RegraNegocioException? CriarExcecaoRegraNegocio(DbUpdateException excecao)
+    private static Exception? CriarExcecaoRegraNegocio(DbUpdateException excecao)
     {
         if (excecao.InnerException is not PostgresException postgresException ||
             postgresException.SqlState != PostgresErrorCodes.UniqueViolation)
@@ -53,6 +53,10 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
                 new RegraNegocioException("Esta dupla já existe."),
             "ix_partidas_aprovacoes_partida_id_atleta_id" =>
                 new RegraNegocioException("A aprovação desta partida já existe para o atleta."),
+            "ix_solicitacoes_cancelamento_partidas_partida_pendente" =>
+                new ConflitoEstadoException("Já existe uma solicitação de cancelamento pendente para esta partida."),
+            "ix_pendencias_usuarios_cancelamento_atleta" =>
+                new ConflitoEstadoException("Esta pendência de cancelamento já foi criada para o atleta."),
             "ix_extratos_pontuacao_beneficio_chave_idempotencia" =>
                 new RegraNegocioException("Esta movimentação de Pontos QN já foi processada."),
             _ => new RegraNegocioException("Já existe um registro com estes dados.")

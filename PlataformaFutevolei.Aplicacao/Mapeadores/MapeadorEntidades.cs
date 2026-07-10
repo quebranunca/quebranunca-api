@@ -401,7 +401,7 @@ internal static class MapeadorEntidades
         );
     }
 
-    public static PartidaDto ParaDto(this Partida partida)
+    public static PartidaDto ParaDto(this Partida partida, Usuario? usuarioAtual = null)
     {
         var metadadosLados = ExtrairMetadadosLados(partida.Observacoes);
         var duplaAAtleta1Id = ResolverAtletaIdExibicao(partida.DuplaA, metadadosLados?.DuplaADireitaId, partida.DuplaA?.Atleta1Id);
@@ -409,6 +409,8 @@ internal static class MapeadorEntidades
         var duplaBAtleta1Id = ResolverAtletaIdExibicao(partida.DuplaB, metadadosLados?.DuplaBDireitaId, partida.DuplaB?.Atleta1Id);
         var duplaBAtleta2Id = ResolverAtletaIdExibicao(partida.DuplaB, metadadosLados?.DuplaBEsquerdaId, partida.DuplaB?.Atleta2Id);
         var atletasPendentes = ObterAtletasPendentesPartida(partida);
+        var solicitacaoCancelamento = ObterSolicitacaoCancelamentoRelevante(partida);
+        var cancelamentoPendente = solicitacaoCancelamento?.Status == StatusSolicitacaoCancelamentoPartida.Pendente;
 
         return new PartidaDto(
             partida.Id,
@@ -465,8 +467,50 @@ internal static class MapeadorEntidades
             partida.DataAtualizacao,
             atletasPendentes.Count,
             atletasPendentes.Count(x => !x.TemEmail),
-            atletasPendentes
+            atletasPendentes,
+            partida.Cancelada,
+            partida.CanceladaEm,
+            cancelamentoPendente,
+            solicitacaoCancelamento?.ParaDto(usuarioAtual),
+            PodeSolicitarCancelamento(partida, solicitacaoCancelamento, usuarioAtual),
+            PodeResponderCancelamento(solicitacaoCancelamento, usuarioAtual),
+            PodeCancelarSolicitacaoCancelamento(solicitacaoCancelamento, usuarioAtual),
+            PodeEditarPartida(partida, solicitacaoCancelamento, usuarioAtual),
+            PodeExcluirDefinitivamentePartida(partida, usuarioAtual),
+            partida.ExcluidaDefinitivamenteEm.HasValue
         );
+    }
+
+    public static SolicitacaoCancelamentoPartidaDto ParaDto(
+        this SolicitacaoCancelamentoPartida solicitacao,
+        Usuario? usuarioAtual = null)
+    {
+        return new SolicitacaoCancelamentoPartidaDto(
+            solicitacao.Id,
+            solicitacao.PartidaId,
+            solicitacao.SolicitadaPorUsuarioId,
+            solicitacao.SolicitadaPorUsuario?.Nome,
+            solicitacao.SolicitadaEm,
+            solicitacao.DuplaSolicitanteId,
+            solicitacao.DuplaAdversariaId,
+            solicitacao.Motivo,
+            ObterTextoMotivoCancelamento(solicitacao.Motivo),
+            solicitacao.Observacao,
+            solicitacao.Status,
+            solicitacao.RespondidaPorUsuarioId,
+            solicitacao.RespondidaPorUsuario?.Nome,
+            solicitacao.RespondidaEm,
+            solicitacao.CanceladaPeloSolicitanteEm,
+            ObterRespostaCancelamentoUsuarioAtual(solicitacao, usuarioAtual),
+            solicitacao.Pendencias
+                .OrderBy(x => x.DataCriacao)
+                .Select(x => new RespostaCancelamentoPartidaPendenciaDto(
+                    x.Id,
+                    x.AtletaId,
+                    x.Atleta?.Nome,
+                    x.Status,
+                    PodeResponderPendenciaCancelamento(solicitacao, x, usuarioAtual)))
+                .ToList());
     }
 
     public static PendenciaUsuarioDto ParaDto(this PendenciaUsuario pendencia)
@@ -484,6 +528,7 @@ internal static class MapeadorEntidades
             pendencia.EmailInformado ?? pendencia.Atleta?.Email,
             pendencia.Atleta is null ? null : StatusCadastroAtletaUtil.PossuiUsuarioVinculado(pendencia.Atleta),
             pendencia.PartidaId,
+            pendencia.SolicitacaoCancelamentoPartidaId,
             pendencia.Partida?.DataPartida,
             pendencia.Partida?.Status,
             pendencia.Partida?.StatusAprovacao,
@@ -527,9 +572,113 @@ internal static class MapeadorEntidades
         {
             TipoPendenciaUsuario.AprovarPartida => PrioridadePendenciaUsuario.Alta,
             TipoPendenciaUsuario.ConfirmarParticipacaoPartida => PrioridadePendenciaUsuario.Alta,
+            TipoPendenciaUsuario.ResponderCancelamentoPartida => PrioridadePendenciaUsuario.Alta,
             TipoPendenciaUsuario.CompletarContatoAtletaDaPartida => PrioridadePendenciaUsuario.Media,
             _ => PrioridadePendenciaUsuario.Baixa
         };
+
+    private static SolicitacaoCancelamentoPartida? ObterSolicitacaoCancelamentoRelevante(Partida partida)
+        => partida.SolicitacoesCancelamento
+            .OrderByDescending(x => x.Status == StatusSolicitacaoCancelamentoPartida.Pendente)
+            .ThenByDescending(x => x.DataCriacao)
+            .FirstOrDefault();
+
+    private static bool PodeSolicitarCancelamento(
+        Partida partida,
+        SolicitacaoCancelamentoPartida? solicitacaoCancelamento,
+        Usuario? usuarioAtual)
+    {
+        return usuarioAtual?.AtletaId is Guid atletaId &&
+               partida.Status == StatusPartida.Encerrada &&
+               !partida.Cancelada &&
+               partida.ExcluidaDefinitivamenteEm is null &&
+               solicitacaoCancelamento?.Status != StatusSolicitacaoCancelamentoPartida.Pendente &&
+               AtletaParticipaDaPartida(partida, atletaId);
+    }
+
+    private static bool PodeResponderCancelamento(SolicitacaoCancelamentoPartida? solicitacao, Usuario? usuarioAtual)
+        => solicitacao?.Status == StatusSolicitacaoCancelamentoPartida.Pendente &&
+           usuarioAtual?.AtletaId is Guid atletaId &&
+           DuplaContemAtleta(solicitacao.DuplaAdversaria, atletaId);
+
+    private static bool PodeResponderPendenciaCancelamento(
+        SolicitacaoCancelamentoPartida solicitacao,
+        PendenciaUsuario pendencia,
+        Usuario? usuarioAtual)
+    {
+        return solicitacao.Status == StatusSolicitacaoCancelamentoPartida.Pendente &&
+               pendencia.Status == StatusPendenciaUsuario.Pendente &&
+               pendencia.UsuarioId == usuarioAtual?.Id;
+    }
+
+    private static bool PodeCancelarSolicitacaoCancelamento(SolicitacaoCancelamentoPartida? solicitacao, Usuario? usuarioAtual)
+        => solicitacao?.Status == StatusSolicitacaoCancelamentoPartida.Pendente &&
+           solicitacao.SolicitadaPorUsuarioId == usuarioAtual?.Id;
+
+    private static bool PodeEditarPartida(
+        Partida partida,
+        SolicitacaoCancelamentoPartida? solicitacaoCancelamento,
+        Usuario? usuarioAtual)
+    {
+        return usuarioAtual is not null &&
+               !partida.Cancelada &&
+               partida.ExcluidaDefinitivamenteEm is null &&
+               solicitacaoCancelamento?.Status != StatusSolicitacaoCancelamentoPartida.Pendente &&
+               (usuarioAtual.Perfil == PerfilUsuario.Administrador || partida.CriadoPorUsuarioId == usuarioAtual.Id);
+    }
+
+    private static bool PodeExcluirDefinitivamentePartida(Partida partida, Usuario? usuarioAtual)
+        => usuarioAtual?.Perfil == PerfilUsuario.Administrador &&
+           partida.Cancelada &&
+           partida.ExcluidaDefinitivamenteEm is null;
+
+    private static string? ObterRespostaCancelamentoUsuarioAtual(
+        SolicitacaoCancelamentoPartida solicitacao,
+        Usuario? usuarioAtual)
+    {
+        if (usuarioAtual is null)
+        {
+            return null;
+        }
+
+        if (solicitacao.RespondidaPorUsuarioId == usuarioAtual.Id)
+        {
+            return solicitacao.Status == StatusSolicitacaoCancelamentoPartida.Aprovada
+                ? "Aprovou"
+                : solicitacao.Status == StatusSolicitacaoCancelamentoPartida.Recusada
+                    ? "Recusou"
+                    : null;
+        }
+
+        var pendencia = solicitacao.Pendencias.FirstOrDefault(x => x.UsuarioId == usuarioAtual.Id);
+        return pendencia?.Status switch
+        {
+            StatusPendenciaUsuario.Pendente => "AguardandoResposta",
+            StatusPendenciaUsuario.Cancelada => "EncerradaSemResposta",
+            StatusPendenciaUsuario.Concluida => "Respondida",
+            _ => null
+        };
+    }
+
+    private static string ObterTextoMotivoCancelamento(MotivoCancelamentoPartida motivo)
+        => motivo switch
+        {
+            MotivoCancelamentoPartida.PartidaDuplicada => "Partida duplicada",
+            MotivoCancelamentoPartida.JogoNaoAconteceu => "Jogo não aconteceu",
+            MotivoCancelamentoPartida.AtletasIncorretos => "Atletas incorretos",
+            MotivoCancelamentoPartida.ResultadoIncorreto => "Resultado incorreto",
+            MotivoCancelamentoPartida.GrupoIncorreto => "Grupo incorreto",
+            MotivoCancelamentoPartida.Outro => "Outro motivo",
+            _ => "Outro motivo"
+        };
+
+    private static bool AtletaParticipaDaPartida(Partida partida, Guid atletaId)
+        => DuplaContemAtleta(partida.DuplaA, atletaId) ||
+           DuplaContemAtleta(partida.DuplaB, atletaId);
+
+    private static bool DuplaContemAtleta(Dupla? dupla, Guid atletaId)
+        => dupla is not null &&
+           (dupla.Atleta1Id == atletaId || dupla.Atleta2Id == atletaId);
 
     public static InscricaoCampeonatoDto ParaDto(this InscricaoCampeonato inscricao)
         => new(

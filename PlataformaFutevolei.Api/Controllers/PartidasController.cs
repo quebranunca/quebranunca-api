@@ -8,7 +8,9 @@ namespace PlataformaFutevolei.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/partidas")]
-public class PartidasController(IPartidaServico partidaServico) : ControllerBase
+public class PartidasController(
+    IPartidaServico partidaServico,
+    IPartidaCancelamentoServico partidaCancelamentoServico) : ControllerBase
 {
     private const long LimiteUploadMidiaPartidaBytes = 100L * 1024 * 1024;
 
@@ -194,11 +196,70 @@ public class PartidasController(IPartidaServico partidaServico) : ControllerBase
         return Ok(partida);
     }
 
+    [HttpPost("{id:guid}/solicitacoes-cancelamento")]
+    [ProducesResponseType(typeof(SolicitacaoCancelamentoPartidaDto), StatusCodes.Status201Created)]
+    public async Task<IActionResult> SolicitarCancelamento(
+        Guid id,
+        [FromBody] SolicitarCancelamentoPartidaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var solicitacao = await partidaCancelamentoServico.SolicitarAsync(id, dto, cancellationToken);
+        return CreatedAtAction(nameof(ObterSolicitacaoCancelamento), new { id }, solicitacao);
+    }
+
+    [HttpGet("{id:guid}/solicitacao-cancelamento")]
+    [ProducesResponseType(typeof(SolicitacaoCancelamentoPartidaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObterSolicitacaoCancelamento(Guid id, CancellationToken cancellationToken)
+    {
+        var solicitacao = await partidaCancelamentoServico.ObterAtualAsync(id, cancellationToken);
+        return solicitacao is null ? NotFound() : Ok(solicitacao);
+    }
+
+    [HttpPost("{id:guid}/solicitacoes-cancelamento/{solicitacaoId:guid}/aprovar")]
+    [ProducesResponseType(typeof(SolicitacaoCancelamentoPartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AprovarCancelamento(
+        Guid id,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken)
+    {
+        var solicitacao = await partidaCancelamentoServico.AprovarAsync(id, solicitacaoId, cancellationToken);
+        return Ok(solicitacao);
+    }
+
+    [HttpPost("{id:guid}/solicitacoes-cancelamento/{solicitacaoId:guid}/recusar")]
+    [ProducesResponseType(typeof(SolicitacaoCancelamentoPartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RecusarCancelamento(
+        Guid id,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken)
+    {
+        var solicitacao = await partidaCancelamentoServico.RecusarAsync(id, solicitacaoId, cancellationToken);
+        return Ok(solicitacao);
+    }
+
+    [HttpPost("{id:guid}/solicitacoes-cancelamento/{solicitacaoId:guid}/cancelar")]
+    [ProducesResponseType(typeof(SolicitacaoCancelamentoPartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CancelarSolicitacaoCancelamento(
+        Guid id,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken)
+    {
+        var solicitacao = await partidaCancelamentoServico.CancelarSolicitacaoAsync(id, solicitacaoId, cancellationToken);
+        return Ok(solicitacao);
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Remover(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Remover(
+        Guid id,
+        [FromBody] ExcluirPartidaDefinitivamenteDto? dto,
+        CancellationToken cancellationToken)
     {
-        await partidaServico.RemoverAsync(id, cancellationToken);
+        await partidaCancelamentoServico.ExcluirDefinitivamenteAsync(
+            id,
+            dto ?? new ExcluirPartidaDefinitivamenteDto(null),
+            cancellationToken);
         return NoContent();
     }
 }

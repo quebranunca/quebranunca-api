@@ -916,6 +916,8 @@ public class PontuacaoBeneficioServico(
         return partida is
         {
             Ativa: true,
+            Cancelada: false,
+            ExcluidaDefinitivamenteEm: null,
             Status: StatusPartida.Encerrada,
             StatusAprovacao: StatusAprovacaoPartida.Aprovada,
             DuplaA: not null,

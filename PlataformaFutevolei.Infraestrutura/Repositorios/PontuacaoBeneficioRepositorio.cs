@@ -172,6 +172,8 @@ public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContex
                 x.Ativa &&
                 x.Status == StatusPartida.Encerrada &&
                 x.StatusAprovacao == StatusAprovacaoPartida.Aprovada &&
+                !x.Cancelada &&
+                x.ExcluidaDefinitivamenteEm == null &&
                 x.DuplaAId != null &&
                 x.DuplaBId != null &&
                 x.DuplaVencedoraId != null)

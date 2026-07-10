@@ -57,6 +57,23 @@ public class DashboardAtletaServicoTests
     }
 
     [Fact]
+    public async Task ObterResumoAsync_PartidaCancelada_IgnoraNoHistoricoEsportivo()
+    {
+        var atleta = new Atleta { Nome = "Ana Silva", Apelido = "Ana" };
+        var parceiro = new Atleta { Nome = "Bruno Costa", Apelido = "Bruno" };
+        var rival1 = new Atleta { Nome = "Carlos Lima", Apelido = "Carlos" };
+        var rival2 = new Atleta { Nome = "Daniel Rocha", Apelido = "Daniel" };
+        var partida = CriarPartidaEncerrada(atleta, parceiro, rival1, rival2, atletaVenceu: true, placarA: 18, placarB: 12);
+        partida.Cancelada = true;
+        partida.CanceladaEm = DateTime.UtcNow;
+        var servico = CriarServico(atleta: atleta, partidas: [partida]);
+
+        var resumo = await servico.ObterResumoAsync();
+
+        AssertResumoZerado(resumo);
+    }
+
+    [Fact]
     public async Task ObterDashboardAsync_AtletaComPartidaSemRanking_NaoGeraErro()
     {
         var atleta = new Atleta { Nome = "Ana Silva" };

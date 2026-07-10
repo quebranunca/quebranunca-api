@@ -199,8 +199,7 @@ public class DashboardAtletaServico(
 
     private bool PartidaContaParaDashboard(Guid atletaId, Partida partida, string? endpoint)
     {
-        var partidaTemDadosBasicos = partida.Status == StatusPartida.Encerrada &&
-            partida.StatusAprovacao != StatusAprovacaoPartida.Contestada &&
+        var partidaTemDadosBasicos = partida.EsportivamenteValida() &&
             partida.DuplaVencedoraId.HasValue &&
             partida.DuplaA is not null &&
             partida.DuplaB is not null;

@@ -328,9 +328,21 @@ public interface IPartidaRepositorio
         CancellationToken cancellationToken = default);
     Task<UsuarioResumoDto> ObterResumoUsuarioPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<Partida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Partida?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default)
+        => ObterPorIdAsync(id, cancellationToken);
     Task AdicionarAsync(Partida partida, CancellationToken cancellationToken = default);
     void Atualizar(Partida partida);
     void Remover(Partida partida);
+}
+
+public interface ISolicitacaoCancelamentoPartidaRepositorio
+{
+    Task<SolicitacaoCancelamentoPartida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<SolicitacaoCancelamentoPartida?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<SolicitacaoCancelamentoPartida?> ObterPendentePorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SolicitacaoCancelamentoPartida>> ListarPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(SolicitacaoCancelamentoPartida solicitacao, CancellationToken cancellationToken = default);
+    void Atualizar(SolicitacaoCancelamentoPartida solicitacao);
 }
 
 public interface IPartidaAprovacaoRepositorio

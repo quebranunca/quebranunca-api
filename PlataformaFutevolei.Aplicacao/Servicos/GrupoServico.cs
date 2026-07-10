@@ -72,7 +72,7 @@ public class GrupoServico(
         var partidas = await partidaRepositorio.ListarPorGrupoAsync(id, cancellationToken);
         var ranking = await rankingServico.ListarAtletasPorGrupoAsync(id, cancellationToken);
         var partidasEncerradas = partidas
-            .Where(x => x.Status == StatusPartida.Encerrada && x.StatusAprovacao != StatusAprovacaoPartida.Contestada)
+            .Where(x => x.EsportivamenteValida())
             .ToList();
         var ultimaPartidaEm = partidasEncerradas
             .Select(x => x.DataPartida ?? x.DataCriacao)

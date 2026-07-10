@@ -254,6 +254,38 @@ public interface IPartidaServico
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
+public interface IPartidaCancelamentoServico
+{
+    Task<SolicitacaoCancelamentoPartidaDto> SolicitarAsync(
+        Guid partidaId,
+        SolicitarCancelamentoPartidaDto dto,
+        CancellationToken cancellationToken = default);
+
+    Task<SolicitacaoCancelamentoPartidaDto?> ObterAtualAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default);
+
+    Task<SolicitacaoCancelamentoPartidaDto> AprovarAsync(
+        Guid partidaId,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken = default);
+
+    Task<SolicitacaoCancelamentoPartidaDto> RecusarAsync(
+        Guid partidaId,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken = default);
+
+    Task<SolicitacaoCancelamentoPartidaDto> CancelarSolicitacaoAsync(
+        Guid partidaId,
+        Guid solicitacaoId,
+        CancellationToken cancellationToken = default);
+
+    Task ExcluirDefinitivamenteAsync(
+        Guid partidaId,
+        ExcluirPartidaDefinitivamenteDto dto,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IPendenciaServico
 {
     Task<IReadOnlyList<PendenciaUsuarioDto>> ListarMinhasAsync(CancellationToken cancellationToken = default);

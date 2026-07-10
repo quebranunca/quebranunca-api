@@ -59,7 +59,8 @@ public class RankingServico(
     public async Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasGeralAsync(
         CancellationToken cancellationToken = default)
     {
-        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken));
 
         var rankingGeral = MontarRankingConsolidado(
             Guid.Empty,
@@ -81,17 +82,20 @@ public class RankingServico(
             throw new EntidadeNaoEncontradaException("Liga não encontrada.");
         }
 
-        var partidas = await partidaRepositorio.ListarParaRankingPorLigaAsync(ligaId, cancellationToken);
-        var partidasSemCompeticaoOuCategoria = await partidaRepositorio.ListarParaRankingSemCompeticaoOuCategoriaAsync(
-            null,
-            cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingPorLigaAsync(ligaId, cancellationToken));
+        var partidasSemCompeticaoOuCategoria = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingSemCompeticaoOuCategoriaAsync(
+                null,
+                cancellationToken));
         return MontarRankingLiga(ligaId, liga.Nome, partidas, partidasSemCompeticaoOuCategoria);
     }
 
     public async Task<RankingRegiaoFiltroDto> ListarRegioesDisponiveisAsync(
         CancellationToken cancellationToken = default)
     {
-        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken));
         var atletas = partidas
             .SelectMany(EnumerarAtletasRanking)
             .Where(EhCadastroCompleto)
@@ -135,7 +139,8 @@ public class RankingServico(
         string? bairro,
         CancellationToken cancellationToken = default)
     {
-        var partidas = await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken));
         var ranking = MontarRankingRegiao(
             partidas,
             NormalizarFiltroRegiao(estado),
@@ -155,7 +160,8 @@ public class RankingServico(
             throw new EntidadeNaoEncontradaException("Competição não encontrada.");
         }
 
-        var partidas = await partidaRepositorio.ListarParaRankingPorCompeticaoAsync(competicaoId, cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingPorCompeticaoAsync(competicaoId, cancellationToken));
         return MontarRankingPorCategoria(partidas);
     }
 
@@ -175,7 +181,8 @@ public class RankingServico(
             .Where(x => x is not null)
             .DistinctBy(x => x.Id)
             .ToList();
-        var partidas = await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId, cancellationToken);
+        var partidas = FiltrarPartidasEsportivamenteValidas(
+            await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId, cancellationToken));
         var ranking = MontarRankingConsolidado(
             grupo.Id,
             grupo.Id,
@@ -206,6 +213,15 @@ public class RankingServico(
 
         return partida.CalcularPontosRankingVitoria(partida.CategoriaCompeticao?.PesoRanking);
     }
+
+    private static IReadOnlyList<Partida> FiltrarPartidasEsportivamenteValidas(IReadOnlyList<Partida> partidas)
+        => partidas
+            .Where(x => x.Status == StatusPartida.Encerrada)
+            .Where(x => !x.Cancelada)
+            .Where(x => x.ExcluidaDefinitivamenteEm is null)
+            .Where(x => x.DuplaAId.HasValue && x.DuplaBId.HasValue)
+            .Where(x => x.DuplaA is not null && x.DuplaB is not null)
+            .ToList();
 
     private static decimal ObterPontosDerrotaRanking(Partida partida)
     {

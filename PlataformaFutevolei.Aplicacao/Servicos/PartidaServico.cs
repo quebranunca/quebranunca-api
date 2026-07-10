@@ -28,6 +28,7 @@ public class PartidaServico(
     IRankingServico rankingServico,
     IMidiaPartidaService midiaPartidaService,
     IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null,
+    ISolicitacaoCancelamentoPartidaRepositorio? solicitacaoCancelamentoRepositorio = null,
     PartidaDuplicidadeOpcoes? partidaDuplicidadeOpcoes = null
 ) : IPartidaServico
 {
@@ -50,22 +51,25 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         await ObterGrupoParaConsultaPublicaAsync(grupoId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         await ObterCategoriaParaConsultaPublicaAsync(categoriaId, cancellationToken);
         var partidas = await partidaRepositorio.ListarPorCategoriaAsync(categoriaId, cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarMinhasAsync(CancellationToken cancellationToken = default)
@@ -77,21 +81,21 @@ public class PartidaServico(
         }
 
         var partidas = await partidaRepositorio.ListarPorAtletaAsync(usuario.AtletaId.Value, cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarRegistradasPorMimAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var partidas = await partidaRepositorio.ListarPorUsuarioCriadorAsync(usuario.Id, cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<PartidaDto>> ListarAdministracaoAsync(CancellationToken cancellationToken = default)
     {
-        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterAdministradorAtualObrigatorioAsync(cancellationToken);
         var partidas = await partidaRepositorio.ListarAdministracaoAsync(cancellationToken);
-        return partidas.Select(x => x.ParaDto()).ToList();
+        return partidas.Select(x => x.ParaDto(usuario)).ToList();
     }
 
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
@@ -139,13 +143,14 @@ public class PartidaServico(
 
     public async Task<PartidaDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualAsync(cancellationToken);
         var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
         if (partida is null)
         {
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        return partida.ParaDto();
+        return partida.ParaDto(usuario);
     }
 
     public async Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default)
@@ -219,6 +224,7 @@ public class PartidaServico(
         }
 
         GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+        await GarantirPartidaEditavelQuantoAoCancelamentoAsync(partida, cancellationToken);
 
         var publicIdAnterior = partida.MidiaPublicId;
         var tipoAnterior = partida.MidiaTipo;
@@ -246,6 +252,7 @@ public class PartidaServico(
         }
 
         GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+        await GarantirPartidaEditavelQuantoAoCancelamentoAsync(partida, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
         {
@@ -334,6 +341,8 @@ public class PartidaServico(
         => partida.Ativa &&
            partida.Status == StatusPartida.Encerrada &&
            partida.StatusAprovacao != StatusAprovacaoPartida.Contestada &&
+           !partida.Cancelada &&
+           partida.ExcluidaDefinitivamenteEm is null &&
            partida.DuplaA is not null &&
            partida.DuplaB is not null;
 
@@ -864,7 +873,7 @@ public class PartidaServico(
 
         return new CriarPartidaResultadoDto(
             StatusCriacaoPartida.Criada,
-            partidaCriada!.ParaDto(),
+            partidaCriada!.ParaDto(usuarioAtual),
             null,
             null,
             null);
@@ -911,6 +920,7 @@ public class PartidaServico(
         }
 
         GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+        await GarantirPartidaEditavelQuantoAoCancelamentoAsync(partida, cancellationToken);
         var categoriaOriginalId = partida.CategoriaCompeticaoId;
         var duplaOriginalAId = partida.DuplaAId;
         var duplaOriginalBId = partida.DuplaBId;
@@ -1006,7 +1016,7 @@ public class PartidaServico(
                 cancellationToken);
         }
 
-        return partidaAtualizada!.ParaDto();
+        return partidaAtualizada!.ParaDto(usuarioAtual);
     }
 
     public async Task<PartidaDto> AtualizarBasicaAsync(Guid id, AtualizarPartidaBasicaDto dto, CancellationToken cancellationToken = default)
@@ -1019,6 +1029,7 @@ public class PartidaServico(
         }
 
         GarantirPermissaoEdicaoPartida(usuarioAtual, partida);
+        await GarantirPartidaEditavelQuantoAoCancelamentoAsync(partida, cancellationToken);
 
         var metadadosChave = ExtrairMetadadosChave(partida.Observacoes);
         var metadadosRodada = ExtrairMetadadosRodada(partida.Observacoes);
@@ -1114,31 +1125,13 @@ public class PartidaServico(
                 cancellationToken);
         }
 
-        return partidaAtualizada!.ParaDto();
+        return partidaAtualizada!.ParaDto(usuarioAtual);
     }
 
     public async Task RemoverAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
-
-        var partida = await partidaRepositorio.ObterPorIdAsync(id, cancellationToken);
-        if (partida is null)
-        {
-            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(partida.MidiaPublicId))
-        {
-            await midiaPartidaService.RemoverAsync(partida.MidiaPublicId, partida.MidiaTipo, cancellationToken);
-        }
-
-        if (pontuacaoBeneficioServico is not null)
-        {
-            await pontuacaoBeneficioServico.EstornarPartidaAsync(partida.Id, cancellationToken);
-        }
-
-        partidaRepositorio.Remover(partida);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        throw new RegraNegocioException("Informe o motivo da exclusão definitiva da partida.");
     }
 
     private bool PodeEditarPartida(Usuario usuario, Partida partida)
@@ -1150,6 +1143,27 @@ public class PartidaServico(
         if (!PodeEditarPartida(usuario, partida))
         {
             throw new AcessoNegadoException("Você só pode editar partidas registradas por você.");
+        }
+    }
+
+    private async Task GarantirPartidaEditavelQuantoAoCancelamentoAsync(
+        Partida partida,
+        CancellationToken cancellationToken)
+    {
+        if (partida.ExcluidaDefinitivamenteEm.HasValue)
+        {
+            throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+        }
+
+        if (partida.Cancelada)
+        {
+            throw new ConflitoEstadoException("Partidas canceladas não podem ser editadas.");
+        }
+
+        if (solicitacaoCancelamentoRepositorio is not null &&
+            await solicitacaoCancelamentoRepositorio.ObterPendentePorPartidaAsync(partida.Id, cancellationToken) is not null)
+        {
+            throw new ConflitoEstadoException("A edição fica indisponível enquanto houver solicitação de cancelamento pendente.");
         }
     }
 
