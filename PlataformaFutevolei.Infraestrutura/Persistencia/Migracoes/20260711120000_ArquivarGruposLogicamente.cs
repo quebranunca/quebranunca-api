@@ -1,10 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 #nullable disable
 
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     /// <inheritdoc />
+    [DbContext(typeof(PlataformaFutevoleiDbContext))]
     [Migration("20260711120000_ArquivarGruposLogicamente")]
     public partial class ArquivarGruposLogicamente : Migration
     {
