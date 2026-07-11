@@ -193,6 +193,612 @@ public class RankingServico(
         return ranking is null ? [] : [ranking];
     }
 
+    public async Task<RankingPaginaDto<RankingDuplaItemDto>> ListarDuplasAsync(
+        Guid? grupoId,
+        string? periodo,
+        int pagina,
+        int tamanhoPagina,
+        string? ordenacao,
+        CancellationToken cancellationToken = default)
+    {
+        var partidas = await ObterPartidasRankingAsync(grupoId, periodo, cancellationToken);
+        var ranking = OrdenarDuplas(MontarRankingDuplas(partidas), ordenacao)
+            .Select((dupla, indice) => CriarRankingDuplaItem(dupla, indice + 1))
+            .ToList();
+
+        return Paginar(ranking, pagina, tamanhoPagina);
+    }
+
+    public async Task<RankingDuplaDetalheDto> ObterDuplaAsync(
+        string id,
+        Guid? grupoId,
+        string? periodo,
+        CancellationToken cancellationToken = default)
+    {
+        var partidas = await ObterPartidasRankingAsync(grupoId, periodo, cancellationToken);
+        var ranking = OrdenarDuplas(MontarRankingDuplas(partidas), null)
+            .Select((dupla, indice) => (Dupla: dupla, Posicao: indice + 1))
+            .ToList();
+        var item = ranking.FirstOrDefault(x => x.Dupla.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+        if (item.Dupla is null)
+        {
+            throw new EntidadeNaoEncontradaException("Dupla não encontrada no ranking.");
+        }
+
+        return new RankingDuplaDetalheDto(
+            CriarRankingDuplaItem(item.Dupla, item.Posicao),
+            item.Dupla.Participacoes
+                .OrderByDescending(x => x.DataPartida)
+                .ThenByDescending(x => x.PartidaId)
+                .Take(5)
+                .Select(CriarRankingDuplaJogo)
+                .ToList(),
+            MontarAdversariosDupla(item.Dupla),
+            MontarGruposDupla(item.Dupla),
+            item.Dupla.Participacoes
+                .OrderByDescending(x => x.DataPartida)
+                .ThenByDescending(x => x.PartidaId)
+                .Select(CriarRankingDuplaJogo)
+                .ToList());
+    }
+
+    public async Task<RankingPaginaDto<RankingGrupoItemDto>> ListarGruposAsync(
+        Guid? grupoId,
+        string? periodo,
+        int pagina,
+        int tamanhoPagina,
+        string? ordenacao,
+        CancellationToken cancellationToken = default)
+    {
+        var ranking = await MontarRankingGruposAsync(grupoId, periodo, cancellationToken);
+        var ordenado = OrdenarGrupos(ranking, ordenacao)
+            .Select((grupo, indice) => CriarRankingGrupoItem(grupo, indice + 1))
+            .ToList();
+
+        return Paginar(ordenado, pagina, tamanhoPagina);
+    }
+
+    public async Task<RankingGrupoDetalheDto> ObterGrupoAsync(
+        Guid id,
+        string? periodo,
+        CancellationToken cancellationToken = default)
+    {
+        var grupos = await MontarRankingGruposAsync(id, periodo, cancellationToken);
+        var rankingGrupos = OrdenarGrupos(grupos, null)
+            .Select((grupo, indice) => (Grupo: grupo, Posicao: indice + 1))
+            .ToList();
+        var grupoRanking = rankingGrupos.FirstOrDefault(x => x.Grupo.GrupoId == id);
+
+        if (grupoRanking.Grupo is null)
+        {
+            throw new EntidadeNaoEncontradaException("Grupo não encontrado no ranking.");
+        }
+
+        var partidas = grupoRanking.Grupo.Partidas
+            .OrderByDescending(x => x.DataPartida ?? x.DataCriacao)
+            .ThenByDescending(x => x.Id)
+            .ToList();
+        var rankingAtletas = MontarRankingConsolidado(
+            grupoRanking.Grupo.GrupoId,
+            grupoRanking.Grupo.GrupoId,
+            grupoRanking.Grupo.Nome,
+            "Ranking do grupo",
+            partidas,
+            grupoRanking.Grupo.Grupo.Atletas.Select(x => x.Atleta).OfType<Atleta>().ToList());
+        var topDuplas = OrdenarDuplas(MontarRankingDuplas(partidas), null)
+            .Select((dupla, indice) => CriarRankingDuplaItem(dupla, indice + 1))
+            .Take(5)
+            .ToList();
+
+        return new RankingGrupoDetalheDto(
+            grupoRanking.Grupo.GrupoId,
+            grupoRanking.Grupo.Nome,
+            grupoRanking.Grupo.FotoUrl,
+            grupoRanking.Grupo.Cidade,
+            grupoRanking.Grupo.Descricao,
+            grupoRanking.Grupo.Administrador,
+            grupoRanking.Grupo.Publico,
+            grupoRanking.Grupo.QuantidadeAtletas,
+            grupoRanking.Grupo.QuantidadePartidas,
+            grupoRanking.Grupo.AtletasAtivos,
+            grupoRanking.Grupo.PontuacaoRanking,
+            rankingAtletas?.Atletas.Take(5).ToList() ?? [],
+            topDuplas,
+            partidas.Take(5).Select(CriarRankingGrupoJogo).ToList(),
+            MontarEvolucaoMensalGrupo(partidas));
+    }
+
+    private async Task<IReadOnlyList<Partida>> ObterPartidasRankingAsync(
+        Guid? grupoId,
+        string? periodo,
+        CancellationToken cancellationToken)
+    {
+        var partidas = grupoId.HasValue
+            ? await partidaRepositorio.ListarParaRankingPorGrupoAsync(grupoId.Value, cancellationToken)
+            : await partidaRepositorio.ListarParaRankingGeralAsync(null, cancellationToken);
+
+        return FiltrarPorPeriodo(FiltrarPartidasEsportivamenteValidas(partidas), periodo);
+    }
+
+    private static RankingPaginaDto<T> Paginar<T>(
+        IReadOnlyList<T> itens,
+        int pagina,
+        int tamanhoPagina)
+    {
+        var paginaNormalizada = Math.Max(1, pagina);
+        var tamanhoNormalizado = Math.Clamp(tamanhoPagina, 1, 100);
+        var total = itens.Count;
+        var totalPaginas = total == 0
+            ? 0
+            : (int)Math.Ceiling(total / (decimal)tamanhoNormalizado);
+
+        return new RankingPaginaDto<T>(
+            itens
+                .Skip((paginaNormalizada - 1) * tamanhoNormalizado)
+                .Take(tamanhoNormalizado)
+                .ToList(),
+            paginaNormalizada,
+            tamanhoNormalizado,
+            total,
+            totalPaginas);
+    }
+
+    private static IReadOnlyList<Partida> FiltrarPorPeriodo(IReadOnlyList<Partida> partidas, string? periodo)
+    {
+        var periodoNormalizado = NormalizarPeriodo(periodo);
+        if (string.IsNullOrWhiteSpace(periodoNormalizado) || periodoNormalizado == "todos")
+        {
+            return partidas;
+        }
+
+        var agora = DateTime.UtcNow;
+        DateTime? inicio = periodoNormalizado switch
+        {
+            "30" or "30d" or "ultimos30dias" or "ultimos30" => agora.AddDays(-30),
+            "90" or "90d" or "ultimos90dias" or "ultimos90" => agora.AddDays(-90),
+            "ano" or "anoatual" or "year" => new DateTime(agora.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => null
+        };
+
+        if (!inicio.HasValue)
+        {
+            return partidas;
+        }
+
+        return partidas
+            .Where(x => (x.DataPartida ?? x.DataCriacao) >= inicio.Value)
+            .ToList();
+    }
+
+    private static string NormalizarPeriodo(string? periodo)
+    {
+        if (string.IsNullOrWhiteSpace(periodo))
+        {
+            return string.Empty;
+        }
+
+        var normalizado = periodo.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalizado.Length);
+        foreach (var caractere in normalizado)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(caractere) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(caractere))
+            {
+                builder.Append(char.ToLowerInvariant(caractere));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static IReadOnlyList<DuplaRankingAcumulado> MontarRankingDuplas(IReadOnlyList<Partida> partidas)
+    {
+        var duplas = new Dictionary<string, DuplaRankingAcumulado>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var partida in partidas)
+        {
+            if (partida.DuplaA is null || partida.DuplaB is null)
+            {
+                continue;
+            }
+
+            AcumularDupla(duplas, partida, partida.DuplaA, partida.DuplaB);
+            AcumularDupla(duplas, partida, partida.DuplaB, partida.DuplaA);
+        }
+
+        return duplas.Values.ToList();
+    }
+
+    private static void AcumularDupla(
+        IDictionary<string, DuplaRankingAcumulado> duplas,
+        Partida partida,
+        Dupla dupla,
+        Dupla adversaria)
+    {
+        var chave = NormalizarChaveDupla(dupla.Atleta1Id, dupla.Atleta2Id);
+        if (!duplas.TryGetValue(chave.Id, out var acumulado))
+        {
+            acumulado = new DuplaRankingAcumulado(
+                chave.Id,
+                CriarAtletaResumo(chave.MenorId == dupla.Atleta1Id ? dupla.Atleta1 : dupla.Atleta2),
+                CriarAtletaResumo(chave.MaiorId == dupla.Atleta1Id ? dupla.Atleta1 : dupla.Atleta2));
+            duplas[chave.Id] = acumulado;
+        }
+
+        var vencedoraId = partida.ObterDuplaVencedoraPorPlacar();
+        var empate = partida.TerminouEmpatada();
+        var venceu = vencedoraId == dupla.Id;
+        var dataPartida = partida.DataPartida ?? partida.DataCriacao;
+        var possuiPlacar = partida.PossuiPlacarDetalhado();
+        var ehDuplaA = partida.DuplaAId == dupla.Id;
+        var pontosPro = possuiPlacar
+            ? ehDuplaA ? partida.PlacarDuplaA!.Value : partida.PlacarDuplaB!.Value
+            : (int?)null;
+        var pontosContra = possuiPlacar
+            ? ehDuplaA ? partida.PlacarDuplaB!.Value : partida.PlacarDuplaA!.Value
+            : (int?)null;
+        var pontosRanking = empate
+            ? 0m
+            : venceu ? ObterPontosVitoriaRanking(partida) : ObterPontosDerrotaRanking(partida);
+        var adversariaChave = NormalizarChaveDupla(adversaria.Atleta1Id, adversaria.Atleta2Id);
+
+        acumulado.Participacoes.Add(new DuplaParticipacaoRanking(
+            partida.Id,
+            dataPartida,
+            partida.GrupoId,
+            partida.Grupo?.Nome ?? "Partidas avulsas",
+            venceu,
+            empate,
+            pontosRanking,
+            pontosPro,
+            pontosContra,
+            adversariaChave.Id,
+            FormatarNomeDuplaRanking(adversaria),
+            MontarConfrontoRanking(partida)));
+    }
+
+    private static IEnumerable<DuplaRankingAcumulado> OrdenarDuplas(
+        IReadOnlyList<DuplaRankingAcumulado> duplas,
+        string? ordenacao)
+    {
+        var ordenacaoNormalizada = NormalizarPeriodo(ordenacao);
+        return ordenacaoNormalizada switch
+        {
+            "aproveitamento" => duplas
+                .OrderByDescending(x => x.Aproveitamento)
+                .ThenByDescending(x => x.Vitorias)
+                .ThenByDescending(x => x.PontosRanking)
+                .ThenBy(x => x.Nome),
+            "vitorias" => duplas
+                .OrderByDescending(x => x.Vitorias)
+                .ThenByDescending(x => x.Aproveitamento)
+                .ThenByDescending(x => x.PontosRanking)
+                .ThenBy(x => x.Nome),
+            "sequencia" => duplas
+                .OrderByDescending(x => x.SequenciaAtual.Quantidade)
+                .ThenByDescending(x => x.PontosRanking)
+                .ThenByDescending(x => x.Vitorias)
+                .ThenBy(x => x.Nome),
+            "jogos" => duplas
+                .OrderByDescending(x => x.Jogos)
+                .ThenByDescending(x => x.PontosRanking)
+                .ThenByDescending(x => x.Vitorias)
+                .ThenBy(x => x.Nome),
+            _ => duplas
+                .OrderByDescending(x => x.PontosRanking)
+                .ThenByDescending(x => x.Aproveitamento)
+                .ThenByDescending(x => x.Vitorias)
+                .ThenByDescending(x => x.SequenciaAtual.Tipo == "V" ? x.SequenciaAtual.Quantidade : 0)
+                .ThenByDescending(x => x.Jogos)
+                .ThenBy(x => x.Nome)
+        };
+    }
+
+    private static RankingDuplaItemDto CriarRankingDuplaItem(DuplaRankingAcumulado dupla, int posicao)
+    {
+        var placar = dupla.EstatisticasPlacar;
+        return new RankingDuplaItemDto(
+            dupla.Id,
+            posicao,
+            dupla.Atleta1,
+            dupla.Atleta2,
+            dupla.Jogos,
+            dupla.Vitorias,
+            dupla.Derrotas,
+            dupla.Aproveitamento,
+            dupla.SequenciaAtual,
+            dupla.PontosRanking,
+            0,
+            dupla.UltimoJogo,
+            dupla.GrupoPrincipal,
+            placar.JogosComPlacar > 0 ? placar.PontosPro : null,
+            placar.JogosComPlacar > 0 ? placar.PontosContra : null,
+            placar.JogosComPlacar > 0 ? placar.Saldo : null);
+    }
+
+    private static RankingDuplaJogoDto CriarRankingDuplaJogo(DuplaParticipacaoRanking participacao)
+    {
+        return new RankingDuplaJogoDto(
+            participacao.PartidaId,
+            participacao.DataPartida,
+            participacao.NomeGrupo,
+            participacao.NomeDuplaAdversaria,
+            participacao.Empate ? "Empate" : participacao.Venceu ? "Vitória" : "Derrota",
+            participacao.PossuiPlacar ? $"{participacao.PontosPro} x {participacao.PontosContra}" : null,
+            participacao.PossuiPlacar);
+    }
+
+    private static IReadOnlyList<RankingDuplaAdversarioDto> MontarAdversariosDupla(DuplaRankingAcumulado dupla)
+    {
+        return dupla.Participacoes
+            .GroupBy(x => x.AdversariaId)
+            .Select(grupo =>
+            {
+                var participacoes = grupo.ToList();
+                var jogos = participacoes.Count;
+                var vitorias = participacoes.Count(x => x.Venceu);
+                var derrotas = participacoes.Count(x => !x.Venceu && !x.Empate);
+                var jogosComPlacar = participacoes.Count(x => x.PossuiPlacar);
+                var pontosPro = participacoes.Sum(x => x.PontosPro ?? 0);
+                var pontosContra = participacoes.Sum(x => x.PontosContra ?? 0);
+
+                return new RankingDuplaAdversarioDto(
+                    grupo.Key,
+                    participacoes[0].NomeDuplaAdversaria,
+                    jogos,
+                    vitorias,
+                    derrotas,
+                    CalcularAproveitamento(vitorias, jogos),
+                    participacoes.Max(x => x.DataPartida),
+                    jogosComPlacar > 0 ? pontosPro : null,
+                    jogosComPlacar > 0 ? pontosContra : null,
+                    jogosComPlacar > 0 ? pontosPro - pontosContra : null);
+            })
+            .OrderByDescending(x => x.Jogos)
+            .ThenByDescending(x => x.Vitorias)
+            .ThenBy(x => x.Nome)
+            .Take(5)
+            .ToList();
+    }
+
+    private static IReadOnlyList<RankingDuplaGrupoDto> MontarGruposDupla(DuplaRankingAcumulado dupla)
+    {
+        return dupla.Participacoes
+            .GroupBy(x => x.GrupoId)
+            .Select(grupo =>
+            {
+                var participacoes = grupo.ToList();
+                var jogos = participacoes.Count;
+                var vitorias = participacoes.Count(x => x.Venceu);
+                var derrotas = participacoes.Count(x => !x.Venceu && !x.Empate);
+                var jogosComPlacar = participacoes.Count(x => x.PossuiPlacar);
+                var pontosPro = participacoes.Sum(x => x.PontosPro ?? 0);
+                var pontosContra = participacoes.Sum(x => x.PontosContra ?? 0);
+
+                return new RankingDuplaGrupoDto(
+                    grupo.Key,
+                    participacoes[0].NomeGrupo,
+                    jogos,
+                    vitorias,
+                    derrotas,
+                    CalcularAproveitamento(vitorias, jogos),
+                    participacoes.Sum(x => x.PontosRanking),
+                    jogosComPlacar > 0 ? pontosPro : null,
+                    jogosComPlacar > 0 ? pontosContra : null,
+                    jogosComPlacar > 0 ? pontosPro - pontosContra : null);
+            })
+            .OrderByDescending(x => x.Jogos)
+            .ThenByDescending(x => x.PontosRanking)
+            .ThenBy(x => x.Nome)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<GrupoRankingAcumulado>> MontarRankingGruposAsync(
+        Guid? grupoId,
+        string? periodo,
+        CancellationToken cancellationToken)
+    {
+        var grupos = (await grupoRepositorio.ListarAsync(cancellationToken))
+            .Where(x => !EhGrupoPartidasAvulsas(x))
+            .Where(x => !grupoId.HasValue || x.Id == grupoId.Value)
+            .ToDictionary(x => x.Id);
+
+        if (grupoId.HasValue && !grupos.ContainsKey(grupoId.Value))
+        {
+            var grupo = await grupoRepositorio.ObterPorIdAsync(grupoId.Value, cancellationToken);
+            if (grupo is not null && !EhGrupoPartidasAvulsas(grupo))
+            {
+                grupos[grupo.Id] = grupo;
+            }
+        }
+
+        var partidas = await ObterPartidasRankingAsync(grupoId, periodo, cancellationToken);
+        foreach (var grupoPartida in partidas.Select(x => x.Grupo).OfType<Grupo>())
+        {
+            if (!EhGrupoPartidasAvulsas(grupoPartida))
+            {
+                grupos.TryAdd(grupoPartida.Id, grupoPartida);
+            }
+        }
+
+        return grupos.Values
+            .Where(GrupoAtivo)
+            .Select(grupo =>
+            {
+                var partidasGrupo = partidas
+                    .Where(x => x.GrupoId == grupo.Id)
+                    .ToList();
+                return new GrupoRankingAcumulado(grupo, partidasGrupo);
+            })
+            .ToList();
+    }
+
+    private static bool EhGrupoPartidasAvulsas(Grupo grupo)
+        => string.Equals(grupo.Nome?.Trim(), "Partidas avulsas", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(grupo.Nome?.Trim(), "Ranking Geral", StringComparison.OrdinalIgnoreCase);
+
+    private static bool GrupoAtivo(Grupo grupo)
+        => !grupo.DataFim.HasValue || grupo.DataFim.Value.Date >= DateTime.UtcNow.Date;
+
+    private static IEnumerable<GrupoRankingAcumulado> OrdenarGrupos(
+        IReadOnlyList<GrupoRankingAcumulado> grupos,
+        string? ordenacao)
+    {
+        var ordenacaoNormalizada = NormalizarPeriodo(ordenacao);
+        return ordenacaoNormalizada switch
+        {
+            "partidas" or "jogos" => grupos
+                .OrderByDescending(x => x.QuantidadePartidas)
+                .ThenByDescending(x => x.PontuacaoRanking)
+                .ThenBy(x => x.Nome),
+            "atletas" => grupos
+                .OrderByDescending(x => x.QuantidadeAtletas)
+                .ThenByDescending(x => x.AtletasAtivos)
+                .ThenByDescending(x => x.PontuacaoRanking)
+                .ThenBy(x => x.Nome),
+            "ativos" => grupos
+                .OrderByDescending(x => x.AtletasAtivos)
+                .ThenByDescending(x => x.PontuacaoRanking)
+                .ThenBy(x => x.Nome),
+            _ => grupos
+                .OrderByDescending(x => x.PontuacaoRanking)
+                .ThenByDescending(x => x.QuantidadePartidas)
+                .ThenByDescending(x => x.AtletasAtivos)
+                .ThenBy(x => x.Nome)
+        };
+    }
+
+    private static RankingGrupoItemDto CriarRankingGrupoItem(GrupoRankingAcumulado grupo, int posicao)
+    {
+        return new RankingGrupoItemDto(
+            grupo.GrupoId,
+            posicao,
+            grupo.Nome,
+            grupo.FotoUrl,
+            grupo.Cidade,
+            grupo.QuantidadeAtletas,
+            grupo.QuantidadePartidas,
+            grupo.AtletasAtivos,
+            grupo.PontuacaoRanking,
+            0,
+            grupo.UltimaPartida);
+    }
+
+    private static RankingGrupoJogoDto CriarRankingGrupoJogo(Partida partida)
+    {
+        var vencedora = ObterDuplaVencedora(partida);
+        var resultado = vencedora is null
+            ? "Empate"
+            : $"{FormatarNomeDuplaRanking(vencedora)} venceu";
+
+        return new RankingGrupoJogoDto(
+            partida.Id,
+            partida.DataPartida ?? partida.DataCriacao,
+            FormatarNomeDuplaRanking(partida.DuplaA),
+            FormatarNomeDuplaRanking(partida.DuplaB),
+            resultado,
+            partida.PossuiPlacarDetalhado() ? $"{partida.PlacarDuplaA} x {partida.PlacarDuplaB}" : null,
+            partida.PossuiPlacarDetalhado());
+    }
+
+    private static IReadOnlyList<RankingGrupoEvolucaoMensalDto> MontarEvolucaoMensalGrupo(IReadOnlyList<Partida> partidas)
+    {
+        var agora = DateTime.UtcNow;
+        var meses = Enumerable.Range(0, 6)
+            .Select(offset => new DateTime(agora.Year, agora.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-offset))
+            .OrderBy(x => x)
+            .ToList();
+
+        return meses
+            .Select(mes =>
+            {
+                var partidasMes = partidas
+                    .Where(x =>
+                    {
+                        var data = x.DataPartida ?? x.DataCriacao;
+                        return data.Year == mes.Year && data.Month == mes.Month;
+                    })
+                    .ToList();
+                var atletasAtivos = partidasMes
+                    .SelectMany(EnumerarAtletasRanking)
+                    .Select(x => x.Id)
+                    .Distinct()
+                    .Count();
+
+                return new RankingGrupoEvolucaoMensalDto(
+                    mes.Year,
+                    mes.Month,
+                    partidasMes.Count,
+                    atletasAtivos,
+                    CalcularPontuacaoGrupo(partidasMes.Count, atletasAtivos));
+            })
+            .ToList();
+    }
+
+    private static (Guid MenorId, Guid MaiorId, string Id) NormalizarChaveDupla(Guid atleta1Id, Guid atleta2Id)
+    {
+        var menorId = atleta1Id.CompareTo(atleta2Id) <= 0 ? atleta1Id : atleta2Id;
+        var maiorId = menorId == atleta1Id ? atleta2Id : atleta1Id;
+        return (menorId, maiorId, $"{menorId:N}_{maiorId:N}");
+    }
+
+    private static RankingAtletaResumoDto CriarAtletaResumo(Atleta atleta)
+    {
+        return new RankingAtletaResumoDto(
+            atleta.Id,
+            atleta.Nome,
+            atleta.Apelido,
+            FotoPerfilAtletaUtil.ObterUrlPublica(atleta));
+    }
+
+    private static decimal CalcularAproveitamento(int vitorias, int jogos)
+        => jogos == 0 ? 0m : Math.Round(vitorias * 100m / jogos, 1);
+
+    private static RankingSequenciaDto CalcularSequencia(IReadOnlyList<DuplaParticipacaoRanking> participacoes)
+    {
+        var ordenadas = participacoes
+            .OrderByDescending(x => x.DataPartida)
+            .ThenByDescending(x => x.PartidaId)
+            .ToList();
+
+        if (ordenadas.Count == 0)
+        {
+            return new RankingSequenciaDto("nenhuma", 0, "Sem jogos");
+        }
+
+        var tipo = ordenadas[0].Empate ? "E" : ordenadas[0].Venceu ? "V" : "D";
+        var quantidade = ordenadas.TakeWhile(x => (x.Empate ? "E" : x.Venceu ? "V" : "D") == tipo).Count();
+        var texto = tipo switch
+        {
+            "V" => quantidade == 1 ? "1 vitória seguida" : $"{quantidade} vitórias seguidas",
+            "D" => quantidade == 1 ? "1 derrota seguida" : $"{quantidade} derrotas seguidas",
+            _ => quantidade == 1 ? "1 empate seguido" : $"{quantidade} empates seguidos"
+        };
+
+        return new RankingSequenciaDto(tipo, quantidade, texto);
+    }
+
+    private static RankingEstatisticasPlacarAcumulado CalcularEstatisticasPlacar(
+        IReadOnlyList<DuplaParticipacaoRanking> participacoes)
+    {
+        var comPlacar = participacoes.Where(x => x.PossuiPlacar).ToList();
+        var pontosPro = comPlacar.Sum(x => x.PontosPro ?? 0);
+        var pontosContra = comPlacar.Sum(x => x.PontosContra ?? 0);
+        return new RankingEstatisticasPlacarAcumulado(
+            comPlacar.Count,
+            pontosPro,
+            pontosContra,
+            pontosPro - pontosContra);
+    }
+
+    private static decimal CalcularPontuacaoGrupo(int partidasValidas, int atletasAtivos)
+        => partidasValidas * 10m + atletasAtivos * 3m;
+
     private static decimal ObterPontosVitoriaRanking(Partida partida)
     {
         if (partida.DuplaVencedoraId is null)
@@ -1159,6 +1765,80 @@ public class RankingServico(
     private static bool PontuacaoDaPartidaPendente(Partida partida)
     {
         return partida.StatusAprovacao != StatusAprovacaoPartida.Aprovada;
+    }
+
+    private sealed class DuplaRankingAcumulado(
+        string id,
+        RankingAtletaResumoDto atleta1,
+        RankingAtletaResumoDto atleta2)
+    {
+        public string Id { get; } = id;
+        public RankingAtletaResumoDto Atleta1 { get; } = atleta1;
+        public RankingAtletaResumoDto Atleta2 { get; } = atleta2;
+        public List<DuplaParticipacaoRanking> Participacoes { get; } = [];
+        public string Nome => $"{ObterNomeExibicao(Atleta1)} / {ObterNomeExibicao(Atleta2)}";
+        public int Jogos => Participacoes.Count;
+        public int Vitorias => Participacoes.Count(x => x.Venceu);
+        public int Derrotas => Participacoes.Count(x => !x.Venceu && !x.Empate);
+        public decimal Aproveitamento => CalcularAproveitamento(Vitorias, Jogos);
+        public decimal PontosRanking => Participacoes.Sum(x => x.PontosRanking);
+        public DateTime? UltimoJogo => Participacoes.Count == 0 ? null : Participacoes.Max(x => x.DataPartida);
+        public RankingSequenciaDto SequenciaAtual => CalcularSequencia(Participacoes);
+        public RankingEstatisticasPlacarAcumulado EstatisticasPlacar => CalcularEstatisticasPlacar(Participacoes);
+        public string? GrupoPrincipal => Participacoes
+            .GroupBy(x => x.NomeGrupo)
+            .OrderByDescending(x => x.Count())
+            .ThenByDescending(x => x.Max(item => item.DataPartida))
+            .Select(x => x.Key)
+            .FirstOrDefault();
+
+        private static string ObterNomeExibicao(RankingAtletaResumoDto atleta)
+            => string.IsNullOrWhiteSpace(atleta.Apelido) ? atleta.Nome : atleta.Apelido!;
+    }
+
+    private sealed record DuplaParticipacaoRanking(
+        Guid PartidaId,
+        DateTime DataPartida,
+        Guid? GrupoId,
+        string NomeGrupo,
+        bool Venceu,
+        bool Empate,
+        decimal PontosRanking,
+        int? PontosPro,
+        int? PontosContra,
+        string AdversariaId,
+        string NomeDuplaAdversaria,
+        string Confronto)
+    {
+        public bool PossuiPlacar => PontosPro.HasValue && PontosContra.HasValue;
+    }
+
+    private sealed record RankingEstatisticasPlacarAcumulado(
+        int JogosComPlacar,
+        int PontosPro,
+        int PontosContra,
+        int Saldo);
+
+    private sealed class GrupoRankingAcumulado(Grupo grupo, IReadOnlyList<Partida> partidas)
+    {
+        public Grupo Grupo { get; } = grupo;
+        public IReadOnlyList<Partida> Partidas { get; } = partidas;
+        public Guid GrupoId => Grupo.Id;
+        public string Nome => Grupo.Nome;
+        public string? FotoUrl => Grupo.ImagemUrl;
+        public string? Cidade => Grupo.Arena?.Cidade ?? Grupo.LocalPrincipal;
+        public string? Descricao => Grupo.Descricao;
+        public string? Administrador => Grupo.UsuarioOrganizador?.Nome;
+        public bool Publico => Grupo.Publico;
+        public int QuantidadeAtletas => Grupo.Atletas.Select(x => x.AtletaId).Distinct().Count();
+        public int QuantidadePartidas => Partidas.Count;
+        public int AtletasAtivos => Partidas
+            .SelectMany(EnumerarAtletasRanking)
+            .Select(x => x.Id)
+            .Distinct()
+            .Count();
+        public decimal PontuacaoRanking => CalcularPontuacaoGrupo(QuantidadePartidas, AtletasAtivos);
+        public DateTime? UltimaPartida => Partidas.Count == 0 ? null : Partidas.Max(x => x.DataPartida ?? x.DataCriacao);
     }
 
     private sealed class RankingAtletaAcumulado(

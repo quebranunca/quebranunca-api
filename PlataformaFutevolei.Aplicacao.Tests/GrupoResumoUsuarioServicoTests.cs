@@ -283,6 +283,10 @@ public class GrupoResumoUsuarioServicoTests
         public Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
             => Task.FromResult(RankingsPorGrupo.GetValueOrDefault(grupoId, []));
+        public Task<RankingPaginaDto<RankingDuplaItemDto>> ListarDuplasAsync(Guid? grupoId, string? periodo, int pagina, int tamanhoPagina, string? ordenacao, CancellationToken cancellationToken = default) => Task.FromResult(new RankingPaginaDto<RankingDuplaItemDto>([], Math.Max(1, pagina), Math.Clamp(tamanhoPagina, 1, 100), 0, 0));
+        public Task<RankingDuplaDetalheDto> ObterDuplaAsync(string id, Guid? grupoId, string? periodo, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RankingPaginaDto<RankingGrupoItemDto>> ListarGruposAsync(Guid? grupoId, string? periodo, int pagina, int tamanhoPagina, string? ordenacao, CancellationToken cancellationToken = default) => Task.FromResult(new RankingPaginaDto<RankingGrupoItemDto>([], Math.Max(1, pagina), Math.Clamp(tamanhoPagina, 1, 100), 0, 0));
+        public Task<RankingGrupoDetalheDto> ObterGrupoAsync(Guid id, string? periodo, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class AutorizacaoUsuarioServicoStub : IAutorizacaoUsuarioServico

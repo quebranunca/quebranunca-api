@@ -418,6 +418,29 @@ public interface IRankingServico
     Task<IReadOnlyList<RankingCategoriaDto>> ListarAtletasPorGrupoAsync(
         Guid grupoId,
         CancellationToken cancellationToken = default);
+    Task<RankingPaginaDto<RankingDuplaItemDto>> ListarDuplasAsync(
+        Guid? grupoId,
+        string? periodo,
+        int pagina,
+        int tamanhoPagina,
+        string? ordenacao,
+        CancellationToken cancellationToken = default);
+    Task<RankingDuplaDetalheDto> ObterDuplaAsync(
+        string id,
+        Guid? grupoId,
+        string? periodo,
+        CancellationToken cancellationToken = default);
+    Task<RankingPaginaDto<RankingGrupoItemDto>> ListarGruposAsync(
+        Guid? grupoId,
+        string? periodo,
+        int pagina,
+        int tamanhoPagina,
+        string? ordenacao,
+        CancellationToken cancellationToken = default);
+    Task<RankingGrupoDetalheDto> ObterGrupoAsync(
+        Guid id,
+        string? periodo,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IPontuacaoBeneficioServico

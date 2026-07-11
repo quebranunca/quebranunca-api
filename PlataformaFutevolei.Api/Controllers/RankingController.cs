@@ -76,4 +76,71 @@ public class RankingController(IRankingServico rankingServico) : ControllerBase
         var ranking = await rankingServico.ListarAtletasPorGrupoAsync(grupoId, cancellationToken);
         return Ok(ranking);
     }
+
+    [HttpGet("/api/rankings/duplas")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RankingPaginaDto<RankingDuplaItemDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarDuplas(
+        [FromQuery] Guid? grupoId,
+        [FromQuery] string? periodo,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanhoPagina = 20,
+        [FromQuery] string? ordenacao = null,
+        CancellationToken cancellationToken = default)
+    {
+        var ranking = await rankingServico.ListarDuplasAsync(
+            grupoId,
+            periodo,
+            pagina,
+            tamanhoPagina,
+            ordenacao,
+            cancellationToken);
+        return Ok(ranking);
+    }
+
+    [HttpGet("/api/rankings/duplas/{id}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RankingDuplaDetalheDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterDupla(
+        string id,
+        [FromQuery] Guid? grupoId,
+        [FromQuery] string? periodo,
+        CancellationToken cancellationToken = default)
+    {
+        var detalhe = await rankingServico.ObterDuplaAsync(id, grupoId, periodo, cancellationToken);
+        return Ok(detalhe);
+    }
+
+    [HttpGet("/api/rankings/grupos")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RankingPaginaDto<RankingGrupoItemDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarGrupos(
+        [FromQuery] Guid? grupoId,
+        [FromQuery] string? periodo,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanhoPagina = 20,
+        [FromQuery] string? ordenacao = null,
+        CancellationToken cancellationToken = default)
+    {
+        var ranking = await rankingServico.ListarGruposAsync(
+            grupoId,
+            periodo,
+            pagina,
+            tamanhoPagina,
+            ordenacao,
+            cancellationToken);
+        return Ok(ranking);
+    }
+
+    [HttpGet("/api/rankings/grupos/{id:guid}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RankingGrupoDetalheDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObterGrupo(
+        Guid id,
+        [FromQuery] string? periodo,
+        CancellationToken cancellationToken = default)
+    {
+        var detalhe = await rankingServico.ObterGrupoAsync(id, periodo, cancellationToken);
+        return Ok(detalhe);
+    }
 }

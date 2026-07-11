@@ -291,6 +291,110 @@ public class RankingServicoGrupoTests
         Assert.Equal(0m, categoria.Atletas.Single(x => x.AtletaId == perdedor1.Id).Pontos);
     }
 
+    [Fact]
+    public async Task ListarDuplasAsync_NormalizaDuplaInvertida()
+    {
+        var cenario = Cenario.Criar();
+        var gustavo = cenario.CriarAtleta("Gustavo");
+        var joao = cenario.CriarAtleta("João");
+        var adversario1 = cenario.CriarAtleta("Adversário Um");
+        var adversario2 = cenario.CriarAtleta("Adversário Dois");
+        var adversario3 = cenario.CriarAtleta("Adversário Três");
+        var adversario4 = cenario.CriarAtleta("Adversário Quatro");
+        cenario.AdicionarPartida(gustavo, joao, adversario1, adversario2, diasAtras: 2);
+        cenario.AdicionarPartida(adversario3, adversario4, joao, gustavo, diasAtras: 1);
+
+        var ranking = await cenario.Servico.ListarDuplasAsync(null, null, 1, 20, null);
+
+        var dupla = ranking.Itens.Single(x =>
+            new[] { x.Atleta1.AtletaId, x.Atleta2.AtletaId }.Contains(gustavo.Id) &&
+            new[] { x.Atleta1.AtletaId, x.Atleta2.AtletaId }.Contains(joao.Id));
+        Assert.Equal(2, dupla.Jogos);
+        Assert.Equal(1, dupla.Vitorias);
+        Assert.Equal(1, dupla.Derrotas);
+    }
+
+    [Fact]
+    public async Task ListarDuplasAsync_PartidaApenasResultadoNaoCalculaPontosDePlacar()
+    {
+        var cenario = Cenario.Criar();
+        var vencedor1 = cenario.CriarAtleta("Vencedor Um");
+        var vencedor2 = cenario.CriarAtleta("Vencedor Dois");
+        var perdedor1 = cenario.CriarAtleta("Perdedor Um");
+        var perdedor2 = cenario.CriarAtleta("Perdedor Dois");
+        cenario.AdicionarPartida(
+            vencedor1,
+            vencedor2,
+            perdedor1,
+            perdedor2,
+            tipoRegistroResultado: TipoRegistroResultado.ApenasResultado,
+            placarA: null,
+            placarB: null);
+
+        var ranking = await cenario.Servico.ListarDuplasAsync(null, null, 1, 20, null);
+
+        var dupla = ranking.Itens.Single(x =>
+            new[] { x.Atleta1.AtletaId, x.Atleta2.AtletaId }.Contains(vencedor1.Id) &&
+            new[] { x.Atleta1.AtletaId, x.Atleta2.AtletaId }.Contains(vencedor2.Id));
+        Assert.Equal(1, dupla.Jogos);
+        Assert.Equal(1, dupla.Vitorias);
+        Assert.Null(dupla.PontosPro);
+        Assert.Null(dupla.PontosContra);
+        Assert.Null(dupla.Saldo);
+    }
+
+    [Fact]
+    public async Task ListarDuplasAsync_PartidaCanceladaNaoEntraNoRanking()
+    {
+        var cenario = Cenario.Criar();
+        var vencedor1 = cenario.CriarAtleta("Vencedor Um");
+        var vencedor2 = cenario.CriarAtleta("Vencedor Dois");
+        var perdedor1 = cenario.CriarAtleta("Perdedor Um");
+        var perdedor2 = cenario.CriarAtleta("Perdedor Dois");
+        var partida = cenario.AdicionarPartida(vencedor1, vencedor2, perdedor1, perdedor2);
+        partida.Cancelada = true;
+
+        var ranking = await cenario.Servico.ListarDuplasAsync(null, null, 1, 20, null);
+
+        Assert.Empty(ranking.Itens);
+    }
+
+    [Fact]
+    public async Task ListarGruposAsync_IncluiGrupoSemPartidas()
+    {
+        var cenario = Cenario.Criar();
+        var membro = cenario.CriarAtleta("Membro Sem Partida");
+        cenario.AdicionarMembro(membro);
+
+        var ranking = await cenario.Servico.ListarGruposAsync(null, null, 1, 20, null);
+
+        var grupo = Assert.Single(ranking.Itens);
+        Assert.Equal(cenario.Grupo.Id, grupo.GrupoId);
+        Assert.Equal(1, grupo.QuantidadeAtletas);
+        Assert.Equal(0, grupo.QuantidadePartidas);
+        Assert.Equal(0, grupo.PontuacaoRanking);
+    }
+
+    [Fact]
+    public async Task ListarGruposAsync_PontuaSomentePartidasValidas()
+    {
+        var cenario = Cenario.Criar();
+        var vencedor1 = cenario.CriarAtleta("Vencedor Um");
+        var vencedor2 = cenario.CriarAtleta("Vencedor Dois");
+        var perdedor1 = cenario.CriarAtleta("Perdedor Um");
+        var perdedor2 = cenario.CriarAtleta("Perdedor Dois");
+        cenario.AdicionarPartida(vencedor1, vencedor2, perdedor1, perdedor2);
+        var cancelada = cenario.AdicionarPartida(vencedor1, vencedor2, perdedor1, perdedor2, diasAtras: 1);
+        cancelada.Cancelada = true;
+
+        var ranking = await cenario.Servico.ListarGruposAsync(null, null, 1, 20, null);
+
+        var grupo = Assert.Single(ranking.Itens);
+        Assert.Equal(1, grupo.QuantidadePartidas);
+        Assert.Equal(4, grupo.AtletasAtivos);
+        Assert.Equal(22m, grupo.PontuacaoRanking);
+    }
+
     private sealed class Cenario
     {
         private readonly List<GrupoAtleta> vinculos = [];
@@ -322,12 +426,16 @@ public class RankingServicoGrupoTests
             };
 
         public void AdicionarMembro(Atleta atleta)
-            => vinculos.Add(new GrupoAtleta
+        {
+            var vinculo = new GrupoAtleta
             {
                 GrupoId = Grupo.Id,
                 AtletaId = atleta.Id,
                 Atleta = atleta
-            });
+            };
+            vinculos.Add(vinculo);
+            Grupo.Atletas.Add(vinculo);
+        }
 
         public Partida AdicionarPartida(
             Atleta duplaAAtleta1,
@@ -452,7 +560,7 @@ public class RankingServicoGrupoTests
 
     private sealed class GrupoRepositorioStub(Grupo grupo) : IGrupoRepositorio
     {
-        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>([]);
+        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>([grupo]);
         public Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(Guid usuarioId, Guid? atletaId, bool incluirPrivadosDeTerceiros, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>([]);
         public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<Grupo?> ObterResumoUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(null);
@@ -502,7 +610,7 @@ public class RankingServicoGrupoTests
         public Task<IReadOnlyList<Partida>> ListarComAtletasPendentesPorUsuarioCriadorAsync(Guid usuarioId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarComPendenteDeVinculoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<bool> ExisteAtletaPendenteEmPartidaCriadaPorUsuarioAsync(Guid usuarioId, Guid atletaId, CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task<IReadOnlyList<Partida>> ListarParaRankingGeralAsync(Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
+        public Task<IReadOnlyList<Partida>> ListarParaRankingGeralAsync(Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult(partidas);
         public Task<IReadOnlyList<Partida>> ListarParaRankingPorLigaAsync(Guid ligaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarParaRankingSemCompeticaoOuCategoriaAsync(Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
         public Task<IReadOnlyList<Partida>> ListarParaRankingPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
