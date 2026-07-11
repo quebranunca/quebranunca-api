@@ -20,6 +20,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
                 .ThenInclude(x => x.Atleta)
                     .ThenInclude(x => x.Usuario)
             .Include(x => x.Partidas)
+            .Where(x => x.Ativo)
             .OrderByDescending(x => x.DataInicio)
             .ThenBy(x => x.Nome)
             .ToListAsync(cancellationToken);
@@ -38,6 +39,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
             .AsNoTracking()
             .Include(x => x.Atletas)
             .Where(x =>
+                x.Ativo &&
                 x.Nome.Trim().ToLower() != nomePartidasAvulsas &&
                 x.Nome.Trim().ToLower() != nomeGeral &&
                 (!x.DataFim.HasValue || x.DataFim.Value >= hojeUtc));
@@ -52,7 +54,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
     {
         return dbContext.Grupos
             .AsNoTracking()
-            .CountAsync(x => x.Publico && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower(), cancellationToken);
+            .CountAsync(x => x.Ativo && x.Publico && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower(), cancellationToken);
     }
 
     public Task<Grupo?> ObterResumoUsuarioAsync(
@@ -63,7 +65,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var consulta = AplicarFiltroAcessoAtleta(
                 dbContext.Grupos
                     .AsNoTracking()
-                    .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
+                    .Where(x => x.Ativo && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
                 usuarioId,
                 atletaId);
 
@@ -83,7 +85,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var consulta = AplicarFiltroParticipacaoUsuario(
                 dbContext.Grupos
                     .AsNoTracking()
-                    .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
+                    .Where(x => x.Ativo && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
                 usuarioId,
                 atletaId);
 
@@ -110,7 +112,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
                             .ThenInclude(x => x.Usuario)
                     .Include(x => x.UsuarioOrganizador)
                     .Include(x => x.Partidas)
-                    .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
+                    .Where(x => x.Ativo && x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower()),
                 usuarioId,
                 atletaId);
 
@@ -166,7 +168,8 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         var nomeNormalizado = nome.Trim().ToLowerInvariant();
         return dbContext.Grupos
             .FirstOrDefaultAsync(
-                x => x.Nome.Trim().ToLower() == nomeNormalizado &&
+                x => x.Ativo &&
+                     x.Nome.Trim().ToLower() == nomeNormalizado &&
                      x.UsuarioOrganizadorId == usuarioOrganizadorId,
                 cancellationToken);
     }
@@ -180,7 +183,7 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         return dbContext.Grupos
             .Include(x => x.Arena)
             .Include(x => x.UsuarioOrganizador)
-            .FirstOrDefaultAsync(x => x.Nome.Trim().ToLower() == nomeNormalizado, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Ativo && x.Nome.Trim().ToLower() == nomeNormalizado, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(
@@ -213,6 +216,8 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         Guid usuarioId,
         Guid? atletaId)
     {
+        query = query.Where(x => x.Ativo);
+
         if (!atletaId.HasValue)
         {
             return query.Where(x => x.UsuarioOrganizadorId == usuarioId);
@@ -238,6 +243,8 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         Guid usuarioId,
         Guid? atletaId)
     {
+        query = query.Where(x => x.Ativo);
+
         if (!atletaId.HasValue)
         {
             return query.Where(x => x.UsuarioOrganizadorId == usuarioId);
@@ -261,6 +268,8 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         Guid? atletaId,
         IQueryable<Grupo> query)
     {
+        query = query.Where(x => x.Ativo);
+
         if (!atletaId.HasValue)
         {
             return query.Where(x =>

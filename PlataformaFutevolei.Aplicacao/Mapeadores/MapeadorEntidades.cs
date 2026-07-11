@@ -309,7 +309,8 @@ internal static class MapeadorEntidades
             grupo.ArenaId,
             grupo.Arena?.Nome,
             grupo.LocalPrincipal,
-            grupo.DiasDaSemana ?? []
+            grupo.DiasDaSemana ?? [],
+            grupo.Ativo
         );
 
     public static GrupoAtletaDto ParaDto(this GrupoAtleta grupoAtleta)

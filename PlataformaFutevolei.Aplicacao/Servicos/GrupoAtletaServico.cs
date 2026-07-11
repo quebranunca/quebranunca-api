@@ -266,6 +266,11 @@ public class GrupoAtletaServico(
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
+        if (!grupo.Ativo)
+        {
+            throw new RegraNegocioException("Grupo excluído não pode receber novos membros.");
+        }
+
         return grupo;
     }
 

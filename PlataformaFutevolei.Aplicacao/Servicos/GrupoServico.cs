@@ -80,7 +80,8 @@ public class GrupoServico(
         var totalMembros = membros.Select(x => x.AtletaId).Distinct().Count();
         var usuarioPertenceAoGrupo = usuario?.AtletaId.HasValue == true &&
             membros.Any(x => x.AtletaId == usuario.AtletaId.Value);
-        var podeEditarGrupo = usuarioPertenceAoGrupo && PodeEditarGrupo(usuario, grupo);
+        var podeEditarGrupo = grupo.Ativo && usuarioPertenceAoGrupo && PodeEditarGrupo(usuario, grupo);
+        var podeRegistrarPartida = grupo.Ativo && usuarioPertenceAoGrupo;
 
         return new GrupoDashboardDetalheDto(
             new GrupoDashboardCabecalhoDto(
@@ -94,7 +95,7 @@ public class GrupoServico(
                 ultimaPartidaEm == default ? null : ultimaPartidaEm,
                 podeEditarGrupo,
                 usuarioPertenceAoGrupo,
-                usuarioPertenceAoGrupo),
+                podeRegistrarPartida),
             new GrupoDashboardResumoDto(
                 totalMembros,
                 partidasEncerradas.Count,
@@ -195,6 +196,7 @@ public class GrupoServico(
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        GarantirGrupoAtivo(grupo);
 
         var nome = ValidarNome(dto.Nome);
         if (string.Equals(nome, grupoPadraoServico.NomeGrupoGeral, StringComparison.OrdinalIgnoreCase) &&
@@ -225,6 +227,7 @@ public class GrupoServico(
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        GarantirGrupoAtivo(grupo);
 
         var publicIdAnterior = grupo.ImagemPublicId;
         var imagem = await fotoPerfilService.EnviarGrupoAsync(arquivo, cancellationToken);
@@ -250,6 +253,7 @@ public class GrupoServico(
         await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        GarantirGrupoAtivo(grupo);
 
         var publicIdAnterior = grupo.ImagemPublicId;
         grupo.ImagemUrl = null;
@@ -276,19 +280,27 @@ public class GrupoServico(
             throw new AcessoNegadoException("Apenas o criador do grupo pode excluir este grupo.");
         }
 
-        var partidas = await partidaRepositorio.ListarPorGrupoAsync(id, cancellationToken);
-        if (partidas.Count > 0)
+        if (!grupo.Ativo)
         {
-            throw new RegraNegocioException("Não é possível excluir grupo com partidas vinculadas. Preserve o histórico esportivo.");
+            throw new RegraNegocioException("Este grupo já foi excluído.");
         }
 
-        var publicIdAnterior = grupo.ImagemPublicId;
-        grupoRepositorio.Remover(grupo);
+        grupo.Ativo = false;
+        grupo.AtualizarDataModificacao();
+        grupoRepositorio.Atualizar(grupo);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(publicIdAnterior))
+        logger.LogInformation(
+            "Grupo arquivado pelo owner. GrupoId: {GrupoId}. UsuarioId: {UsuarioId}.",
+            grupo.Id,
+            usuario.Id);
+    }
+
+    private static void GarantirGrupoAtivo(Grupo grupo)
+    {
+        if (!grupo.Ativo)
         {
-            await fotoPerfilService.RemoverAsync(publicIdAnterior, cancellationToken);
+            throw new RegraNegocioException("Grupo excluído não pode ser alterado.");
         }
     }
 

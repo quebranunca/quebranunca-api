@@ -88,6 +88,19 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
+    public async Task CriarComResultadoAsync_GrupoInativo_BloqueiaRegistroDireto()
+    {
+        var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
+        cenario.Grupo.Ativo = false;
+
+        var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>
+            CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id)));
+
+        Assert.Equal("Este grupo não está mais disponível para registrar partidas.", excecao.Message);
+        Assert.Empty(cenario.Partidas.Partidas);
+    }
+
+    [Fact]
     public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupoPrivado_BloqueiaRegistro()
     {
         var cenario = Cenario.Criar(publico: false, usuarioMembro: false);

@@ -64,6 +64,11 @@ public class GrupoPadraoServico(
         {
             var grupoSelecionado = await grupoRepositorio.ObterPorIdAsync(grupoId.Value, cancellationToken)
                 ?? throw new RegraNegocioException("Grupo informado não foi encontrado.");
+            if (!grupoSelecionado.Ativo)
+            {
+                throw new RegraNegocioException("Grupo informado não está mais disponível para novas partidas.");
+            }
+
             if (!await UsuarioPodeUsarGrupoExistenteAsync(grupoSelecionado, usuario, cancellationToken))
             {
                 throw new RegraNegocioException("Você só pode registrar partidas em grupos dos quais participa.");
@@ -86,6 +91,11 @@ public class GrupoPadraoServico(
         var grupoExistente = await grupoRepositorio.ObterPorNomeNormalizadoAsync(nomeNormalizado, cancellationToken);
         if (grupoExistente is not null)
         {
+            if (!grupoExistente.Ativo)
+            {
+                throw new RegraNegocioException("Já existe um grupo excluído com esse nome. Use outro nome para criar um novo grupo.");
+            }
+
             if (await UsuarioPodeUsarGrupoExistenteAsync(grupoExistente, usuario, cancellationToken))
             {
                 return grupoExistente;
@@ -136,6 +146,11 @@ public class GrupoPadraoServico(
         Usuario usuario,
         CancellationToken cancellationToken)
     {
+        if (!grupo.Ativo)
+        {
+            return false;
+        }
+
         if (EhGrupoGeral(grupo) ||
             grupo.Publico ||
             autorizacaoUsuarioServico.EhAdministrador(usuario) ||

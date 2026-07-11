@@ -24,6 +24,7 @@ public class GrupoMapeamento : IEntityTypeConfiguration<Grupo>
         builder.Property(x => x.Publico).HasColumnName("publico").HasDefaultValue(false);
         builder.Property(x => x.ImagemUrl).HasColumnName("imagem_url").HasMaxLength(500);
         builder.Property(x => x.ImagemPublicId).HasColumnName("imagem_public_id").HasMaxLength(255);
+        builder.Property(x => x.Ativo).HasColumnName("ativo").HasDefaultValue(true).IsRequired();
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 
@@ -39,5 +40,6 @@ public class GrupoMapeamento : IEntityTypeConfiguration<Grupo>
 
         builder.HasIndex(x => x.ArenaId);
         builder.HasIndex(x => x.UsuarioOrganizadorId);
+        builder.HasIndex(x => x.Ativo);
     }
 }

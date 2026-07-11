@@ -643,7 +643,7 @@ public class RankingServico(
            string.Equals(grupo.Nome?.Trim(), "Ranking Geral", StringComparison.OrdinalIgnoreCase);
 
     private static bool GrupoAtivo(Grupo grupo)
-        => !grupo.DataFim.HasValue || grupo.DataFim.Value.Date >= DateTime.UtcNow.Date;
+        => grupo.Ativo && (!grupo.DataFim.HasValue || grupo.DataFim.Value.Date >= DateTime.UtcNow.Date);
 
     private static IEnumerable<GrupoRankingAcumulado> OrdenarGrupos(
         IReadOnlyList<GrupoRankingAcumulado> grupos,

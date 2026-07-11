@@ -295,7 +295,7 @@ public class GrupoServicoTests
     }
 
     [Fact]
-    public async Task RemoverAsync_CriadorSemPartidas_RemoveGrupo()
+    public async Task RemoverAsync_CriadorArquivaGrupoSemRemoverHistorico()
     {
         var usuario = new Usuario { Nome = "Owner", Perfil = PerfilUsuario.Atleta, Ativo = true };
         var grupo = new Grupo
@@ -305,18 +305,22 @@ public class GrupoServicoTests
             UsuarioOrganizadorId = usuario.Id,
             ImagemPublicId = "grupo-public-id"
         };
+        var partida = CriarPartidaDoGrupo(grupo.Id);
         var grupos = new GrupoRepositorioStub([grupo]);
         var fotos = new FotoPerfilServiceStub();
         var servico = CriarServico(
             grupos: [grupo],
+            partidas: [partida],
             grupoRepositorio: grupos,
             autorizacao: new AutorizacaoUsuarioServicoStub(usuario),
             fotos: fotos);
 
         await servico.RemoverAsync(grupo.Id);
 
-        Assert.Empty(await grupos.ListarAsync());
-        Assert.Contains("grupo-public-id", fotos.PublicIdsRemovidos);
+        Assert.False(grupo.Ativo);
+        Assert.NotEqual(default, grupo.DataAtualizacao);
+        Assert.Single(await grupos.ListarIncluindoInativosAsync());
+        Assert.Empty(fotos.PublicIdsRemovidos);
     }
 
     [Fact]
@@ -340,24 +344,23 @@ public class GrupoServicoTests
     }
 
     [Fact]
-    public async Task RemoverAsync_GrupoComPartidas_BloqueiaParaPreservarHistorico()
+    public async Task RemoverAsync_GrupoJaArquivado_BloqueiaNovaExclusao()
     {
         var usuario = new Usuario { Nome = "Owner", Perfil = PerfilUsuario.Atleta, Ativo = true };
         var grupo = new Grupo
         {
-            Nome = "Grupo com partidas",
+            Nome = "Grupo arquivado",
             DataInicio = DateTime.UtcNow,
-            UsuarioOrganizadorId = usuario.Id
+            UsuarioOrganizadorId = usuario.Id,
+            Ativo = false
         };
-        var partida = CriarPartidaDoGrupo(grupo.Id);
         var servico = CriarServico(
             grupos: [grupo],
-            partidas: [partida],
             autorizacao: new AutorizacaoUsuarioServicoStub(usuario));
 
         var erro = await Assert.ThrowsAsync<RegraNegocioException>(() => servico.RemoverAsync(grupo.Id));
 
-        Assert.Equal("Não é possível excluir grupo com partidas vinculadas. Preserve o histórico esportivo.", erro.Message);
+        Assert.Equal("Este grupo já foi excluído.", erro.Message);
     }
 
     [Fact]
@@ -492,23 +495,24 @@ public class GrupoServicoTests
         public Guid? UltimoAtletaSelecaoId { get; private set; }
         public bool? UltimoIncluirPrivadosDeTerceiros { get; private set; }
 
-        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
+        public Task<IReadOnlyList<Grupo>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Where(x => x.Ativo).ToList());
+        public Task<IReadOnlyList<Grupo>> ListarIncluindoInativosAsync() => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
         public Task<IReadOnlyList<Grupo>> ListarParaSelecaoAsync(Guid usuarioId, Guid? atletaId, bool incluirPrivadosDeTerceiros, CancellationToken cancellationToken = default)
         {
             UltimoUsuarioSelecaoId = usuarioId;
             UltimoAtletaSelecaoId = atletaId;
             UltimoIncluirPrivadosDeTerceiros = incluirPrivadosDeTerceiros;
-            return Task.FromResult<IReadOnlyList<Grupo>>(grupos);
+            return Task.FromResult<IReadOnlyList<Grupo>>(grupos.Where(x => x.Ativo).ToList());
         }
-        public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default) => Task.FromResult(grupos.Count(x => x.Publico));
-        public Task<Grupo?> ObterResumoUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.FirstOrDefault());
-        public Task<IReadOnlyList<Grupo>> ListarResumosUsuarioAsync(Guid usuarioId, Guid? atletaId, int limite, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Take(limite).ToList());
-        public Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
-        public Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid>>(grupos.Select(x => x.Id).ToList());
-        public Task<bool> AtletaPossuiAcessoAsync(Guid grupoId, Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.Any(x => x.Id == grupoId));
+        public Task<int> ContarPublicosAsync(CancellationToken cancellationToken = default) => Task.FromResult(grupos.Count(x => x.Ativo && x.Publico));
+        public Task<Grupo?> ObterResumoUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.FirstOrDefault(x => x.Ativo));
+        public Task<IReadOnlyList<Grupo>> ListarResumosUsuarioAsync(Guid usuarioId, Guid? atletaId, int limite, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Where(x => x.Ativo).Take(limite).ToList());
+        public Task<IReadOnlyList<Grupo>> ListarDashboardUsuarioAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Where(x => x.Ativo).ToList());
+        public Task<IReadOnlyList<Guid>> ListarIdsComAcessoAtletaAsync(Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Guid>>(grupos.Where(x => x.Ativo).Select(x => x.Id).ToList());
+        public Task<bool> AtletaPossuiAcessoAsync(Guid grupoId, Guid usuarioId, Guid? atletaId, CancellationToken cancellationToken = default) => Task.FromResult(grupos.Any(x => x.Ativo && x.Id == grupoId));
         public Task<Grupo?> ObterPorNomeEOrganizadorAsync(string nome, Guid? usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(null);
-        public Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(grupos.FirstOrDefault(x => x.Nome == nome));
-        public Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos);
+        public Task<Grupo?> ObterPorNomeNormalizadoAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<Grupo?>(grupos.FirstOrDefault(x => x.Ativo && x.Nome == nome));
+        public Task<IReadOnlyList<Grupo>> ListarPorUsuarioOrganizadorParaAtualizacaoAsync(Guid usuarioOrganizadorId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Grupo>>(grupos.Where(x => x.UsuarioOrganizadorId == usuarioOrganizadorId).ToList());
         public Task<Grupo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(grupos.FirstOrDefault(x => x.Id == id));
         public Task AdicionarAsync(Grupo grupo, CancellationToken cancellationToken = default) { grupos.Add(grupo); return Task.CompletedTask; }
         public void Atualizar(Grupo grupo) { }

@@ -1281,6 +1281,12 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("uuid")
                         .HasColumnName("arena_id");
 
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
                     b.Property<DateTime>("DataAtualizacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_atualizacao");
@@ -1345,6 +1351,8 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasKey("Id");
 
                     b.HasIndex("ArenaId");
+
+                    b.HasIndex("Ativo");
 
                     b.HasIndex("UsuarioOrganizadorId");
 

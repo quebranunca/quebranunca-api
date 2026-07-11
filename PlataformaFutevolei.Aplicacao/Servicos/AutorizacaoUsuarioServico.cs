@@ -148,6 +148,11 @@ public class AutorizacaoUsuarioServico(
             throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
         }
 
+        if (!grupo.Ativo)
+        {
+            throw new RegraNegocioException("Grupo excluído não pode ser alterado.");
+        }
+
         if (EhAdministrador(usuario))
         {
             return;

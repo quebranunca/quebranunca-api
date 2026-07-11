@@ -44,7 +44,8 @@ public record GrupoDto(
     Guid? ArenaId,
     string? NomeArena,
     string? LocalPrincipal,
-    IReadOnlyList<string> DiasDaSemana
+    IReadOnlyList<string> DiasDaSemana,
+    bool Ativo
 );
 
 public record GrupoSelecaoDto(

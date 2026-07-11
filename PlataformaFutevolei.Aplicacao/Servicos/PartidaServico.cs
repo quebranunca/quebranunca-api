@@ -1434,6 +1434,11 @@ public class PartidaServico(
         bool permitirAdministradorForaDoGrupo,
         CancellationToken cancellationToken)
     {
+        if (!grupo.Ativo)
+        {
+            throw new AcessoNegadoException("Este grupo não está mais disponível para registrar partidas.");
+        }
+
         if (grupo.Publico)
         {
             return;
