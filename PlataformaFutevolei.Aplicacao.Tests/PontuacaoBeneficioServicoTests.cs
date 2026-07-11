@@ -316,6 +316,91 @@ public class PontuacaoBeneficioServicoTests
         Assert.Contains(conquistas, x => x.Codigo == "primeira-partida" && x.Desbloqueada);
     }
 
+    [Theory]
+    [InlineData(0, "Bronze", 500, 500)]
+    [InlineData(499, "Bronze", 500, 1)]
+    [InlineData(500, "Prata", 1500, 1000)]
+    [InlineData(1499, "Prata", 1500, 1)]
+    [InlineData(1500, "Ouro", 4000, 2500)]
+    [InlineData(3999, "Ouro", 4000, 1)]
+    [InlineData(4000, "Diamante", 8000, 4000)]
+    [InlineData(7999, "Diamante", 8000, 1)]
+    [InlineData(8000, "Lenda QN", null, 0)]
+    public async Task ObterResumoAsync_CalculaFaixaPorTotalAcumulado(
+        int totalAcumulado,
+        string faixaEsperada,
+        int? proximaFaixa,
+        int pontosRestantes)
+    {
+        var cenario = new Cenario();
+        cenario.DefinirSaldo(totalAcumulado, totalAcumulado);
+
+        var resumo = await cenario.Servico.ObterResumoAsync();
+
+        Assert.Equal(faixaEsperada, resumo.Nivel.Nome);
+        Assert.Equal(proximaFaixa, resumo.Nivel.PontosProximaFaixa);
+        Assert.Equal(pontosRestantes, resumo.Nivel.PontosRestantes);
+        Assert.Equal(totalAcumulado, resumo.Pontuacao.TotalAcumulado);
+        Assert.Contains(resumo.FaixasMedalha, faixa => faixa.Nome == "Lenda QN" && faixa.PontosMinimos == 8000);
+    }
+
+    [Fact]
+    public async Task ObterResumoAsync_ResgateNaoReduzFaixaBaseadaNoTotalAcumulado()
+    {
+        var cenario = new Cenario();
+        cenario.DefinirSaldo(saldoAtual: 100, totalAcumulado: 1500, totalResgatado: 1400);
+
+        var resumo = await cenario.Servico.ObterResumoAsync();
+
+        Assert.Equal(100, resumo.Pontuacao.SaldoAtual);
+        Assert.Equal(1500, resumo.Pontuacao.TotalAcumulado);
+        Assert.Equal(1400, resumo.Pontuacao.TotalResgatado);
+        Assert.Equal("Ouro", resumo.Nivel.Nome);
+        Assert.Equal(4000, resumo.Nivel.PontosProximaFaixa);
+        Assert.Equal(2500, resumo.Nivel.PontosRestantes);
+    }
+
+    [Fact]
+    public async Task ObterResumoAsync_ExpoeFaixasOficiaisDeMedalha()
+    {
+        var cenario = new Cenario();
+
+        var resumo = await cenario.Servico.ObterResumoAsync();
+
+        Assert.Collection(
+            resumo.FaixasMedalha,
+            faixa =>
+            {
+                Assert.Equal("Bronze", faixa.Nome);
+                Assert.Equal(0, faixa.PontosMinimos);
+                Assert.Equal(500, faixa.PontosProximaFaixa);
+            },
+            faixa =>
+            {
+                Assert.Equal("Prata", faixa.Nome);
+                Assert.Equal(500, faixa.PontosMinimos);
+                Assert.Equal(1500, faixa.PontosProximaFaixa);
+            },
+            faixa =>
+            {
+                Assert.Equal("Ouro", faixa.Nome);
+                Assert.Equal(1500, faixa.PontosMinimos);
+                Assert.Equal(4000, faixa.PontosProximaFaixa);
+            },
+            faixa =>
+            {
+                Assert.Equal("Diamante", faixa.Nome);
+                Assert.Equal(4000, faixa.PontosMinimos);
+                Assert.Equal(8000, faixa.PontosProximaFaixa);
+            },
+            faixa =>
+            {
+                Assert.Equal("Lenda QN", faixa.Nome);
+                Assert.Equal(8000, faixa.PontosMinimos);
+                Assert.Null(faixa.PontosProximaFaixa);
+            });
+    }
+
     [Fact]
     public void BeneficiosPadrao_MantemCampanhasPromocionaisEIncluiProdutosFisicos()
     {
@@ -523,6 +608,17 @@ public class PontuacaoBeneficioServicoTests
                 UnidadeTrabalho,
                 new AutorizacaoUsuarioServicoFake(usuario),
                 NullLogger<PontuacaoBeneficioServico>.Instance);
+        }
+
+        public void DefinirSaldo(int saldoAtual, int totalAcumulado, int totalResgatado = 0)
+        {
+            Repositorio.Saldos[Usuario.AtletaId!.Value] = new PontuacaoBeneficioAtleta
+            {
+                AtletaId = Usuario.AtletaId!.Value,
+                SaldoAtual = saldoAtual,
+                TotalAcumulado = totalAcumulado,
+                TotalResgatado = totalResgatado
+            };
         }
 
         public Partida CriarPartidaValida(TipoRegistroResultado tipoRegistro)

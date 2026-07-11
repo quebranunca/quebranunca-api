@@ -66,7 +66,8 @@ public class PontuacaoBeneficioServico(
             atividade,
             beneficios.OrderBy(x => x.PontosFaltantes).ThenBy(x => x.PontosNecessarios).Take(3).ToList(),
             missoes.Take(4).ToList(),
-            conquistas.Where(x => x.Desbloqueada).Take(4).ToList());
+            conquistas.Where(x => x.Desbloqueada).Take(4).ToList(),
+            MontarFaixasMedalha());
     }
 
     public async Task<ExtratoPontuacaoBeneficioListaDto> ListarExtratoAsync(
@@ -824,6 +825,14 @@ public class PontuacaoBeneficioServico(
             progresso,
             Math.Max(0, proxima.Value - totalAcumulado));
     }
+
+    private static IReadOnlyList<FaixaPontuacaoBeneficioDto> MontarFaixasMedalha()
+        => PontuacaoBeneficioRegras.Faixas
+            .Select(faixa => new FaixaPontuacaoBeneficioDto(
+                faixa.Nome,
+                faixa.PontosMinimos,
+                faixa.PontosProximaFaixa))
+            .ToList();
 
     private static ExtratoPontuacaoBeneficioDto MapearExtrato(ExtratoPontuacaoBeneficio extrato)
     {

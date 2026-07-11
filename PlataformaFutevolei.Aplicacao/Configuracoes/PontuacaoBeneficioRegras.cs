@@ -111,10 +111,10 @@ public static class PontuacaoBeneficioRegras
     public static readonly IReadOnlyList<FaixaPontuacaoBeneficio> Faixas =
     [
         new("Bronze", 0, 500),
-        new("Prata", 500, 1000),
-        new("Ouro", 1000, 2000),
-        new("Diamante", 2000, 4000),
-        new("Lenda QN", 4000, null)
+        new("Prata", 500, 1500),
+        new("Ouro", 1500, 4000),
+        new("Diamante", 4000, 8000),
+        new("Lenda QN", 8000, null)
     ];
 
     public static TipoEventoPontuacaoBeneficio ObterEventoCompartilhamento(TipoCompartilhamentoGamificacao tipo)

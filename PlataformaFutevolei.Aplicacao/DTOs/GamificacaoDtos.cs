@@ -16,13 +16,19 @@ public record NivelPontuacaoBeneficioDto(
     int ProgressoPercentual,
     int PontosRestantes);
 
+public record FaixaPontuacaoBeneficioDto(
+    string Nome,
+    int PontosMinimos,
+    int? PontosProximaFaixa);
+
 public record GamificacaoResumoDto(
     PontuacaoBeneficioResumoDto Pontuacao,
     NivelPontuacaoBeneficioDto Nivel,
     GamificacaoResumoAtividadeDto Atividade,
     IReadOnlyList<BeneficioPontuacaoDto> ProximosBeneficios,
     IReadOnlyList<MissaoPontuacaoDto> Missoes,
-    IReadOnlyList<ConquistaAtletaDto> ConquistasDestaque);
+    IReadOnlyList<ConquistaAtletaDto> ConquistasDestaque,
+    IReadOnlyList<FaixaPontuacaoBeneficioDto> FaixasMedalha);
 
 public record GamificacaoResumoAtividadeDto(
     int PartidasNoMes,
