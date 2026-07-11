@@ -31,17 +31,19 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         bool incluirPrivadosDeTerceiros,
         CancellationToken cancellationToken = default)
     {
+        var hojeUtc = DateTime.UtcNow.Date;
+        var nomePartidasAvulsas = NomeGrupoPartidasAvulsas.ToLower();
+        var nomeGeral = GruposPadrao.NomeGeral.ToLower();
         var consulta = dbContext.Grupos
             .AsNoTracking()
             .Include(x => x.Atletas)
-            .Where(x => x.Nome.ToLower() != NomeGrupoPartidasAvulsas.ToLower());
+            .Where(x =>
+                x.Nome.Trim().ToLower() != nomePartidasAvulsas &&
+                x.Nome.Trim().ToLower() != nomeGeral &&
+                (!x.DataFim.HasValue || x.DataFim.Value >= hojeUtc));
 
-        if (!incluirPrivadosDeTerceiros)
-        {
-            consulta = AplicarFiltroSelecao(usuarioId, atletaId, consulta);
-        }
-
-        return await consulta
+        return await AplicarFiltroSelecao(usuarioId, atletaId, consulta)
+            .Distinct()
             .OrderBy(x => x.Nome)
             .ToListAsync(cancellationToken);
     }
@@ -259,26 +261,17 @@ public class GrupoRepositorio(PlataformaFutevoleiDbContext dbContext) : IGrupoRe
         Guid? atletaId,
         IQueryable<Grupo> query)
     {
-        var consulta = query.Where(x =>
-            x.Publico ||
-            x.UsuarioOrganizadorId == usuarioId);
-
         if (!atletaId.HasValue)
         {
-            return consulta;
+            return query.Where(x =>
+                x.Publico ||
+                x.UsuarioOrganizadorId == usuarioId);
         }
 
         var atletaIdValor = atletaId.Value;
         return query.Where(x =>
             x.Publico ||
             x.UsuarioOrganizadorId == usuarioId ||
-            x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor) ||
-            x.Partidas.Any(partida =>
-                partida.DuplaA != null &&
-                partida.DuplaB != null &&
-                (partida.DuplaA.Atleta1Id == atletaIdValor ||
-                 partida.DuplaA.Atleta2Id == atletaIdValor ||
-                 partida.DuplaB.Atleta1Id == atletaIdValor ||
-                 partida.DuplaB.Atleta2Id == atletaIdValor)));
+            x.Atletas.Any(grupo => grupo.AtletaId == atletaIdValor));
     }
 }

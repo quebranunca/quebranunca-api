@@ -73,9 +73,24 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupo_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_UsuarioNaoMembroGrupoPublico_RegistraNormalmente()
     {
         var cenario = Cenario.Criar(publico: true, usuarioMembro: false);
+
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.All(cenario.Atletas, atleta =>
+            Assert.Contains(cenario.GruposAtletas.Vinculos, vinculo =>
+                vinculo.GrupoId == cenario.Grupo.Id && vinculo.AtletaId == atleta.Id));
+        Assert.DoesNotContain(cenario.GruposAtletas.Vinculos, vinculo =>
+            vinculo.GrupoId == cenario.Grupo.Id && vinculo.AtletaId == cenario.AtletaUsuario.Id);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupoPrivado_BloqueiaRegistro()
+    {
+        var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
         cenario.Usuario.Perfil = PerfilUsuario.Administrador;
 
         var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>

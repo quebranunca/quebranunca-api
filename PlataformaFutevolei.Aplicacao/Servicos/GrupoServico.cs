@@ -46,11 +46,10 @@ public class GrupoServico(
     public async Task<IReadOnlyList<GrupoSelecaoDto>> ListarParaSelecaoAsync(CancellationToken cancellationToken = default)
     {
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        var incluirPrivadosDeTerceiros = autorizacaoUsuarioServico.EhAdministrador(usuario);
         var grupos = await grupoRepositorio.ListarParaSelecaoAsync(
             usuario.Id,
             usuario.AtletaId,
-            incluirPrivadosDeTerceiros,
+            incluirPrivadosDeTerceiros: false,
             cancellationToken);
 
         return grupos.Select(ParaSelecaoDto).ToList();

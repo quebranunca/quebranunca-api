@@ -200,7 +200,7 @@ public class GrupoServicoTests
     }
 
     [Fact]
-    public async Task ListarParaSelecaoAsync_UsuarioAdministrador_SolicitaPrivadosDeTerceiros()
+    public async Task ListarParaSelecaoAsync_UsuarioAdministrador_NaoSolicitaPrivadosDeTerceiros()
     {
         var usuario = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
         var repositorio = new GrupoRepositorioStub([]);
@@ -209,7 +209,7 @@ public class GrupoServicoTests
         await servico.ListarParaSelecaoAsync();
 
         Assert.Equal(usuario.Id, repositorio.UltimoUsuarioSelecaoId);
-        Assert.True(repositorio.UltimoIncluirPrivadosDeTerceiros);
+        Assert.False(repositorio.UltimoIncluirPrivadosDeTerceiros);
     }
 
     [Fact]

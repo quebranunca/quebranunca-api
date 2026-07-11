@@ -1288,7 +1288,7 @@ public class PartidaServico(
             var grupoEspecificoSelecionado = grupoEspecificoExistenteInformado && !EhGrupoGeral(grupo);
             if (grupoEspecificoSelecionado)
             {
-                await GarantirUsuarioPertenceAoGrupoAsync(grupo.Id, permitirAdministradorForaDoGrupo, cancellationToken);
+                await GarantirUsuarioPodeRegistrarNoGrupoAsync(grupo, permitirAdministradorForaDoGrupo, cancellationToken);
             }
 
             var atletaDuplaA1 = await ResolverAtletaPartidaGrupoAsync(duplaAAtleta1Id, duplaAAtleta1Nome, cancellationToken);
@@ -1429,11 +1429,16 @@ public class PartidaServico(
         }
     }
 
-    private async Task GarantirUsuarioPertenceAoGrupoAsync(
-        Guid grupoId,
+    private async Task GarantirUsuarioPodeRegistrarNoGrupoAsync(
+        Grupo grupo,
         bool permitirAdministradorForaDoGrupo,
         CancellationToken cancellationToken)
     {
+        if (grupo.Publico)
+        {
+            return;
+        }
+
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         if (permitirAdministradorForaDoGrupo && autorizacaoUsuarioServico.EhAdministrador(usuario))
         {
@@ -1446,7 +1451,7 @@ public class PartidaServico(
         }
 
         var grupoAtleta = await grupoAtletaRepositorio.ObterPorGrupoEAtletaAsync(
-            grupoId,
+            grupo.Id,
             usuario.AtletaId.Value,
             cancellationToken);
 
