@@ -46,32 +46,35 @@ public static class PontuacaoBeneficioRegras
     [
         new(
             Guid.Parse("11111111-1111-4111-8111-111111111111"),
-            "Cupom especial QuebraNunca",
-            "Beneficio promocional interno para campanhas QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao.",
+            "Cupom 10% OFF",
+            "Beneficio promocional para campanhas da loja QuebraNunca.",
             TipoBeneficioPontuacao.DescontoLoja,
-            500,
+            300,
             1,
             true),
         new(
             Guid.Parse("22222222-2222-4222-8222-222222222222"),
-            "Condicao especial em produto QN",
-            "Beneficio promocional interno em produto de campanha QuebraNunca, sujeito a disponibilidade e validacao.",
+            "Cupom 20% OFF",
+            "Condicao promocional para produtos selecionados da loja QuebraNunca.",
             TipoBeneficioPontuacao.DescontoLoja,
-            1000,
+            600,
             2,
-            false),
+            false,
+            null,
+            100),
         new(
             Guid.Parse("66666666-6666-4666-8666-666666666666"),
             "Chaveiro QuebraNunca",
-            "Chaveiro exclusivo QuebraNunca para levar a resenha com voce.",
+            "Brinde fisico QuebraNunca disponivel por campanha.",
             TipoBeneficioPontuacao.Produto,
-            2000,
+            700,
             3,
             false,
-            "pontos-qn/beneficio-chaveiro-qn.png"),
+            "pontos-qn/beneficio-chaveiro-qn.png",
+            100),
         new(
             Guid.Parse("33333333-3333-4333-8333-333333333333"),
-            "Desconto promocional em campanha",
+            "Campanha promocional QuebraNunca",
             "Condicao promocional interna para campanhas QuebraNunca, sujeita a disponibilidade, regras da campanha e validacao.",
             TipoBeneficioPontuacao.DescontoLoja,
             2000,
@@ -96,12 +99,13 @@ public static class PontuacaoBeneficioRegras
         new(
             Guid.Parse("77777777-7777-4777-8777-777777777777"),
             "Boné QuebraNunca",
-            "Boné trucker QuebraNunca para usar dentro e fora da areia.",
+            "Produto especial disponivel em campanhas da comunidade.",
             TipoBeneficioPontuacao.Produto,
-            8000,
+            1500,
             7,
             false,
-            "pontos-qn/beneficio-bone-qn.png")
+            "pontos-qn/beneficio-bone-qn.png",
+            50)
     ];
 
     public static readonly IReadOnlyList<FaixaPontuacaoBeneficio> Faixas =
@@ -181,4 +185,5 @@ public record BeneficioPontuacaoPadrao(
     int PontosNecessarios,
     int Ordem,
     bool Destaque,
-    string? ImagemUrl = null);
+    string? ImagemUrl = null,
+    int? QuantidadeDisponivel = null);

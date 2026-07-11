@@ -43,7 +43,7 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
             beneficio.Tipo,
             beneficio.PontosNecessarios,
             Ativo = true,
-            QuantidadeDisponivel = (int?)null,
+            beneficio.QuantidadeDisponivel,
             beneficio.ImagemUrl,
             beneficio.Ordem,
             beneficio.Destaque,

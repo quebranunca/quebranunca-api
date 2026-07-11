@@ -319,11 +319,8 @@ public class PontuacaoBeneficioServicoTests
     [Fact]
     public void BeneficiosPadrao_MantemCampanhasPromocionaisEIncluiProdutosFisicos()
     {
-        var pontosCampanhas = PontuacaoBeneficioRegras.BeneficiosPadrao
-            .Where(x => x.Tipo == TipoBeneficioPontuacao.DescontoLoja)
-            .OrderBy(x => x.Ordem)
-            .Select(x => x.PontosNecessarios)
-            .ToList();
+        var cupom10 = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Cupom 10% OFF");
+        var cupom20 = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Cupom 20% OFF");
         var chaveiro = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Chaveiro QuebraNunca");
         var bone = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Boné QuebraNunca");
 
@@ -332,12 +329,25 @@ public class PontuacaoBeneficioServicoTests
             Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(beneficio.Titulo));
             Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(beneficio.Descricao));
         });
-        Assert.Equal(new[] { 500, 1000, 2000, 3000, 5000 }, pontosCampanhas);
+
+        Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, cupom10.Tipo);
+        Assert.Equal(300, cupom10.PontosNecessarios);
+        Assert.Null(cupom10.QuantidadeDisponivel);
+        Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(cupom10.Titulo));
+
+        Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, cupom20.Tipo);
+        Assert.Equal(600, cupom20.PontosNecessarios);
+        Assert.Equal(100, cupom20.QuantidadeDisponivel);
+        Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(cupom20.Titulo));
+
         Assert.Equal(TipoBeneficioPontuacao.Produto, chaveiro.Tipo);
-        Assert.Equal(2000, chaveiro.PontosNecessarios);
+        Assert.Equal(700, chaveiro.PontosNecessarios);
+        Assert.Equal(100, chaveiro.QuantidadeDisponivel);
         Assert.Equal("pontos-qn/beneficio-chaveiro-qn.png", chaveiro.ImagemUrl);
+
         Assert.Equal(TipoBeneficioPontuacao.Produto, bone.Tipo);
-        Assert.Equal(8000, bone.PontosNecessarios);
+        Assert.Equal(1500, bone.PontosNecessarios);
+        Assert.Equal(50, bone.QuantidadeDisponivel);
         Assert.Equal("pontos-qn/beneficio-bone-qn.png", bone.ImagemUrl);
     }
 
