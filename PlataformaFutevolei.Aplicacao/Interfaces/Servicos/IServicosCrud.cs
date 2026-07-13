@@ -290,6 +290,11 @@ public interface IPartidaCancelamentoServico
         Guid solicitacaoId,
         CancellationToken cancellationToken = default);
 
+    Task<PartidaDto> CancelarDiretamenteAsync(
+        Guid partidaId,
+        CancelarPartidaDto dto,
+        CancellationToken cancellationToken = default);
+
     Task ExcluirDefinitivamenteAsync(
         Guid partidaId,
         ExcluirPartidaDefinitivamenteDto dto,

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
@@ -14,6 +16,7 @@ public class PartidaCancelamentoServico(
     IPartidaRepositorio partidaRepositorio,
     ISolicitacaoCancelamentoPartidaRepositorio solicitacaoRepositorio,
     IPendenciaUsuarioRepositorio pendenciaUsuarioRepositorio,
+    IHistoricoPartidaRepositorio historicoPartidaRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
     IAutorizacaoUsuarioServico autorizacaoUsuarioServico,
     IPontuacaoBeneficioServico pontuacaoBeneficioServico,
@@ -22,6 +25,7 @@ public class PartidaCancelamentoServico(
 {
     private const int LimiteObservacao = 200;
     private const int LimiteMotivoExclusao = 200;
+    private const int LimiteMotivoCancelamentoDireto = 200;
 
     public async Task<SolicitacaoCancelamentoPartidaDto> SolicitarAsync(
         Guid partidaId,
@@ -87,6 +91,7 @@ public class PartidaCancelamentoServico(
                 await pendenciaUsuarioRepositorio.AdicionarAsync(pendencia, ct);
             }
 
+            await RegistrarHistoricoAsync(partida, "SolicitacaoCancelamentoCriada", usuario, ObterTextoMotivo(motivo, observacao), ct);
             await unidadeTrabalho.SalvarAlteracoesAsync(ct);
             solicitacaoCriada = solicitacao;
         }, cancellationToken);
@@ -154,6 +159,7 @@ public class PartidaCancelamentoServico(
             solicitacao.AtualizarDataModificacao();
             EncerrarPendenciasCancelamento(solicitacao, null, StatusPendenciaUsuario.Cancelada, "Cancelada porque o solicitante encerrou a solicitação.");
             solicitacaoRepositorio.Atualizar(solicitacao);
+            await RegistrarHistoricoAsync(partida, "SolicitacaoCancelamentoCancelada", usuario, "Solicitação cancelada pelo solicitante.", ct);
             await unidadeTrabalho.SalvarAlteracoesAsync(ct);
             solicitacaoAtualizada = solicitacao;
         }, cancellationToken);
@@ -167,12 +173,63 @@ public class PartidaCancelamentoServico(
         return solicitacaoAtualizada!.ParaDto(usuario);
     }
 
+    public async Task<PartidaDto> CancelarDiretamenteAsync(
+        Guid partidaId,
+        CancelarPartidaDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        var motivo = NormalizarMotivoCancelamentoDireto(dto);
+        Partida? partidaAtualizada = null;
+
+        await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
+        {
+            var partida = await partidaRepositorio.ObterPorIdParaAtualizacaoAsync(partidaId, ct)
+                ?? throw new EntidadeNaoEncontradaException("Partida não encontrada.");
+
+            ValidarUsuarioPodeGerenciarPartida(partida, usuario, "cancelar");
+
+            if (partida.Cancelada)
+            {
+                partidaAtualizada = partida;
+                return;
+            }
+
+            var solicitacaoPendente = await solicitacaoRepositorio.ObterPendentePorPartidaAsync(partida.Id, ct);
+            if (solicitacaoPendente is not null)
+            {
+                EncerrarSolicitacaoPendentePorAcaoDireta(
+                    solicitacaoPendente,
+                    "Encerrada porque a partida foi cancelada diretamente.");
+                solicitacaoRepositorio.Atualizar(solicitacaoPendente);
+            }
+
+            partida.Cancelada = true;
+            partida.CanceladaEm = DateTime.UtcNow;
+            partida.AtualizarDataModificacao();
+            partidaRepositorio.Atualizar(partida);
+
+            await EncerrarPendenciasOperacionaisDaPartidaCanceladaAsync(partida.Id, solicitacaoPendente?.Id ?? Guid.Empty, ct);
+            await pontuacaoBeneficioServico.EstornarPartidaAsync(partida.Id, ct);
+            await RegistrarHistoricoAsync(partida, "CancelamentoDireto", usuario, motivo, ct);
+            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+            partidaAtualizada = partida;
+        }, cancellationToken);
+
+        logger.LogWarning(
+            "Partida cancelada diretamente. PartidaId={PartidaId} UsuarioId={UsuarioId}",
+            partidaId,
+            usuario.Id);
+
+        return partidaAtualizada!.ParaDto(usuario);
+    }
+
     public async Task ExcluirDefinitivamenteAsync(
         Guid partidaId,
         ExcluirPartidaDefinitivamenteDto dto,
         CancellationToken cancellationToken = default)
     {
-        var usuario = await autorizacaoUsuarioServico.ObterAdministradorAtualObrigatorioAsync(cancellationToken);
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
         var motivo = NormalizarMotivoExclusao(dto);
 
         await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
@@ -180,21 +237,23 @@ public class PartidaCancelamentoServico(
             var partida = await partidaRepositorio.ObterPorIdParaAtualizacaoAsync(partidaId, ct)
                 ?? throw new EntidadeNaoEncontradaException("Partida não encontrada.");
 
+            ValidarUsuarioPodeGerenciarPartida(partida, usuario, "excluir definitivamente");
+
             if (partida.ExcluidaDefinitivamenteEm.HasValue)
             {
                 throw new ConflitoEstadoException("Esta partida já foi excluída definitivamente.");
             }
 
-            if (!partida.Cancelada)
-            {
-                throw new RegraNegocioException("Apenas partidas canceladas podem ser excluídas definitivamente nesta fase.");
-            }
-
             var solicitacaoPendente = await solicitacaoRepositorio.ObterPendentePorPartidaAsync(partida.Id, ct);
             if (solicitacaoPendente is not null)
             {
-                throw new ConflitoEstadoException("Resolva a solicitação de cancelamento pendente antes de excluir a partida.");
+                EncerrarSolicitacaoPendentePorAcaoDireta(
+                    solicitacaoPendente,
+                    "Encerrada porque a partida foi excluída definitivamente.");
+                solicitacaoRepositorio.Atualizar(solicitacaoPendente);
             }
+
+            await EncerrarPendenciasOperacionaisDaPartidaCanceladaAsync(partida.Id, solicitacaoPendente?.Id ?? Guid.Empty, ct);
 
             await pontuacaoBeneficioServico.EstornarPartidaAsync(partida.Id, ct);
             partida.Ativa = false;
@@ -203,6 +262,7 @@ public class PartidaCancelamentoServico(
             partida.MotivoExclusaoDefinitiva = motivo;
             partida.AtualizarDataModificacao();
             partidaRepositorio.Atualizar(partida);
+            await RegistrarHistoricoAsync(partida, "ExclusaoDefinitiva", usuario, motivo, ct);
             await unidadeTrabalho.SalvarAlteracoesAsync(ct);
         }, cancellationToken);
 
@@ -260,6 +320,12 @@ public class PartidaCancelamentoServico(
                 await pontuacaoBeneficioServico.EstornarPartidaAsync(partida.Id, ct);
             }
 
+            await RegistrarHistoricoAsync(
+                partida,
+                aprovar ? "SolicitacaoCancelamentoAprovada" : "SolicitacaoCancelamentoRecusada",
+                usuario,
+                aprovar ? "Cancelamento aprovado por atleta adversário." : "Cancelamento recusado por atleta adversário.",
+                ct);
             await unidadeTrabalho.SalvarAlteracoesAsync(ct);
             solicitacaoAtualizada = solicitacao;
         }, cancellationToken);
@@ -461,6 +527,22 @@ public class PartidaCancelamentoServico(
         return texto;
     }
 
+    private static string NormalizarMotivoCancelamentoDireto(CancelarPartidaDto dto)
+    {
+        var motivo = dto.Motivo?.Trim();
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            throw new RegraNegocioException("Informe o motivo do cancelamento.");
+        }
+
+        if (motivo.Length > LimiteMotivoCancelamentoDireto)
+        {
+            throw new RegraNegocioException($"O motivo deve ter no máximo {LimiteMotivoCancelamentoDireto} caracteres.");
+        }
+
+        return motivo;
+    }
+
     private static string NormalizarMotivoExclusao(ExcluirPartidaDefinitivamenteDto dto)
     {
         var motivo = dto.Motivo?.Trim();
@@ -476,6 +558,106 @@ public class PartidaCancelamentoServico(
 
         return motivo;
     }
+
+    private static void ValidarUsuarioPodeGerenciarPartida(Partida partida, Usuario usuario, string acao)
+    {
+        if (usuario.Perfil == PerfilUsuario.Administrador || partida.CriadoPorUsuarioId == usuario.Id)
+        {
+            return;
+        }
+
+        throw new AcessoNegadoException($"Você não tem permissão para {acao} esta partida.");
+    }
+
+    private static void EncerrarSolicitacaoPendentePorAcaoDireta(
+        SolicitacaoCancelamentoPartida solicitacao,
+        string observacao)
+    {
+        if (solicitacao.Status != StatusSolicitacaoCancelamentoPartida.Pendente)
+        {
+            return;
+        }
+
+        solicitacao.Status = StatusSolicitacaoCancelamentoPartida.CanceladaPeloSolicitante;
+        solicitacao.CanceladaPeloSolicitanteEm = DateTime.UtcNow;
+        solicitacao.AtualizarDataModificacao();
+        EncerrarPendenciasCancelamento(solicitacao, null, StatusPendenciaUsuario.Cancelada, observacao);
+    }
+
+    private async Task RegistrarHistoricoAsync(
+        Partida partida,
+        string acao,
+        Usuario usuario,
+        string? motivo,
+        CancellationToken cancellationToken)
+    {
+        await historicoPartidaRepositorio.AdicionarAsync(
+            new HistoricoPartida
+            {
+                PartidaIdOriginal = partida.Id,
+                Acao = acao,
+                UsuarioResponsavelId = usuario.Id,
+                DataHoraUtc = DateTime.UtcNow,
+                Motivo = motivo,
+                SnapshotJson = CriarSnapshotPartida(partida),
+                CorrelationId = Activity.Current?.TraceId.ToString()
+            },
+            cancellationToken);
+    }
+
+    private static string CriarSnapshotPartida(Partida partida)
+    {
+        var snapshot = new
+        {
+            partida.Id,
+            partida.GrupoId,
+            GrupoNome = partida.Grupo?.Nome,
+            partida.CategoriaCompeticaoId,
+            CategoriaNome = partida.CategoriaCompeticao?.Nome,
+            partida.CriadoPorUsuarioId,
+            CriadoPorUsuarioNome = partida.CriadoPorUsuario?.Nome,
+            partida.Status,
+            partida.StatusAprovacao,
+            partida.Ativa,
+            partida.Cancelada,
+            partida.CanceladaEm,
+            partida.ExcluidaDefinitivamenteEm,
+            partida.PlacarDuplaA,
+            partida.PlacarDuplaB,
+            partida.DuplaVencedoraId,
+            partida.TipoRegistroResultado,
+            partida.DataPartida,
+            partida.DataCriacao,
+            partida.DataAtualizacao,
+            DuplaA = CriarSnapshotDupla(partida.DuplaA),
+            DuplaB = CriarSnapshotDupla(partida.DuplaB)
+        };
+
+        return JsonSerializer.Serialize(snapshot);
+    }
+
+    private static object? CriarSnapshotDupla(Dupla? dupla)
+    {
+        if (dupla is null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            dupla.Id,
+            dupla.Nome,
+            dupla.Atleta1Id,
+            Atleta1Nome = dupla.Atleta1?.Nome,
+            dupla.Atleta2Id,
+            Atleta2Nome = dupla.Atleta2?.Nome
+        };
+    }
+
+    private static string ObterTextoMotivo(MotivoCancelamentoPartida motivo, string? observacao)
+        => string.IsNullOrWhiteSpace(observacao)
+            ? motivo.ToString()
+            : $"{motivo}: {observacao}";
 
     private static bool DuplaContemAtleta(Dupla? dupla, Guid atletaId)
         => dupla is not null &&

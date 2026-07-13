@@ -265,6 +265,10 @@ public record ExcluirPartidaDefinitivamenteDto(
     string? Motivo
 );
 
+public record CancelarPartidaDto(
+    string? Motivo
+);
+
 public record RespostaCancelamentoPartidaPendenciaDto(
     Guid PendenciaId,
     Guid? AtletaId,
@@ -291,6 +295,25 @@ public record SolicitacaoCancelamentoPartidaDto(
     DateTime? CanceladaPeloSolicitanteEm,
     string? RespostaUsuarioAtual,
     IReadOnlyList<RespostaCancelamentoPartidaPendenciaDto> Pendencias
+);
+
+public record PartidaPermissoesDto(
+    bool PodeEditar,
+    bool PodeCancelar,
+    bool PodeExcluirDefinitivamente,
+    bool PodeSolicitarCancelamento,
+    bool PodeResponderCancelamento,
+    bool PodeCancelarSolicitacao
+);
+
+public record HistoricoPartidaDto(
+    Guid Id,
+    Guid PartidaIdOriginal,
+    string Acao,
+    Guid UsuarioResponsavelId,
+    DateTime DataHoraUtc,
+    string? Motivo,
+    string? CorrelationId
 );
 
 public record FeedPartidaDuplaDto(
@@ -386,6 +409,9 @@ public record PartidaDto(
     bool PodeResponderCancelamento = false,
     bool PodeCancelarSolicitacao = false,
     bool PodeEditar = false,
+    bool PodeCancelar = false,
     bool PodeExcluirDefinitivamente = false,
-    bool ExcluidaDefinitivamente = false
+    bool ExcluidaDefinitivamente = false,
+    PartidaPermissoesDto? Permissoes = null,
+    IReadOnlyList<HistoricoPartidaDto>? Historico = null
 );

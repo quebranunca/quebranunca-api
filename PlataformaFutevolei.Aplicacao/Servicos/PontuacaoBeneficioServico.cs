@@ -718,7 +718,7 @@ public class PontuacaoBeneficioServico(
         }
 
         var saldo = saldoParaAtualizacao ?? await ObterOuCriarSaldoParaAtualizacaoAsync(atletaId, cancellationToken);
-        if (saldo.SaldoAtual + pontos < 0)
+        if (saldo.SaldoAtual + pontos < 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoPartida)
         {
             throw new RegraNegocioException("Saldo insuficiente para esta movimentação.");
         }

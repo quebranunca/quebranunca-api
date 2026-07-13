@@ -249,6 +249,28 @@ public class PartidasController(
         return Ok(solicitacao);
     }
 
+    [HttpPost("{id:guid}/cancelar")]
+    [ProducesResponseType(typeof(PartidaDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Cancelar(
+        Guid id,
+        [FromBody] CancelarPartidaDto dto,
+        CancellationToken cancellationToken)
+    {
+        var partida = await partidaCancelamentoServico.CancelarDiretamenteAsync(id, dto, cancellationToken);
+        return Ok(partida);
+    }
+
+    [HttpPost("{id:guid}/excluir-definitivamente")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ExcluirDefinitivamente(
+        Guid id,
+        [FromBody] ExcluirPartidaDefinitivamenteDto dto,
+        CancellationToken cancellationToken)
+    {
+        await partidaCancelamentoServico.ExcluirDefinitivamenteAsync(id, dto, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover(

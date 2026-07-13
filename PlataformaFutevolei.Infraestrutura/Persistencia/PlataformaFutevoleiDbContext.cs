@@ -26,6 +26,7 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
     public DbSet<CategoriaCompeticao> CategoriasCompeticao => Set<CategoriaCompeticao>();
     public DbSet<InscricaoCampeonato> InscricoesCampeonato => Set<InscricaoCampeonato>();
     public DbSet<Partida> Partidas => Set<Partida>();
+    public DbSet<HistoricoPartida> HistoricosPartidas => Set<HistoricoPartida>();
     public DbSet<PartidaAprovacao> PartidasAprovacoes => Set<PartidaAprovacao>();
     public DbSet<SolicitacaoCancelamentoPartida> SolicitacoesCancelamentoPartidas => Set<SolicitacaoCancelamentoPartida>();
     public DbSet<PendenciaUsuario> PendenciasUsuarios => Set<PendenciaUsuario>();

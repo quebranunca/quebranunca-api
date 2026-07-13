@@ -335,6 +335,12 @@ public interface IPartidaRepositorio
     void Remover(Partida partida);
 }
 
+public interface IHistoricoPartidaRepositorio
+{
+    Task<IReadOnlyList<HistoricoPartida>> ListarPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(HistoricoPartida historico, CancellationToken cancellationToken = default);
+}
+
 public interface ISolicitacaoCancelamentoPartidaRepositorio
 {
     Task<SolicitacaoCancelamentoPartida?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);

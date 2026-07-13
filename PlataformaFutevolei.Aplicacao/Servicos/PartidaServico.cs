@@ -29,6 +29,7 @@ public class PartidaServico(
     IMidiaPartidaService midiaPartidaService,
     IPontuacaoBeneficioServico? pontuacaoBeneficioServico = null,
     ISolicitacaoCancelamentoPartidaRepositorio? solicitacaoCancelamentoRepositorio = null,
+    IHistoricoPartidaRepositorio? historicoPartidaRepositorio = null,
     PartidaDuplicidadeOpcoes? partidaDuplicidadeOpcoes = null
 ) : IPartidaServico
 {
@@ -150,7 +151,14 @@ public class PartidaServico(
             throw new EntidadeNaoEncontradaException("Partida não encontrada.");
         }
 
-        return partida.ParaDto(usuario);
+        var partidaDto = partida.ParaDto(usuario);
+        if (historicoPartidaRepositorio is null)
+        {
+            return partidaDto;
+        }
+
+        var historico = await historicoPartidaRepositorio.ListarPorPartidaAsync(id, cancellationToken);
+        return partidaDto with { Historico = historico.Select(x => x.ParaDto()).ToList() };
     }
 
     public async Task<PartidaCompartilhamentoDto> ObterCompartilhamentoAsync(Guid id, CancellationToken cancellationToken = default)

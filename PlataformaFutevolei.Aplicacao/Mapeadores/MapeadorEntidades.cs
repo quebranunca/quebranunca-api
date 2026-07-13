@@ -412,6 +412,19 @@ internal static class MapeadorEntidades
         var atletasPendentes = ObterAtletasPendentesPartida(partida);
         var solicitacaoCancelamento = ObterSolicitacaoCancelamentoRelevante(partida);
         var cancelamentoPendente = solicitacaoCancelamento?.Status == StatusSolicitacaoCancelamentoPartida.Pendente;
+        var podeEditar = PodeEditarPartida(partida, solicitacaoCancelamento, usuarioAtual);
+        var podeCancelar = PodeCancelarDiretamentePartida(partida, usuarioAtual);
+        var podeExcluirDefinitivamente = PodeExcluirDefinitivamentePartida(partida, usuarioAtual);
+        var podeSolicitarCancelamento = PodeSolicitarCancelamento(partida, solicitacaoCancelamento, usuarioAtual);
+        var podeResponderCancelamento = PodeResponderCancelamento(solicitacaoCancelamento, usuarioAtual);
+        var podeCancelarSolicitacao = PodeCancelarSolicitacaoCancelamento(solicitacaoCancelamento, usuarioAtual);
+        var permissoes = new PartidaPermissoesDto(
+            podeEditar,
+            podeCancelar,
+            podeExcluirDefinitivamente,
+            podeSolicitarCancelamento,
+            podeResponderCancelamento,
+            podeCancelarSolicitacao);
 
         return new PartidaDto(
             partida.Id,
@@ -473,14 +486,27 @@ internal static class MapeadorEntidades
             partida.CanceladaEm,
             cancelamentoPendente,
             solicitacaoCancelamento?.ParaDto(usuarioAtual),
-            PodeSolicitarCancelamento(partida, solicitacaoCancelamento, usuarioAtual),
-            PodeResponderCancelamento(solicitacaoCancelamento, usuarioAtual),
-            PodeCancelarSolicitacaoCancelamento(solicitacaoCancelamento, usuarioAtual),
-            PodeEditarPartida(partida, solicitacaoCancelamento, usuarioAtual),
-            PodeExcluirDefinitivamentePartida(partida, usuarioAtual),
-            partida.ExcluidaDefinitivamenteEm.HasValue
+            podeSolicitarCancelamento,
+            podeResponderCancelamento,
+            podeCancelarSolicitacao,
+            podeEditar,
+            podeCancelar,
+            podeExcluirDefinitivamente,
+            partida.ExcluidaDefinitivamenteEm.HasValue,
+            permissoes
         );
     }
+
+    public static HistoricoPartidaDto ParaDto(this HistoricoPartida historico)
+        => new(
+            historico.Id,
+            historico.PartidaIdOriginal,
+            historico.Acao,
+            historico.UsuarioResponsavelId,
+            historico.DataHoraUtc,
+            historico.Motivo,
+            historico.CorrelationId
+        );
 
     public static SolicitacaoCancelamentoPartidaDto ParaDto(
         this SolicitacaoCancelamentoPartida solicitacao,
@@ -594,6 +620,7 @@ internal static class MapeadorEntidades
                !partida.Cancelada &&
                partida.ExcluidaDefinitivamenteEm is null &&
                solicitacaoCancelamento?.Status != StatusSolicitacaoCancelamentoPartida.Pendente &&
+               !UsuarioPodeGerenciarPartida(partida, usuarioAtual) &&
                AtletaParticipaDaPartida(partida, atletaId);
     }
 
@@ -629,9 +656,17 @@ internal static class MapeadorEntidades
     }
 
     private static bool PodeExcluirDefinitivamentePartida(Partida partida, Usuario? usuarioAtual)
-        => usuarioAtual?.Perfil == PerfilUsuario.Administrador &&
-           partida.Cancelada &&
+        => UsuarioPodeGerenciarPartida(partida, usuarioAtual) &&
            partida.ExcluidaDefinitivamenteEm is null;
+
+    private static bool PodeCancelarDiretamentePartida(Partida partida, Usuario? usuarioAtual)
+        => UsuarioPodeGerenciarPartida(partida, usuarioAtual) &&
+           !partida.Cancelada &&
+           partida.ExcluidaDefinitivamenteEm is null;
+
+    private static bool UsuarioPodeGerenciarPartida(Partida partida, Usuario? usuarioAtual)
+        => usuarioAtual is not null &&
+           (usuarioAtual.Perfil == PerfilUsuario.Administrador || partida.CriadoPorUsuarioId == usuarioAtual.Id);
 
     private static string? ObterRespostaCancelamentoUsuarioAtual(
         SolicitacaoCancelamentoPartida solicitacao,

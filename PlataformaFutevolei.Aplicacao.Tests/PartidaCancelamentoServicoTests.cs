@@ -244,11 +244,59 @@ public class PartidaCancelamentoServicoTests
     }
 
     [Fact]
-    public async Task ExcluirDefinitivamenteAsync_AdminExigeMotivoEPerfilAdministrador()
+    public async Task CancelarDiretamenteAsync_RegistradorCancelaEstornaQnERegistraHistorico()
     {
         var cenario = new Cenario();
-        cenario.Partida.Cancelada = true;
         cenario.Autorizacao.UsuarioAtual = cenario.UsuarioA1;
+
+        var partida = await cenario.Servico.CancelarDiretamenteAsync(
+            cenario.Partida.Id,
+            new CancelarPartidaDto("Partida registrada por engano."));
+
+        Assert.True(partida.Cancelada);
+        Assert.True(cenario.Partida.Cancelada);
+        Assert.NotNull(cenario.Partida.CanceladaEm);
+        Assert.Equal(cenario.Partida.Id, Assert.Single(cenario.Pontuacao.EstornosPartida));
+        Assert.Contains(cenario.Historicos.Historicos, x => x.Acao == "CancelamentoDireto");
+    }
+
+    [Fact]
+    public async Task CancelarDiretamenteAsync_ParticipanteNaoRegistradorNaoCancela()
+    {
+        var cenario = new Cenario();
+        cenario.Autorizacao.UsuarioAtual = cenario.UsuarioB1;
+
+        await Assert.ThrowsAsync<AcessoNegadoException>(() =>
+            cenario.Servico.CancelarDiretamenteAsync(
+                cenario.Partida.Id,
+                new CancelarPartidaDto("Não concordo com a partida.")));
+
+        Assert.False(cenario.Partida.Cancelada);
+        Assert.Empty(cenario.Pontuacao.EstornosPartida);
+    }
+
+    [Fact]
+    public async Task CancelarDiretamenteAsync_RepetidoNaoDuplicaEstorno()
+    {
+        var cenario = new Cenario();
+        cenario.Autorizacao.UsuarioAtual = cenario.UsuarioA1;
+
+        await cenario.Servico.CancelarDiretamenteAsync(
+            cenario.Partida.Id,
+            new CancelarPartidaDto("Partida registrada por engano."));
+        await cenario.Servico.CancelarDiretamenteAsync(
+            cenario.Partida.Id,
+            new CancelarPartidaDto("Partida registrada por engano."));
+
+        Assert.True(cenario.Partida.Cancelada);
+        Assert.Equal(cenario.Partida.Id, Assert.Single(cenario.Pontuacao.EstornosPartida));
+    }
+
+    [Fact]
+    public async Task ExcluirDefinitivamenteAsync_RegistradorOuAdminExcluiComMotivo()
+    {
+        var cenario = new Cenario();
+        cenario.Autorizacao.UsuarioAtual = cenario.UsuarioB1;
 
         await Assert.ThrowsAsync<AcessoNegadoException>(() =>
             cenario.Servico.ExcluirDefinitivamenteAsync(
@@ -261,14 +309,17 @@ public class PartidaCancelamentoServicoTests
                 cenario.Partida.Id,
                 new ExcluirPartidaDefinitivamenteDto(" ")));
 
+        cenario.Autorizacao.UsuarioAtual = cenario.UsuarioA1;
         await cenario.Servico.ExcluirDefinitivamenteAsync(
             cenario.Partida.Id,
-            new ExcluirPartidaDefinitivamenteDto("Remoção administrativa auditada."));
+            new ExcluirPartidaDefinitivamenteDto("Remoção solicitada pelo registrador."));
 
         Assert.False(cenario.Partida.Ativa);
         Assert.NotNull(cenario.Partida.ExcluidaDefinitivamenteEm);
-        Assert.Equal(cenario.Admin.Id, cenario.Partida.ExcluidaDefinitivamentePorUsuarioId);
-        Assert.Equal("Remoção administrativa auditada.", cenario.Partida.MotivoExclusaoDefinitiva);
+        Assert.Equal(cenario.UsuarioA1.Id, cenario.Partida.ExcluidaDefinitivamentePorUsuarioId);
+        Assert.Equal("Remoção solicitada pelo registrador.", cenario.Partida.MotivoExclusaoDefinitiva);
+        Assert.Equal(cenario.Partida.Id, Assert.Single(cenario.Pontuacao.EstornosPartida));
+        Assert.Contains(cenario.Historicos.Historicos, x => x.Acao == "ExclusaoDefinitiva");
     }
 
     private sealed class Cenario
@@ -316,6 +367,7 @@ public class PartidaCancelamentoServicoTests
             Partidas = new PartidaRepositorioFake(Partida);
             Solicitacoes = new SolicitacaoCancelamentoRepositorioFake();
             Pendencias = new PendenciaUsuarioRepositorioFake();
+            Historicos = new HistoricoPartidaRepositorioFake();
             UnidadeTrabalho = new UnidadeTrabalhoFake();
             Autorizacao = new AutorizacaoFake(UsuarioA1);
             Pontuacao = new PontuacaoBeneficioServicoFake();
@@ -324,6 +376,7 @@ public class PartidaCancelamentoServicoTests
                 Partidas,
                 Solicitacoes,
                 Pendencias,
+                Historicos,
                 UnidadeTrabalho,
                 Autorizacao,
                 Pontuacao,
@@ -346,6 +399,7 @@ public class PartidaCancelamentoServicoTests
         public PartidaRepositorioFake Partidas { get; }
         public SolicitacaoCancelamentoRepositorioFake Solicitacoes { get; }
         public PendenciaUsuarioRepositorioFake Pendencias { get; }
+        public HistoricoPartidaRepositorioFake Historicos { get; }
         public UnidadeTrabalhoFake UnidadeTrabalho { get; }
         public AutorizacaoFake Autorizacao { get; }
         public PontuacaoBeneficioServicoFake Pontuacao { get; }
@@ -476,6 +530,21 @@ public class PartidaCancelamentoServicoTests
         public Task<PendenciaUsuario?> ObterPendenteAsync(TipoPendenciaUsuario tipo, Guid usuarioId, Guid? partidaId, Guid? atletaId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<bool> ExistePendentePorUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<PendenciaUsuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+    }
+
+    private sealed class HistoricoPartidaRepositorioFake : IHistoricoPartidaRepositorio
+    {
+        public List<HistoricoPartida> Historicos { get; } = [];
+
+        public Task AdicionarAsync(HistoricoPartida historico, CancellationToken cancellationToken = default)
+        {
+            Historicos.Add(historico);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<HistoricoPartida>> ListarPorPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<HistoricoPartida>>(
+                Historicos.Where(x => x.PartidaIdOriginal == partidaId).ToList());
     }
 
     private sealed class UnidadeTrabalhoFake : IUnidadeTrabalho
