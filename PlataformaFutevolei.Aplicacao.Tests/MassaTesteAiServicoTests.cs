@@ -216,6 +216,9 @@ public class MassaTesteAiServicoTests
         public Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(Itens.Count(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo));
 
+        public Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Usuario>>(Itens.Where(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo).ToList());
+
         public Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default)
             => Task.FromResult(Itens.FirstOrDefault(x => string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase)));
 

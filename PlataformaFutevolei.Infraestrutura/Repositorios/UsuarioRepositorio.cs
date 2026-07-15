@@ -45,19 +45,37 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Usuarios
+            .AsNoTracking()
+            .Where(x =>
+                x.Perfil == PerfilUsuario.Administrador &&
+                x.Ativo &&
+                !x.DadosAnonimizados)
+            .OrderBy(x => x.Email)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default)
     {
+        var emailNormalizado = NormalizarEmail(email);
         return dbContext.Usuarios
             .AsNoTracking()
             //.Include(x => x.Atleta)
-            .FirstOrDefaultAsync(x => x.Email == email && !x.DadosAnonimizados, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.Email.ToLower() == emailNormalizado && !x.DadosAnonimizados,
+                cancellationToken);
     }
 
     public Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default)
     {
+        var emailNormalizado = NormalizarEmail(email);
         return dbContext.Usuarios
             .Include(x => x.Atleta)
-            .FirstOrDefaultAsync(x => x.Email == email && !x.DadosAnonimizados, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.Email.ToLower() == emailNormalizado && !x.DadosAnonimizados,
+                cancellationToken);
     }
 
     public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -99,4 +117,7 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
     {
         dbContext.Usuarios.Update(usuario);
     }
+
+    private static string NormalizarEmail(string email)
+        => (email ?? string.Empty).Trim().ToLowerInvariant();
 }

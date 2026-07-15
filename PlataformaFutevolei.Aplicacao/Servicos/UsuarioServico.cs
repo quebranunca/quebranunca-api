@@ -189,6 +189,11 @@ public class UsuarioServico(
             throw new EntidadeNaoEncontradaException("Usuário não encontrado.");
         }
 
+        if (dto.Perfil == PerfilUsuario.Administrador && usuario.Perfil != PerfilUsuario.Administrador)
+        {
+            throw new RegraNegocioException("Promoção de novos administradores não está disponível nesta fase.");
+        }
+
         await ValidarManutencaoAdministradorAtivoAsync(usuario, dto.Perfil, dto.Ativo, cancellationToken);
 
         var usuarioMesmoEmail = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);

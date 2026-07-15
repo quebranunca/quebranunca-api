@@ -8,6 +8,7 @@ public interface IUsuarioRepositorio
 {
     Task<IReadOnlyList<Usuario>> ListarAsync(string? nome, string? email, CancellationToken cancellationToken = default);
     Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);

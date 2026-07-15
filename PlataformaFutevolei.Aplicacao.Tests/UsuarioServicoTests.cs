@@ -211,6 +211,30 @@ public class UsuarioServicoTests
     }
 
     [Fact]
+    public async Task AtualizarAsync_NaoPromoveNovoAdministrador()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Organizador",
+            Email = "organizador@example.com",
+            Perfil = PerfilUsuario.Organizador,
+            Ativo = true
+        };
+        var cenario = new Cenario(usuario);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.AtualizarAsync(usuario.Id, new AtualizarUsuarioDto(
+                "Organizador",
+                "organizador@example.com",
+                PerfilUsuario.Administrador,
+                true,
+                null)));
+
+        Assert.Equal("Promoção de novos administradores não está disponível nesta fase.", excecao.Message);
+        Assert.Equal(PerfilUsuario.Organizador, usuario.Perfil);
+    }
+
+    [Fact]
     public async Task AtualizarAsync_EmailDuplicado_Bloqueia()
     {
         var usuario = new Usuario
@@ -401,6 +425,9 @@ public class UsuarioServicoTests
 
             public Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(Itens.Count(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo));
+
+            public Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<Usuario>>(Itens.Where(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo).ToList());
 
             public Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default)
                 => Task.FromResult(Itens.FirstOrDefault(x => x.Email == email));

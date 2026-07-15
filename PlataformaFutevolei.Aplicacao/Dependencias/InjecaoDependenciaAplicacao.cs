@@ -15,6 +15,7 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<ISolicitacaoAcessoServico, SolicitacaoAcessoServico>();
         services.AddScoped<IPrivacidadeServico, PrivacidadeServico>();
         services.AddScoped<IUsuarioServico, UsuarioServico>();
+        services.AddScoped<IAdministradorInicialServico, AdministradorInicialServico>();
         services.AddScoped<IAtletaServico, AtletaServico>();
         services.AddScoped<IDashboardAtletaServico, DashboardAtletaServico>();
         services.AddScoped<IDashboardPublicoServico, DashboardPublicoServico>();

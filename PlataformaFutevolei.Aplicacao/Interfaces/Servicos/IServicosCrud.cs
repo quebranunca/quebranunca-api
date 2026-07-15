@@ -508,6 +508,20 @@ public interface IUsuarioServico
     Task ExcluirMeuPerfilAsync(CancellationToken cancellationToken = default);
 }
 
+public record PromocaoAdministradorInicialResultadoDto(
+    Guid UsuarioId,
+    string Email,
+    bool Promovido,
+    bool JaEraAdministrador
+);
+
+public interface IAdministradorInicialServico
+{
+    Task<PromocaoAdministradorInicialResultadoDto> PromoverAsync(
+        string emailAdministradorInicial,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IFotoPerfilService
 {
     Task<FotoPerfilUploadDto> EnviarAsync(ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);

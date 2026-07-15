@@ -852,6 +852,9 @@ public class PontuacaoBeneficioServicoTests
         public Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(usuarios.Count(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo));
 
+        public Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Usuario>>(usuarios.Where(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo).ToList());
+
         public Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default)
             => Task.FromResult(usuarios.FirstOrDefault(x => x.Email == email));
 

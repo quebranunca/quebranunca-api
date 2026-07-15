@@ -533,6 +533,9 @@ public class CompeticaoServicoTests
             public Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(itens.Count(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo));
 
+            public Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<Usuario>>(itens.Where(x => x.Perfil == PerfilUsuario.Administrador && x.Ativo).ToList());
+
             public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
                 => Task.FromResult(itens.FirstOrDefault(x => x.Id == id));
 
