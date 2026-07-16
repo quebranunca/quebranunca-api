@@ -91,7 +91,7 @@ public class PartidasController(
 
         if (grupoId.HasValue)
         {
-            var estruturaGrupo = await partidaServico.ListarEstruturaPorCompeticaoAsync(grupoId.Value, cancellationToken);
+            var estruturaGrupo = await partidaServico.ListarEstruturaPorGrupoAsync(grupoId.Value, cancellationToken);
             return Ok(estruturaGrupo);
         }
 

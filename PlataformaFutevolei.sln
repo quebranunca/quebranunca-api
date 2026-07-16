@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlataformaFutevolei.Aplicac
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlataformaFutevolei.Integracao.Tests", "PlataformaFutevolei.Integracao.Tests\PlataformaFutevolei.Integracao.Tests.csproj", "{7519BB27-B0C3-45D6-90D2-D19CFEC0E3F4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlataformaFutevolei.Api.Tests", "PlataformaFutevolei.Api.Tests\PlataformaFutevolei.Api.Tests.csproj", "{A0770570-E85B-4836-973C-CD63229216A8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{7519BB27-B0C3-45D6-90D2-D19CFEC0E3F4}.Release|x64.Build.0 = Release|Any CPU
 		{7519BB27-B0C3-45D6-90D2-D19CFEC0E3F4}.Release|x86.ActiveCfg = Release|Any CPU
 		{7519BB27-B0C3-45D6-90D2-D19CFEC0E3F4}.Release|x86.Build.0 = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|x64.Build.0 = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Debug|x86.Build.0 = Debug|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|x64.ActiveCfg = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|x64.Build.0 = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|x86.ActiveCfg = Release|Any CPU
+		{A0770570-E85B-4836-973C-CD63229216A8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

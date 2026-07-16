@@ -263,8 +263,6 @@ await InicializacaoMassaTesteAi.PrepararAsync(app);
 
 app.UseForwardedHeaders();
 
-app.UseMiddleware<MiddlewareTratamentoErros>();
-
 if (habilitarSwagger)
 {
     app.MapSwagger();

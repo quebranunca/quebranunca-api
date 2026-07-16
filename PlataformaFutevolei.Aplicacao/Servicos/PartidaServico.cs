@@ -101,8 +101,14 @@ public class PartidaServico(
 
     public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
     {
-        await ObterGrupoParaConsultaPublicaAsync(competicaoId, cancellationToken);
-        var partidas = await partidaRepositorio.ListarPorGrupoAsync(competicaoId, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorCompeticaoAsync(competicaoId, cancellationToken);
+        return MontarEstruturaRodadasPadrao(partidas);
+    }
+
+    public async Task<IReadOnlyList<RodadaEstruturaCompeticaoDto>> ListarEstruturaPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default)
+    {
+        await ObterGrupoParaConsultaPublicaAsync(grupoId, cancellationToken);
+        var partidas = await partidaRepositorio.ListarPorGrupoAsync(grupoId, cancellationToken);
         return MontarEstruturaRodadasPadrao(partidas);
     }
 

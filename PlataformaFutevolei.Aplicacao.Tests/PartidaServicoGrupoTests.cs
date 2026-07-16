@@ -140,6 +140,45 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
+    public async Task ListarEstruturaPorGrupoAsync_GrupoSemCompeticao_RetornaPartidasDoGrupo()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
+
+        var estrutura = await cenario.Servico.ListarEstruturaPorGrupoAsync(cenario.Grupo.Id);
+
+        var rodada = Assert.Single(estrutura);
+        var jogo = Assert.Single(rodada.Jogos);
+        Assert.Equal(partida.Id, jogo.PartidaId);
+        Assert.Equal("Rodada 01", rodada.NomeRodada);
+    }
+
+    [Fact]
+    public async Task ListarEstruturaPorCompeticaoAsync_CompeticaoComCategoria_RetornaPartidasDaCompeticao()
+    {
+        var cenario = Cenario.Criar(publico: true);
+        var categoria = await cenario.CriarCategoriaCampeonatoAsync();
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDtoCompeticao(categoria));
+
+        var estrutura = await cenario.Servico.ListarEstruturaPorCompeticaoAsync(categoria.CompeticaoId);
+
+        var rodada = Assert.Single(estrutura);
+        var jogo = Assert.Single(rodada.Jogos);
+        Assert.Equal(partida.Id, jogo.PartidaId);
+    }
+
+    [Fact]
+    public async Task ListarEstruturaPorGrupoAsync_GrupoInexistente_RetornaNaoEncontrado()
+    {
+        var cenario = Cenario.Criar(publico: true);
+
+        var excecao = await Assert.ThrowsAsync<EntidadeNaoEncontradaException>(() =>
+            cenario.Servico.ListarEstruturaPorGrupoAsync(Guid.NewGuid()));
+
+        Assert.Equal("Grupo não encontrado.", excecao.Message);
+    }
+
+    [Fact]
     public async Task CriarComResultadoAsync_UsuarioCriadorNaoParticipaDaPartida_VinculaCriadorCorreto()
     {
         var cenario = Cenario.Criar(publico: false);
@@ -1368,10 +1407,14 @@ public class PartidaServicoGrupoTests
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
+        public Task<IReadOnlyList<Partida>> ListarPorCompeticaoAsync(Guid competicaoId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Partida>>(
+                Partidas.Where(x => x.CategoriaCompeticao?.CompeticaoId == competicaoId).ToList());
         public Task<int> ContarRegistradasAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<IReadOnlyList<Partida>> ListarPorGrupoAsync(Guid grupoId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>(Partidas.Where(x => x.GrupoId == grupoId).ToList());
-        public Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Partida>>([]);
+        public Task<IReadOnlyList<Partida>> ListarPorCategoriaAsync(Guid categoriaId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Partida>>(
+                Partidas.Where(x => x.CategoriaCompeticaoId == categoriaId).ToList());
         public Task<IReadOnlyList<Partida>> ListarPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Partida>>(Partidas.Where(x =>
                 x.DuplaA?.Atleta1Id == atletaId ||
