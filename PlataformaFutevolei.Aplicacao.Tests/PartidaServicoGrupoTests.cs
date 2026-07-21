@@ -101,17 +101,29 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
-    public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupoPrivado_BloqueiaRegistro()
+    public async Task CriarComResultadoAsync_AdministradorNaoMembroDoGrupoPrivado_RegistraNormalmente()
     {
         var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
         cenario.Usuario.Perfil = PerfilUsuario.Administrador;
 
-        var excecao = await Assert.ThrowsAsync<AcessoNegadoException>(() =>
-            CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id)));
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
 
-        Assert.Equal("Você precisa fazer parte deste grupo para registrar partidas nele.", excecao.Message);
-        Assert.Empty(cenario.Partidas.Partidas);
-        Assert.Empty(cenario.GruposAtletas.Vinculos);
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Single(cenario.Partidas.Partidas);
+        Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
+    }
+
+    [Fact]
+    public async Task CriarComResultadoAsync_CriadorNaoMembroDoGrupoPrivado_RegistraNormalmente()
+    {
+        var cenario = Cenario.Criar(publico: false, usuarioMembro: false);
+        cenario.Grupo.UsuarioOrganizadorId = cenario.Usuario.Id;
+
+        var partida = await CriarPartidaAsync(cenario, cenario.CriarDto(cenario.Grupo.Id));
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Single(cenario.Partidas.Partidas);
+        Assert.Equal(4, cenario.GruposAtletas.Vinculos.Count);
     }
 
     [Fact]

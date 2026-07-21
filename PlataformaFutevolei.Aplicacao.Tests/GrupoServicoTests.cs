@@ -127,6 +127,36 @@ public class GrupoServicoTests
     }
 
     [Fact]
+    public async Task ObterDashboardAsync_CriadorSemVinculoAtleta_HabilitaAdministracao()
+    {
+        var usuario = new Usuario
+        {
+            Nome = "Organizador",
+            Perfil = PerfilUsuario.Organizador,
+            Ativo = true
+        };
+        var grupo = new Grupo
+        {
+            Nome = "Grupo do organizador",
+            DataInicio = DateTime.UtcNow,
+            Publico = false,
+            UsuarioOrganizadorId = usuario.Id
+        };
+        var servico = CriarServico(
+            grupos: [grupo],
+            autorizacao: new AutorizacaoUsuarioServicoStub(usuario));
+
+        var dashboard = await servico.ObterDashboardAsync(grupo.Id);
+
+        Assert.False(dashboard.Grupo.PertenceAoGrupo);
+        Assert.True(dashboard.Grupo.PodeEditar);
+        Assert.True(dashboard.Grupo.PodeExcluir);
+        Assert.True(dashboard.Grupo.PodeRegistrarPartida);
+        Assert.True(dashboard.Grupo.EhCriador);
+        Assert.False(dashboard.Grupo.EhAdministrador);
+    }
+
+    [Fact]
     public async Task ObterDashboardAsync_PartidaComAtletasSemFoto_RetornaAvataresNulos()
     {
         var grupo = new Grupo
@@ -324,7 +354,7 @@ public class GrupoServicoTests
     }
 
     [Fact]
-    public async Task RemoverAsync_AdministradorNaoCriador_BloqueiaExclusao()
+    public async Task RemoverAsync_AdministradorNaoCriador_ArquivaGrupo()
     {
         var usuarioCriadorId = Guid.NewGuid();
         var admin = new Usuario { Nome = "Admin", Perfil = PerfilUsuario.Administrador, Ativo = true };
@@ -338,9 +368,9 @@ public class GrupoServicoTests
             grupos: [grupo],
             autorizacao: new AutorizacaoUsuarioServicoStub(admin));
 
-        var erro = await Assert.ThrowsAsync<AcessoNegadoException>(() => servico.RemoverAsync(grupo.Id));
+        await servico.RemoverAsync(grupo.Id);
 
-        Assert.Equal("Apenas o criador do grupo pode excluir este grupo.", erro.Message);
+        Assert.False(grupo.Ativo);
     }
 
     [Fact]

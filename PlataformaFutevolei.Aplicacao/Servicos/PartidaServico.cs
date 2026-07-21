@@ -819,7 +819,7 @@ public class PartidaServico(
             dto.DuplaBAtleta2Nome,
             null,
             validarPermissaoCategoria: true,
-            permitirAdministradorForaDoGrupo: false,
+            permitirAdministradorForaDoGrupo: true,
             cancellationToken
         );
 
@@ -1459,7 +1459,8 @@ public class PartidaServico(
         }
 
         var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
-        if (permitirAdministradorForaDoGrupo && autorizacaoUsuarioServico.EhAdministrador(usuario))
+        if (permitirAdministradorForaDoGrupo &&
+            (autorizacaoUsuarioServico.EhAdministrador(usuario) || grupo.UsuarioOrganizadorId == usuario.Id))
         {
             return;
         }

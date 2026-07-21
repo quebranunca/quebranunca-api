@@ -80,8 +80,10 @@ public class GrupoServico(
         var totalMembros = membros.Select(x => x.AtletaId).Distinct().Count();
         var usuarioPertenceAoGrupo = usuario?.AtletaId.HasValue == true &&
             membros.Any(x => x.AtletaId == usuario.AtletaId.Value);
-        var podeEditarGrupo = grupo.Ativo && usuarioPertenceAoGrupo && PodeEditarGrupo(usuario, grupo);
-        var podeRegistrarPartida = grupo.Ativo && usuarioPertenceAoGrupo;
+        var usuarioEhAdministrador = autorizacaoUsuarioServico.EhAdministrador(usuario);
+        var usuarioEhCriador = usuario is not null && grupo.UsuarioOrganizadorId == usuario.Id;
+        var podeGerirGrupo = grupo.Ativo && (usuarioEhAdministrador || usuarioEhCriador);
+        var podeRegistrarPartida = grupo.Ativo && (usuarioPertenceAoGrupo || podeGerirGrupo);
 
         return new GrupoDashboardDetalheDto(
             new GrupoDashboardCabecalhoDto(
@@ -93,9 +95,12 @@ public class GrupoServico(
                 totalMembros,
                 partidasEncerradas.Count,
                 ultimaPartidaEm == default ? null : ultimaPartidaEm,
-                podeEditarGrupo,
+                podeGerirGrupo,
                 usuarioPertenceAoGrupo,
-                podeRegistrarPartida),
+                podeRegistrarPartida,
+                podeGerirGrupo,
+                usuarioEhCriador,
+                usuarioEhAdministrador),
             new GrupoDashboardResumoDto(
                 totalMembros,
                 partidasEncerradas.Count,
@@ -275,9 +280,10 @@ public class GrupoServico(
         var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
 
-        if (grupo.UsuarioOrganizadorId != usuario.Id)
+        var usuarioPodeExcluir = autorizacaoUsuarioServico.EhAdministrador(usuario) || grupo.UsuarioOrganizadorId == usuario.Id;
+        if (!usuarioPodeExcluir)
         {
-            throw new AcessoNegadoException("Apenas o criador do grupo pode excluir este grupo.");
+            throw new AcessoNegadoException("Apenas o criador ou administradores podem excluir este grupo.");
         }
 
         if (!grupo.Ativo)
@@ -291,9 +297,11 @@ public class GrupoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Grupo arquivado pelo owner. GrupoId: {GrupoId}. UsuarioId: {UsuarioId}.",
+            "Grupo arquivado. Acao: {Acao}. GrupoId: {GrupoId}. UsuarioId: {UsuarioId}. DataUtc: {DataUtc}.",
+            "ExcluirGrupo",
             grupo.Id,
-            usuario.Id);
+            usuario.Id,
+            DateTime.UtcNow);
     }
 
     private static void GarantirGrupoAtivo(Grupo grupo)

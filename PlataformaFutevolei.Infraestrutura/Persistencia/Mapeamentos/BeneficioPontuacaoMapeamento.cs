@@ -15,6 +15,7 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
         {
             tabela.HasCheckConstraint("ck_beneficios_pontuacao_pontos_positivos", "\"pontos_necessarios\" > 0");
             tabela.HasCheckConstraint("ck_beneficios_pontuacao_quantidade_nao_negativa", "\"quantidade_disponivel\" IS NULL OR \"quantidade_disponivel\" >= 0");
+            tabela.HasCheckConstraint("ck_beneficios_pontuacao_percentual_desconto_valido", "\"percentual_desconto\" IS NULL OR (\"percentual_desconto\" > 0 AND \"percentual_desconto\" <= 30)");
         });
 
         builder.HasKey(x => x.Id);
@@ -23,6 +24,7 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
         builder.Property(x => x.Descricao).HasColumnName("descricao").HasMaxLength(500).IsRequired();
         builder.Property(x => x.Tipo).HasColumnName("tipo").HasConversion<int>().IsRequired();
         builder.Property(x => x.PontosNecessarios).HasColumnName("pontos_necessarios").IsRequired();
+        builder.Property(x => x.PercentualDesconto).HasColumnName("percentual_desconto");
         builder.Property(x => x.Ativo).HasColumnName("ativo").HasDefaultValue(true).IsRequired();
         builder.Property(x => x.QuantidadeDisponivel).HasColumnName("quantidade_disponivel");
         builder.Property(x => x.ImagemUrl).HasColumnName("imagem_url").HasMaxLength(500);
@@ -42,6 +44,7 @@ public class BeneficioPontuacaoMapeamento : IEntityTypeConfiguration<BeneficioPo
             beneficio.Descricao,
             beneficio.Tipo,
             beneficio.PontosNecessarios,
+            beneficio.PercentualDesconto,
             Ativo = true,
             beneficio.QuantidadeDisponivel,
             beneficio.ImagemUrl,

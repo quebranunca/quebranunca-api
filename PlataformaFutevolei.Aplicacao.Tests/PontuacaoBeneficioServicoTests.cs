@@ -84,11 +84,28 @@ public class PontuacaoBeneficioServicoTests
         Assert.Equal(StatusResgateBeneficioPontuacao.Solicitado, resgate.Status);
         Assert.Null(beneficio.QuantidadeDisponivel);
         Assert.Equal(13, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(23, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalAcumulado);
         Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalResgatado);
         Assert.Contains(cenario.Repositorio.Extratos, x =>
             x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio &&
             x.Pontos == -10 &&
             x.ResgateId == resgate.Id);
+    }
+
+    [Fact]
+    public async Task SolicitarResgateAsync_BeneficioInativo_BloqueiaSemDebitar()
+    {
+        var cenario = new Cenario();
+        cenario.DefinirSaldo(saldoAtual: 100, totalAcumulado: 100);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(10, ativo: false);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null)));
+
+        Assert.Equal("Benefício indisponível no momento.", excecao.Message);
+        Assert.Equal(100, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Empty(cenario.Repositorio.Resgates);
+        Assert.Empty(cenario.Repositorio.Extratos);
     }
 
     [Fact]
@@ -402,7 +419,7 @@ public class PontuacaoBeneficioServicoTests
     }
 
     [Fact]
-    public void BeneficiosPadrao_MantemCampanhasPromocionaisEIncluiProdutosFisicos()
+    public void BeneficiosPadrao_IncluiDescontosConfiguradosEProdutosFisicos()
     {
         var cupom10 = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Cupom 10% OFF");
         var cupom20 = Assert.Single(PontuacaoBeneficioRegras.BeneficiosPadrao, x => x.Titulo == "Cupom 20% OFF");
@@ -416,11 +433,13 @@ public class PontuacaoBeneficioServicoTests
         });
 
         Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, cupom10.Tipo);
+        Assert.Equal(10, cupom10.PercentualDesconto);
         Assert.Equal(300, cupom10.PontosNecessarios);
         Assert.Null(cupom10.QuantidadeDisponivel);
         Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(cupom10.Titulo));
 
         Assert.Equal(TipoBeneficioPontuacao.DescontoLoja, cupom20.Tipo);
+        Assert.Equal(20, cupom20.PercentualDesconto);
         Assert.Equal(600, cupom20.PontosNecessarios);
         Assert.Equal(100, cupom20.QuantidadeDisponivel);
         Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(cupom20.Titulo));
@@ -434,6 +453,76 @@ public class PontuacaoBeneficioServicoTests
         Assert.Equal(1500, bone.PontosNecessarios);
         Assert.Equal(50, bone.QuantidadeDisponivel);
         Assert.Equal("pontos-qn/beneficio-bone-qn.png", bone.ImagemUrl);
+        Assert.Equal(300, PontuacaoBeneficioRegras.CustosDescontosIniciais[10]);
+        Assert.Equal(600, PontuacaoBeneficioRegras.CustosDescontosIniciais[20]);
+        Assert.Null(PontuacaoBeneficioRegras.CustosDescontosIniciais[30]);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(20)]
+    [InlineData(30)]
+    public void BeneficioDesconto_AceitaPercentuaisValidos(int percentual)
+    {
+        var beneficio = new BeneficioPontuacao
+        {
+            Tipo = TipoBeneficioPontuacao.Desconto,
+            PercentualDesconto = percentual
+        };
+
+        Assert.Equal(percentual, beneficio.PercentualDesconto);
+        Assert.Contains(percentual, PontuacaoBeneficioRegras.PercentuaisDescontoSuportados);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(31)]
+    public void BeneficioDesconto_RejeitaPercentuaisInvalidos(int percentual)
+    {
+        var beneficio = new BeneficioPontuacao { Tipo = TipoBeneficioPontuacao.Desconto };
+
+        var excecao = Assert.Throws<ArgumentOutOfRangeException>(() => beneficio.PercentualDesconto = percentual);
+
+        Assert.Equal("PercentualDesconto", excecao.ParamName);
+    }
+
+    [Fact]
+    public async Task ListarBeneficiosAsync_DescontoExpoePercentualTipoESaldo()
+    {
+        var cenario = new Cenario();
+        cenario.DefinirSaldo(saldoAtual: 200, totalAcumulado: 200);
+        var disponivel = cenario.Repositorio.AdicionarBeneficio(100);
+        disponivel.Tipo = TipoBeneficioPontuacao.Desconto;
+        disponivel.PercentualDesconto = 30;
+        var insuficiente = cenario.Repositorio.AdicionarBeneficio(300);
+        insuficiente.Tipo = TipoBeneficioPontuacao.Desconto;
+        insuficiente.PercentualDesconto = 10;
+
+        var beneficios = await cenario.Servico.ListarBeneficiosAsync(TipoBeneficioPontuacao.Desconto, null, null);
+
+        var dtoDisponivel = Assert.Single(beneficios, x => x.Id == disponivel.Id);
+        Assert.Equal(TipoBeneficioPontuacao.Desconto, dtoDisponivel.Tipo);
+        Assert.Equal("Desconto", dtoDisponivel.TipoNome);
+        Assert.Equal(30, dtoDisponivel.PercentualDesconto);
+        Assert.True(dtoDisponivel.SaldoSuficiente);
+        Assert.Equal(0, dtoDisponivel.PontosFaltantes);
+        var dtoInsuficiente = Assert.Single(beneficios, x => x.Id == insuficiente.Id);
+        Assert.False(dtoInsuficiente.SaldoSuficiente);
+        Assert.Equal(100, dtoInsuficiente.PontosFaltantes);
+    }
+
+    [Fact]
+    public async Task ListarBeneficiosAsync_BeneficioAntigoPermaneceCompativelSemPercentual()
+    {
+        var cenario = new Cenario();
+        var legado = cenario.Repositorio.AdicionarBeneficio(100);
+
+        var dto = Assert.Single(await cenario.Servico.ListarBeneficiosAsync(null, null, null));
+
+        Assert.Equal(legado.Id, dto.Id);
+        Assert.Null(dto.PercentualDesconto);
+        Assert.Equal("Brinde", dto.TipoNome);
     }
 
     [Fact]
@@ -449,7 +538,7 @@ public class PontuacaoBeneficioServicoTests
         var dto = Assert.Single(beneficios);
 
         Assert.Equal("Condicao especial QuebraNunca", dto.Titulo);
-        Assert.Equal("Campanha promocional", dto.TipoNome);
+        Assert.Equal("Desconto", dto.TipoNome);
         Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(dto.Titulo));
         Assert.False(PontuacaoBeneficioRegras.ContemCopyFinanceiraIndevida(dto.Descricao));
     }

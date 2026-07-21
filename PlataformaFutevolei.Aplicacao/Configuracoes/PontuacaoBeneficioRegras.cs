@@ -1,12 +1,18 @@
+using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 
 namespace PlataformaFutevolei.Aplicacao.Configuracoes;
 
 public static class PontuacaoBeneficioRegras
 {
-    public const int QnPorRealReferenciaDesconto = 100;
-    public const decimal ValorReferenciaInternaPorQn = 0.01m;
-    public const int LimitePercentualCupomPedido = 30;
+    public static readonly IReadOnlySet<int> PercentuaisDescontoSuportados = new HashSet<int> { 10, 20, 30 };
+    public static readonly IReadOnlyDictionary<int, int?> CustosDescontosIniciais =
+        new Dictionary<int, int?>
+        {
+            [10] = 300,
+            [20] = 600,
+            [30] = null
+        };
 
     public const int PerfilCompleto = 50;
     public const int EntradaGrupo = 20;
@@ -42,26 +48,28 @@ public static class PontuacaoBeneficioRegras
         "reais"
     ];
 
-    public static readonly IReadOnlyList<BeneficioPontuacaoPadrao> BeneficiosPadrao =
+    public static readonly IReadOnlyList<BeneficioPontuacaoPadrao> BeneficiosPadrao = ValidarBeneficiosPadrao(
     [
         new(
             Guid.Parse("11111111-1111-4111-8111-111111111111"),
             "Cupom 10% OFF",
             "Beneficio promocional para campanhas da loja QuebraNunca.",
-            TipoBeneficioPontuacao.DescontoLoja,
-            300,
+            TipoBeneficioPontuacao.Desconto,
+            CustosDescontosIniciais[10]!.Value,
             1,
-            true),
+            true,
+            PercentualDesconto: 10),
         new(
             Guid.Parse("22222222-2222-4222-8222-222222222222"),
             "Cupom 20% OFF",
             "Condicao promocional para produtos selecionados da loja QuebraNunca.",
-            TipoBeneficioPontuacao.DescontoLoja,
-            600,
+            TipoBeneficioPontuacao.Desconto,
+            CustosDescontosIniciais[20]!.Value,
             2,
             false,
             null,
-            100),
+            100,
+            20),
         new(
             Guid.Parse("66666666-6666-4666-8666-666666666666"),
             "Chaveiro QuebraNunca",
@@ -76,7 +84,7 @@ public static class PontuacaoBeneficioRegras
             Guid.Parse("33333333-3333-4333-8333-333333333333"),
             "Campanha promocional QuebraNunca",
             "Condicao promocional interna para campanhas QuebraNunca, sujeita a disponibilidade, regras da campanha e validacao.",
-            TipoBeneficioPontuacao.DescontoLoja,
+            TipoBeneficioPontuacao.Desconto,
             2000,
             4,
             false),
@@ -84,7 +92,7 @@ public static class PontuacaoBeneficioRegras
             Guid.Parse("44444444-4444-4444-8444-444444444444"),
             "Beneficio promocional da comunidade",
             "Beneficio interno para participantes da comunidade QuebraNunca, sujeito a disponibilidade e regras da campanha.",
-            TipoBeneficioPontuacao.DescontoLoja,
+            TipoBeneficioPontuacao.Desconto,
             3000,
             5,
             false),
@@ -92,7 +100,7 @@ public static class PontuacaoBeneficioRegras
             Guid.Parse("55555555-5555-4555-8555-555555555555"),
             "Condicao especial QuebraNunca",
             "Condicao promocional interna para campanhas selecionadas QuebraNunca, sujeita a disponibilidade e validacao.",
-            TipoBeneficioPontuacao.DescontoLoja,
+            TipoBeneficioPontuacao.Desconto,
             5000,
             6,
             false),
@@ -106,7 +114,7 @@ public static class PontuacaoBeneficioRegras
             false,
             "pontos-qn/beneficio-bone-qn.png",
             50)
-    ];
+    ]);
 
     public static readonly IReadOnlyList<FaixaPontuacaoBeneficio> Faixas =
     [
@@ -146,11 +154,11 @@ public static class PontuacaoBeneficioRegras
 
         return tipo switch
         {
-            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 5000 => "Condicao especial QuebraNunca",
-            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 3000 => "Beneficio promocional da comunidade",
-            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 2000 => "Desconto promocional em campanha",
-            TipoBeneficioPontuacao.DescontoLoja when pontosNecessarios >= 1000 => "Condicao especial em produto QN",
-            TipoBeneficioPontuacao.DescontoLoja => "Cupom especial QuebraNunca",
+            TipoBeneficioPontuacao.Desconto when pontosNecessarios >= 5000 => "Condicao especial QuebraNunca",
+            TipoBeneficioPontuacao.Desconto when pontosNecessarios >= 3000 => "Beneficio promocional da comunidade",
+            TipoBeneficioPontuacao.Desconto when pontosNecessarios >= 2000 => "Desconto promocional em campanha",
+            TipoBeneficioPontuacao.Desconto when pontosNecessarios >= 1000 => "Condicao especial em produto QN",
+            TipoBeneficioPontuacao.Desconto => "Cupom especial QuebraNunca",
             TipoBeneficioPontuacao.Brinde => "Brinde QuebraNunca",
             TipoBeneficioPontuacao.Experiencia => "Experiencia QuebraNunca",
             TipoBeneficioPontuacao.Produto => "Produto QuebraNunca em campanha",
@@ -173,6 +181,27 @@ public static class PontuacaoBeneficioRegras
             _ => "Beneficio promocional interno para campanhas QuebraNunca, sujeito a disponibilidade, regras da campanha e validacao."
         };
     }
+
+    private static IReadOnlyList<BeneficioPontuacaoPadrao> ValidarBeneficiosPadrao(
+        IReadOnlyList<BeneficioPontuacaoPadrao> beneficios)
+    {
+        foreach (var beneficio in beneficios)
+        {
+            if (beneficio.PercentualDesconto is <= 0 or > BeneficioPontuacao.PercentualDescontoMaximo)
+            {
+                throw new InvalidOperationException(
+                    $"Benefício padrão '{beneficio.Titulo}' possui percentual de desconto inválido.");
+            }
+
+            if (beneficio.PercentualDesconto.HasValue && beneficio.Tipo != TipoBeneficioPontuacao.Desconto)
+            {
+                throw new InvalidOperationException(
+                    $"Benefício padrão '{beneficio.Titulo}' possui percentual, mas não é do tipo Desconto.");
+            }
+        }
+
+        return beneficios;
+    }
 }
 
 public record FaixaPontuacaoBeneficio(string Nome, int PontosMinimos, int? PontosProximaFaixa);
@@ -186,4 +215,5 @@ public record BeneficioPontuacaoPadrao(
     int Ordem,
     bool Destaque,
     string? ImagemUrl = null,
-    int? QuantidadeDisponivel = null);
+    int? QuantidadeDisponivel = null,
+    int? PercentualDesconto = null);

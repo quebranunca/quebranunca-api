@@ -866,6 +866,7 @@ public class PontuacaoBeneficioServico(
             descricao,
             beneficio.Tipo,
             NomeTipoBeneficio(beneficio.Tipo),
+            beneficio.PercentualDesconto,
             beneficio.PontosNecessarios,
             beneficio.Ativo,
             beneficio.QuantidadeDisponivel,
@@ -1057,7 +1058,7 @@ public class PontuacaoBeneficioServico(
     {
         return tipo switch
         {
-            TipoBeneficioPontuacao.DescontoLoja => "Campanha promocional",
+            TipoBeneficioPontuacao.Desconto => "Desconto",
             TipoBeneficioPontuacao.Brinde => "Brinde",
             TipoBeneficioPontuacao.Experiencia => "Experiência",
             TipoBeneficioPontuacao.Produto => "Produto",

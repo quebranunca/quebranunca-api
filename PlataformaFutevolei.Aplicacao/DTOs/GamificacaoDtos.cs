@@ -60,6 +60,7 @@ public record BeneficioPontuacaoDto(
     string Descricao,
     TipoBeneficioPontuacao Tipo,
     string TipoNome,
+    int? PercentualDesconto,
     int PontosNecessarios,
     bool Ativo,
     int? QuantidadeDisponivel,

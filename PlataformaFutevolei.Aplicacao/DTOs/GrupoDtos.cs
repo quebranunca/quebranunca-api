@@ -114,7 +114,10 @@ public record GrupoDashboardCabecalhoDto(
     DateTime? UltimaPartidaEm,
     bool PodeEditar,
     bool PertenceAoGrupo,
-    bool PodeRegistrarPartida
+    bool PodeRegistrarPartida,
+    bool PodeExcluir,
+    bool EhCriador,
+    bool EhAdministrador
 );
 
 public record GrupoDashboardResumoDto(
