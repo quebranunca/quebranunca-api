@@ -320,6 +320,68 @@ public class PontuacaoBeneficioServicoTests
     }
 
     [Fact]
+    public async Task EstornarPartidaAsync_AposResgatePermiteSaldoNegativoECorrigeTotaisEResumo()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficio = cenario.Repositorio.AdicionarBeneficio(20);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        await cenario.Servico.SolicitarResgateAsync(beneficio.Id, new SolicitarResgateBeneficioDto(null));
+
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+
+        var saldo = cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value];
+        var resumo = await cenario.Servico.ObterResumoAsync();
+        Assert.Equal(-20, saldo.SaldoAtual);
+        Assert.Equal(0, saldo.TotalAcumulado);
+        Assert.Equal(20, saldo.TotalResgatado);
+        Assert.Equal(-20, resumo.Pontuacao.SaldoAtual);
+        Assert.Equal(0, resumo.Pontuacao.PontosDisponiveis);
+        Assert.Equal(20, resumo.Pontuacao.PontosPendentesCompensacao);
+        Assert.Equal(8, cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida));
+    }
+
+    [Fact]
+    public async Task CreditoPosterior_CompensaSaldoNegativoEAtletaNaoPodeResgatarEnquantoNegativo()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        var beneficioResgatado = cenario.Repositorio.AdicionarBeneficio(20);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        await cenario.Servico.SolicitarResgateAsync(beneficioResgatado.Id, new SolicitarResgateBeneficioDto(null));
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+        var novoBeneficio = cenario.Repositorio.AdicionarBeneficio(1);
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.SolicitarResgateAsync(novoBeneficio.Id, new SolicitarResgateBeneficioDto(null)));
+        await cenario.Servico.PontuarPendenciaResolvidaAsync(
+            Guid.NewGuid(), cenario.Usuario.AtletaId!.Value, null, cenario.Usuario.Id);
+
+        Assert.Equal("Pontos QN insuficientes para este benefício.", excecao.Message);
+        Assert.Equal(-10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(PontuacaoBeneficioRegras.PendenciaResolvida, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalAcumulado);
+        Assert.Empty(cenario.Repositorio.Resgates.Where(x => x.BeneficioId == novoBeneficio.Id));
+    }
+
+    [Fact]
+    public async Task EstornarPartidaAsync_TotalAcumuladoNuncaFicaNegativoEApenasVencedorTambemEhEstornado()
+    {
+        var cenario = new Cenario();
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.ApenasResultado);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].TotalAcumulado = 1;
+
+        await cenario.Servico.EstornarPartidaAsync(partida.Id);
+
+        var saldo = cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value];
+        Assert.Equal(0, saldo.SaldoAtual);
+        Assert.Equal(0, saldo.TotalAcumulado);
+        Assert.DoesNotContain(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto);
+        Assert.Equal(7, cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida));
+    }
+
+    [Fact]
     public async Task ListarMissoesEConquistas_CalculaProgressoBasico()
     {
         var cenario = new Cenario();

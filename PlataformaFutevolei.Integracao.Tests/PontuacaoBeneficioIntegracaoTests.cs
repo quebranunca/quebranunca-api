@@ -25,6 +25,32 @@ public class PontuacaoBeneficioIntegracaoTests(PostgresIntegracaoFixture fixture
     }
 
     [Fact]
+    public async Task MigrationPermiteSaldoNegativoEMantemConstraintDosTotais()
+    {
+        Guid atletaId;
+        await using (var dbContext = fixture.CriarContexto())
+        {
+            var usuario = CriarUsuarioComSaldo(dbContext, "saldo-negativo", 0);
+            atletaId = usuario.AtletaId!.Value;
+            dbContext.PontuacoesBeneficiosAtletas.Local.Single(x => x.AtletaId == atletaId).SaldoAtual = -20;
+            await dbContext.SaveChangesAsync();
+        }
+
+        await using (var verificacao = fixture.CriarContexto())
+        {
+            var saldo = await verificacao.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == atletaId);
+            Assert.Equal(-20, saldo.SaldoAtual);
+        }
+
+        await using (var totaisInvalidos = fixture.CriarContexto())
+        {
+            var saldo = await totaisInvalidos.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == atletaId);
+            saldo.TotalAcumulado = -1;
+            await Assert.ThrowsAsync<DbUpdateException>(() => totaisInvalidos.SaveChangesAsync());
+        }
+    }
+
+    [Fact]
     public async Task ResgateConcorrente_UltimoEstoque_AceitaSomenteUmaSolicitacao()
     {
         await using (var dbContext = fixture.CriarContexto())

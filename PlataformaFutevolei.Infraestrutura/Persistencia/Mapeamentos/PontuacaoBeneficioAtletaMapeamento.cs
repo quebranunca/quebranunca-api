@@ -10,7 +10,6 @@ public class PontuacaoBeneficioAtletaMapeamento : IEntityTypeConfiguration<Pontu
     {
         builder.ToTable("pontuacoes_beneficios_atletas", tabela =>
         {
-            tabela.HasCheckConstraint("ck_pontuacoes_beneficios_atletas_saldo_nao_negativo", "\"saldo_atual\" >= 0");
             tabela.HasCheckConstraint("ck_pontuacoes_beneficios_atletas_totais_nao_negativos", "\"total_acumulado\" >= 0 AND \"total_resgatado\" >= 0");
         });
 

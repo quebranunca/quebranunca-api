@@ -718,13 +718,17 @@ public class PontuacaoBeneficioServico(
         }
 
         var saldo = saldoParaAtualizacao ?? await ObterOuCriarSaldoParaAtualizacaoAsync(atletaId, cancellationToken);
-        if (saldo.SaldoAtual + pontos < 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoPartida)
+        if (pontos < 0 && saldo.SaldoAtual + pontos < 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoPartida)
         {
             throw new RegraNegocioException("Saldo insuficiente para esta movimentação.");
         }
 
         saldo.SaldoAtual += pontos;
-        if (pontos > 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoResgate)
+        if (tipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida)
+        {
+            saldo.TotalAcumulado = Math.Max(0, saldo.TotalAcumulado - Math.Abs(pontos));
+        }
+        else if (pontos > 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoResgate)
         {
             saldo.TotalAcumulado += pontos;
         }
@@ -795,10 +799,13 @@ public class PontuacaoBeneficioServico(
         Guid? atletaId,
         PontuacaoBeneficioAtleta? saldo)
     {
+        var saldoAtual = saldo?.SaldoAtual ?? 0;
         return new PontuacaoBeneficioResumoDto(
             atletaId.HasValue,
             atletaId,
-            saldo?.SaldoAtual ?? 0,
+            saldoAtual,
+            Math.Max(0, saldoAtual),
+            Math.Max(0, -saldoAtual),
             saldo?.TotalAcumulado ?? 0,
             saldo?.TotalResgatado ?? 0);
     }

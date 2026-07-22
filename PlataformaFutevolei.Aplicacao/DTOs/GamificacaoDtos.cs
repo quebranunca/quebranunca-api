@@ -6,6 +6,8 @@ public record PontuacaoBeneficioResumoDto(
     bool TemAtletaVinculado,
     Guid? AtletaId,
     int SaldoAtual,
+    int PontosDisponiveis,
+    int PontosPendentesCompensacao,
     int TotalAcumulado,
     int TotalResgatado);
 
