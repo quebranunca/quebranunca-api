@@ -1,14 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
-public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IConsolidacaoAtletaRepositorio
+public class ConsolidacaoAtletaRepositorio(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger<ConsolidacaoAtletaRepositorio>? logger = null) : IConsolidacaoAtletaRepositorio
 {
     public async Task<IDictionary<Guid, ConsolidacaoAtletaMetricasDto>> ObterMetricasAsync(
         IEnumerable<Guid> atletaIds,
@@ -155,6 +159,7 @@ public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContex
         await MigrarConvitesAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarMedidasAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarUsuariosAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
+        await MigrarPontuacaoBeneficiosAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await GarantirSemReferenciasAoPerdedorAsync(perdedor.Id, cancellationToken);
 
         dbContext.Atletas.Remove(perdedor);
@@ -483,6 +488,164 @@ public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContex
         contador.UsuariosAtualizados++;
     }
 
+    private async Task MigrarPontuacaoBeneficiosAsync(
+        Guid atletaVencedorId,
+        Guid atletaPerdedorId,
+        ContadorSaneamento contador,
+        CancellationToken cancellationToken)
+    {
+        await BloquearAtletasEPontuacoesAsync(atletaVencedorId, atletaPerdedorId, cancellationToken);
+
+        var resgates = await dbContext.ResgatesBeneficiosPontuacao
+            .Where(x => x.AtletaId == atletaPerdedorId)
+            .OrderBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var resgate in resgates)
+        {
+            resgate.AtletaId = atletaVencedorId;
+            contador.ResgatesQnTransferidos++;
+        }
+
+        var extratosVencedor = await dbContext.ExtratosPontuacaoBeneficio
+            .Where(x => x.AtletaId == atletaVencedorId)
+            .OrderBy(x => x.DataCriacao)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+        var extratosPerdedor = await dbContext.ExtratosPontuacaoBeneficio
+            .Where(x => x.AtletaId == atletaPerdedorId)
+            .OrderBy(x => x.DataCriacao)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+        var chavesEstorno = await dbContext.ExtratosPontuacaoBeneficio
+            .AsNoTracking()
+            .Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida)
+            .Select(x => x.ChaveIdempotencia)
+            .ToListAsync(cancellationToken);
+
+        var extratosConsolidados = new List<ExtratoPontuacaoBeneficio>(extratosVencedor);
+        foreach (var extrato in extratosPerdedor)
+        {
+            var chaveNormalizada = ChaveIdempotenciaPontuacaoBeneficio.NormalizarParaConsolidacao(
+                extrato.ChaveIdempotencia,
+                extrato.TipoEvento,
+                atletaPerdedorId,
+                atletaVencedorId);
+            var colisao = extratosConsolidados.FirstOrDefault(x =>
+                string.Equals(x.ChaveIdempotencia, chaveNormalizada, StringComparison.OrdinalIgnoreCase));
+
+            if (colisao is null)
+            {
+                extrato.AtletaId = atletaVencedorId;
+                extrato.ChaveIdempotencia = chaveNormalizada;
+                extratosConsolidados.Add(extrato);
+                contador.ExtratosQnTransferidos++;
+                continue;
+            }
+
+            if (!SaoMovimentacoesExatamenteEquivalentes(colisao, extrato, chaveNormalizada) ||
+                PossuiEstornoRelacionado(colisao.Id, chavesEstorno) ||
+                PossuiEstornoRelacionado(extrato.Id, chavesEstorno))
+            {
+                throw new RegraNegocioException(
+                    "A consolidação encontrou movimentações de Pontos QN conflitantes e não pôde ser concluída.");
+            }
+
+            dbContext.ExtratosPontuacaoBeneficio.Remove(extrato);
+            contador.ExtratosQnDeduplicados++;
+        }
+
+        var saldoVencedor = await dbContext.PontuacoesBeneficiosAtletas
+            .FirstOrDefaultAsync(x => x.AtletaId == atletaVencedorId, cancellationToken);
+        var saldoPerdedor = await dbContext.PontuacoesBeneficiosAtletas
+            .FirstOrDefaultAsync(x => x.AtletaId == atletaPerdedorId, cancellationToken);
+        var projecaoAnterior = new ProjecaoPontuacaoBeneficio(
+            (saldoVencedor?.SaldoAtual ?? 0) + (saldoPerdedor?.SaldoAtual ?? 0),
+            (saldoVencedor?.TotalAcumulado ?? 0) + (saldoPerdedor?.TotalAcumulado ?? 0),
+            (saldoVencedor?.TotalResgatado ?? 0) + (saldoPerdedor?.TotalResgatado ?? 0));
+        var projecaoRecalculada = ProjecaoPontuacaoBeneficioCalculador.Calcular(extratosConsolidados);
+
+        if (projecaoAnterior != projecaoRecalculada)
+        {
+            logger?.LogWarning(
+                "Projeção de Pontos QN divergente durante consolidação. AtletaVencedorId={AtletaVencedorId} AtletaPerdedorId={AtletaPerdedorId} SaldoAnterior={SaldoAnterior} SaldoRecalculado={SaldoRecalculado} TotalAcumuladoAnterior={TotalAcumuladoAnterior} TotalAcumuladoRecalculado={TotalAcumuladoRecalculado} TotalResgatadoAnterior={TotalResgatadoAnterior} TotalResgatadoRecalculado={TotalResgatadoRecalculado}",
+                atletaVencedorId,
+                atletaPerdedorId,
+                projecaoAnterior.SaldoAtual,
+                projecaoRecalculada.SaldoAtual,
+                projecaoAnterior.TotalAcumulado,
+                projecaoRecalculada.TotalAcumulado,
+                projecaoAnterior.TotalResgatado,
+                projecaoRecalculada.TotalResgatado);
+        }
+
+        var saldoDestino = saldoVencedor ?? saldoPerdedor;
+        if (saldoDestino is null && extratosConsolidados.Count > 0)
+        {
+            saldoDestino = new PontuacaoBeneficioAtleta { AtletaId = atletaVencedorId };
+            await dbContext.PontuacoesBeneficiosAtletas.AddAsync(saldoDestino, cancellationToken);
+        }
+
+        if (saldoDestino is not null)
+        {
+            saldoDestino.AtletaId = atletaVencedorId;
+            saldoDestino.SaldoAtual = projecaoRecalculada.SaldoAtual;
+            saldoDestino.TotalAcumulado = projecaoRecalculada.TotalAcumulado;
+            saldoDestino.TotalResgatado = projecaoRecalculada.TotalResgatado;
+            saldoDestino.AtualizarDataModificacao();
+        }
+
+        if (saldoVencedor is not null && saldoPerdedor is not null)
+        {
+            dbContext.PontuacoesBeneficiosAtletas.Remove(saldoPerdedor);
+        }
+
+        if (saldoVencedor is not null || saldoPerdedor is not null)
+        {
+            contador.SaldosQnConsolidados++;
+        }
+    }
+
+    private async Task BloquearAtletasEPontuacoesAsync(
+        Guid atletaVencedorId,
+        Guid atletaPerdedorId,
+        CancellationToken cancellationToken)
+    {
+        var atletaIds = new[] { atletaVencedorId, atletaPerdedorId }.OrderBy(x => x).ToList();
+        foreach (var atletaId in atletaIds)
+        {
+            await dbContext.Atletas
+                .FromSqlInterpolated($"SELECT * FROM atletas WHERE id = {atletaId} FOR UPDATE")
+                .ToListAsync(cancellationToken);
+        }
+
+        foreach (var atletaId in atletaIds)
+        {
+            await dbContext.PontuacoesBeneficiosAtletas
+                .FromSqlInterpolated($"SELECT * FROM pontuacoes_beneficios_atletas WHERE atleta_id = {atletaId} FOR UPDATE")
+                .ToListAsync(cancellationToken);
+        }
+    }
+
+    private static bool SaoMovimentacoesExatamenteEquivalentes(
+        ExtratoPontuacaoBeneficio destino,
+        ExtratoPontuacaoBeneficio origem,
+        string chaveNormalizada)
+    {
+        return destino.TipoEvento == origem.TipoEvento &&
+               destino.Pontos == origem.Pontos &&
+               destino.GrupoId == origem.GrupoId &&
+               destino.PartidaId == origem.PartidaId &&
+               destino.ResgateId == origem.ResgateId &&
+               string.Equals(destino.Origem, origem.Origem, StringComparison.Ordinal) &&
+               string.Equals(destino.ChaveIdempotencia, chaveNormalizada, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool PossuiEstornoRelacionado(Guid extratoId, IEnumerable<string> chavesEstorno)
+    {
+        var sufixo = $":EXTRATO:{extratoId}";
+        return chavesEstorno.Any(x => x.EndsWith(sufixo, StringComparison.OrdinalIgnoreCase));
+    }
+
     private async Task GarantirSemReferenciasAoPerdedorAsync(
         Guid atletaPerdedorId,
         CancellationToken cancellationToken)
@@ -514,6 +677,18 @@ public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContex
                 cancellationToken) ||
             await ExisteReferenciaFinalAsync(
                 dbContext.AtletasMedidas.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
+                x => x.AtletaId == atletaPerdedorId,
+                cancellationToken) ||
+            await ExisteReferenciaFinalAsync(
+                dbContext.PontuacoesBeneficiosAtletas.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
+                x => x.AtletaId == atletaPerdedorId,
+                cancellationToken) ||
+            await ExisteReferenciaFinalAsync(
+                dbContext.ExtratosPontuacaoBeneficio.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
+                x => x.AtletaId == atletaPerdedorId,
+                cancellationToken) ||
+            await ExisteReferenciaFinalAsync(
+                dbContext.ResgatesBeneficiosPontuacao.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
                 x => x.AtletaId == atletaPerdedorId,
                 cancellationToken);
 
@@ -713,6 +888,10 @@ public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContex
         public int ConvitesAtualizados { get; set; }
         public int UsuariosAtualizados { get; set; }
         public int AtletasRemovidos { get; set; }
+        public int SaldosQnConsolidados { get; set; }
+        public int ExtratosQnTransferidos { get; set; }
+        public int ExtratosQnDeduplicados { get; set; }
+        public int ResgatesQnTransferidos { get; set; }
 
         public SaneamentoAtletasEmailContadoresDto ParaDto()
         {
@@ -729,7 +908,11 @@ public class ConsolidacaoAtletaRepositorio(PlataformaFutevoleiDbContext dbContex
                 PendenciasAtualizadas,
                 ConvitesAtualizados,
                 UsuariosAtualizados,
-                AtletasRemovidos);
+                AtletasRemovidos,
+                SaldosQnConsolidados,
+                ExtratosQnTransferidos,
+                ExtratosQnDeduplicados,
+                ResgatesQnTransferidos);
         }
     }
 }

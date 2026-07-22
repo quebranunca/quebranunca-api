@@ -7,6 +7,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 
 namespace PlataformaFutevolei.Aplicacao.Servicos;
 
@@ -723,24 +724,13 @@ public class PontuacaoBeneficioServico(
             throw new RegraNegocioException("Saldo insuficiente para esta movimentação.");
         }
 
-        saldo.SaldoAtual += pontos;
-        if (tipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida)
-        {
-            saldo.TotalAcumulado = Math.Max(0, saldo.TotalAcumulado - Math.Abs(pontos));
-        }
-        else if (pontos > 0 && tipoEvento != TipoEventoPontuacaoBeneficio.EstornoResgate)
-        {
-            saldo.TotalAcumulado += pontos;
-        }
-
-        if (tipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio)
-        {
-            saldo.TotalResgatado += Math.Abs(pontos);
-        }
-        else if (tipoEvento == TipoEventoPontuacaoBeneficio.EstornoResgate)
-        {
-            saldo.TotalResgatado = Math.Max(0, saldo.TotalResgatado - pontos);
-        }
+        var projecao = ProjecaoPontuacaoBeneficioCalculador.Aplicar(
+            new ProjecaoPontuacaoBeneficio(saldo.SaldoAtual, saldo.TotalAcumulado, saldo.TotalResgatado),
+            pontos,
+            tipoEvento);
+        saldo.SaldoAtual = projecao.SaldoAtual;
+        saldo.TotalAcumulado = projecao.TotalAcumulado;
+        saldo.TotalResgatado = projecao.TotalResgatado;
 
         saldo.AtualizarDataModificacao();
         pontuacaoRepositorio.AtualizarSaldo(saldo);

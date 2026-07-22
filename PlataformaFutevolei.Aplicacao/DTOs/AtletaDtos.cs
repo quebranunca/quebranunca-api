@@ -188,7 +188,11 @@ public record SaneamentoAtletasEmailContadoresDto(
     int PendenciasAtualizadas,
     int ConvitesAtualizados,
     int UsuariosAtualizados,
-    int AtletasRemovidos
+    int AtletasRemovidos,
+    int SaldosQnConsolidados = 0,
+    int ExtratosQnTransferidos = 0,
+    int ExtratosQnDeduplicados = 0,
+    int ResgatesQnTransferidos = 0
 );
 
 public record ConsolidacaoAtletaMetricasDto(

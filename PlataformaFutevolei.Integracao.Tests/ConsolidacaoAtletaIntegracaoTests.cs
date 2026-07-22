@@ -217,6 +217,134 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
             $"delete from teste_consolidacao_atleta_fk_residual where prefixo = {prefixo}");
     }
 
+    [Fact]
+    public async Task Consolidar_PreservaSaldosExtratosEResgateSemAlterarEstoque()
+    {
+        Guid vencedorId;
+        Guid perdedorId;
+        Guid resgateId;
+        Guid beneficioId;
+        await using (var dbContext = fixture.CriarContexto())
+        {
+            var vencedor = CriarAtleta("Vencedor QN", Email("vencedor-qn"));
+            var perdedor = CriarAtleta("Perdedor QN", Email("perdedor-qn"));
+            var beneficio = CriarBeneficio("beneficio-qn", 3, 7);
+            var saldoVencedor = CriarSaldo(vencedor, 10, 10, 0);
+            var saldoPerdedor = CriarSaldo(perdedor, 2, 5, 3);
+            var extratoVencedor = CriarExtrato(
+                vencedor, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto,
+                $"PERFIL_COMPLETO:ATLETA:{vencedor.Id}");
+            var resgate = new ResgateBeneficioPontuacao
+            {
+                Atleta = perdedor,
+                Beneficio = beneficio,
+                PontosUtilizados = 3,
+                Status = StatusResgateBeneficioPontuacao.Aprovado,
+                CodigoCupom = "QN-PRESERVAR",
+                ObservacaoAtleta = "Observação atleta",
+                ObservacaoAdmin = "Observação admin",
+                SolicitadoEm = DateTime.UtcNow.AddDays(-2),
+                AprovadoEm = DateTime.UtcNow.AddDays(-1)
+            };
+            var extratoCreditoPerdedor = CriarExtrato(
+                perdedor, 5, TipoEventoPontuacaoBeneficio.EntradaGrupo,
+                $"ENTRADA_GRUPO:{Guid.NewGuid()}:ATLETA:{perdedor.Id}");
+            var extratoResgate = CriarExtrato(
+                perdedor, -3, TipoEventoPontuacaoBeneficio.ResgateBeneficio,
+                $"RESGATE:{resgate.Id}:ATLETA:{perdedor.Id}");
+            extratoResgate.Resgate = resgate;
+            dbContext.AddRange(
+                vencedor, perdedor, beneficio, saldoVencedor, saldoPerdedor,
+                extratoVencedor, resgate, extratoCreditoPerdedor, extratoResgate);
+            await dbContext.SaveChangesAsync();
+            vencedorId = vencedor.Id;
+            perdedorId = perdedor.Id;
+            resgateId = resgate.Id;
+            beneficioId = beneficio.Id;
+
+            await CriarServico(dbContext).ConsolidarCandidatosAsync(
+                [vencedor, perdedor], vencedor.Id, vencedor.Email);
+        }
+
+        await using var verificacao = fixture.CriarContexto();
+        Assert.False(await verificacao.Atletas.AnyAsync(x => x.Id == perdedorId));
+        var saldo = await verificacao.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == vencedorId);
+        Assert.Equal(12, saldo.SaldoAtual);
+        Assert.Equal(15, saldo.TotalAcumulado);
+        Assert.Equal(3, saldo.TotalResgatado);
+        Assert.Equal(3, await verificacao.ExtratosPontuacaoBeneficio.CountAsync(x => x.AtletaId == vencedorId));
+        Assert.False(await verificacao.ExtratosPontuacaoBeneficio.AnyAsync(x => x.AtletaId == perdedorId));
+        var resgatePersistido = await verificacao.ResgatesBeneficiosPontuacao.SingleAsync(x => x.Id == resgateId);
+        Assert.Equal(vencedorId, resgatePersistido.AtletaId);
+        Assert.Equal(StatusResgateBeneficioPontuacao.Aprovado, resgatePersistido.Status);
+        Assert.Equal("QN-PRESERVAR", resgatePersistido.CodigoCupom);
+        Assert.Equal(resgateId, await verificacao.ExtratosPontuacaoBeneficio
+            .Where(x => x.Pontos == -3)
+            .Select(x => x.ResgateId)
+            .SingleAsync());
+        Assert.Equal(7, await verificacao.BeneficiosPontuacao
+            .Where(x => x.Id == beneficioId)
+            .Select(x => x.QuantidadeDisponivel)
+            .SingleAsync());
+        Assert.False(await ExisteReferenciaAoAtletaAsync(verificacao, perdedorId));
+    }
+
+    [Fact]
+    public async Task Consolidar_DuplicidadeExataMantemUmExtratoEChaveDoVencedor()
+    {
+        await using var dbContext = fixture.CriarContexto();
+        var vencedor = CriarAtleta("Vencedor duplicidade", Email("vencedor-duplicidade"));
+        var perdedor = CriarAtleta("Perdedor duplicidade", Email("perdedor-duplicidade"));
+        dbContext.AddRange(
+            vencedor,
+            perdedor,
+            CriarSaldo(vencedor, 10, 10, 0),
+            CriarSaldo(perdedor, 10, 10, 0),
+            CriarExtrato(vencedor, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto, $"PERFIL_COMPLETO:ATLETA:{vencedor.Id}"),
+            CriarExtrato(perdedor, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto, $"PERFIL_COMPLETO:ATLETA:{perdedor.Id}"));
+        await dbContext.SaveChangesAsync();
+
+        await CriarServico(dbContext).ConsolidarCandidatosAsync(
+            [vencedor, perdedor], vencedor.Id, vencedor.Email);
+
+        await using var verificacao = fixture.CriarContexto();
+        var extrato = await verificacao.ExtratosPontuacaoBeneficio.SingleAsync(x => x.AtletaId == vencedor.Id);
+        Assert.Equal($"PERFIL_COMPLETO:ATLETA:{vencedor.Id}", extrato.ChaveIdempotencia);
+        Assert.Equal(10, (await verificacao.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == vencedor.Id)).SaldoAtual);
+    }
+
+    [Fact]
+    public async Task Consolidar_ColisaoAmbiguaFazRollbackIntegral()
+    {
+        Guid vencedorId;
+        Guid perdedorId;
+        await using (var dbContext = fixture.CriarContexto())
+        {
+            var vencedor = CriarAtleta("Vencedor conflito", Email("vencedor-conflito"));
+            var perdedor = CriarAtleta("Perdedor conflito", Email("perdedor-conflito"));
+            dbContext.AddRange(
+                vencedor,
+                perdedor,
+                CriarSaldo(vencedor, 10, 10, 0),
+                CriarSaldo(perdedor, 11, 11, 0),
+                CriarExtrato(vencedor, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto, $"PERFIL_COMPLETO:ATLETA:{vencedor.Id}"),
+                CriarExtrato(perdedor, 11, TipoEventoPontuacaoBeneficio.PerfilCompleto, $"PERFIL_COMPLETO:ATLETA:{perdedor.Id}"));
+            await dbContext.SaveChangesAsync();
+            vencedorId = vencedor.Id;
+            perdedorId = perdedor.Id;
+
+            await Assert.ThrowsAsync<RegraNegocioException>(() =>
+                CriarServico(dbContext).ConsolidarCandidatosAsync(
+                    [vencedor, perdedor], vencedor.Id, vencedor.Email));
+        }
+
+        await using var verificacao = fixture.CriarContexto();
+        Assert.True(await verificacao.Atletas.AnyAsync(x => x.Id == vencedorId));
+        Assert.True(await verificacao.Atletas.AnyAsync(x => x.Id == perdedorId));
+        Assert.Equal(2, await verificacao.PontuacoesBeneficiosAtletas.CountAsync(x => x.AtletaId == vencedorId || x.AtletaId == perdedorId));
+        Assert.Equal(2, await verificacao.ExtratosPontuacaoBeneficio.CountAsync(x => x.AtletaId == vencedorId || x.AtletaId == perdedorId));
+    }
+
     private ConsolidacaoAtletaServico CriarServico(PlataformaFutevoleiDbContext dbContext)
     {
         var atletaRepositorio = new AtletaRepositorio(dbContext);
@@ -291,6 +419,49 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
         };
     }
 
+    private BeneficioPontuacao CriarBeneficio(string sufixo, int pontos, int? estoque)
+    {
+        return new BeneficioPontuacao
+        {
+            Titulo = $"{prefixo}-{sufixo}",
+            Descricao = "Benefício para teste de consolidação.",
+            Tipo = TipoBeneficioPontuacao.Brinde,
+            PontosNecessarios = pontos,
+            Ativo = true,
+            QuantidadeDisponivel = estoque,
+            Ordem = 999
+        };
+    }
+
+    private static PontuacaoBeneficioAtleta CriarSaldo(
+        Atleta atleta, int saldoAtual, int totalAcumulado, int totalResgatado)
+    {
+        return new PontuacaoBeneficioAtleta
+        {
+            Atleta = atleta,
+            SaldoAtual = saldoAtual,
+            TotalAcumulado = totalAcumulado,
+            TotalResgatado = totalResgatado
+        };
+    }
+
+    private static ExtratoPontuacaoBeneficio CriarExtrato(
+        Atleta atleta,
+        int pontos,
+        TipoEventoPontuacaoBeneficio tipoEvento,
+        string chave)
+    {
+        return new ExtratoPontuacaoBeneficio
+        {
+            Atleta = atleta,
+            Pontos = pontos,
+            TipoEvento = tipoEvento,
+            Descricao = "Movimentação de teste",
+            Origem = "TesteConsolidacao",
+            ChaveIdempotencia = chave
+        };
+    }
+
     private static async Task<int> ContarDuplicadosPorEmailAsync(
         PlataformaFutevoleiDbContext dbContext,
         string email)
@@ -324,7 +495,10 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
             await dbContext.PartidasAprovacoes.AnyAsync(x => x.AtletaId == atletaId) ||
             await dbContext.PendenciasUsuarios.AnyAsync(x => x.AtletaId == atletaId) ||
             await dbContext.ConvitesCadastro.AnyAsync(x => x.AtletaId == atletaId) ||
-            await dbContext.AtletasMedidas.AnyAsync(x => x.AtletaId == atletaId);
+            await dbContext.AtletasMedidas.AnyAsync(x => x.AtletaId == atletaId) ||
+            await dbContext.PontuacoesBeneficiosAtletas.AnyAsync(x => x.AtletaId == atletaId) ||
+            await dbContext.ExtratosPontuacaoBeneficio.AnyAsync(x => x.AtletaId == atletaId) ||
+            await dbContext.ResgatesBeneficiosPontuacao.AnyAsync(x => x.AtletaId == atletaId);
     }
 }
 

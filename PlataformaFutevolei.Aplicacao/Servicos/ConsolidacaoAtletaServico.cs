@@ -186,6 +186,10 @@ public class ConsolidacaoAtletaServico(
         private int convitesAtualizados;
         private int usuariosAtualizados;
         private int atletasRemovidos;
+        private int saldosQnConsolidados;
+        private int extratosQnTransferidos;
+        private int extratosQnDeduplicados;
+        private int resgatesQnTransferidos;
 
         public void Somar(SaneamentoAtletasEmailContadoresDto contadores)
         {
@@ -202,6 +206,10 @@ public class ConsolidacaoAtletaServico(
             convitesAtualizados += contadores.ConvitesAtualizados;
             usuariosAtualizados += contadores.UsuariosAtualizados;
             atletasRemovidos += contadores.AtletasRemovidos;
+            saldosQnConsolidados += contadores.SaldosQnConsolidados;
+            extratosQnTransferidos += contadores.ExtratosQnTransferidos;
+            extratosQnDeduplicados += contadores.ExtratosQnDeduplicados;
+            resgatesQnTransferidos += contadores.ResgatesQnTransferidos;
         }
 
         public SaneamentoAtletasEmailContadoresDto ParaDto()
@@ -219,7 +227,11 @@ public class ConsolidacaoAtletaServico(
                 pendenciasAtualizadas,
                 convitesAtualizados,
                 usuariosAtualizados,
-                atletasRemovidos);
+                atletasRemovidos,
+                saldosQnConsolidados,
+                extratosQnTransferidos,
+                extratosQnDeduplicados,
+                resgatesQnTransferidos);
         }
     }
 

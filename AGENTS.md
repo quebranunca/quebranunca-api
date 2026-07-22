@@ -80,4 +80,5 @@
 - Partida comum de grupo não deve exigir competição, categoria ou liga
 - Não confundir pontuação de competição com ranking da plataforma
 - Resolver vínculo não deve corromper partida, histórico, nome informado, ranking ou scout; evitar duplicidade de atleta
+- Consolidação de atletas deve preservar e reconciliar saldo, extrato e resgates de Pontos QN antes da remoção do atleta duplicado.
 - Alterações em domínio, aplicação, partida, ranking, scout, grupo, vínculo ou autenticação devem criar ou ajustar testes compatíveis com o risco da mudança

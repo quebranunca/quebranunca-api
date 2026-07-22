@@ -197,7 +197,11 @@ public class ConsolidacaoAtletaServicoTests
             PendenciasAtualizadas: 1,
             ConvitesAtualizados: 1,
             UsuariosAtualizados: 1,
-            AtletasRemovidos: 1);
+            AtletasRemovidos: 1,
+            SaldosQnConsolidados: 1,
+            ExtratosQnTransferidos: 2,
+            ExtratosQnDeduplicados: 1,
+            ResgatesQnTransferidos: 1);
 
         var resumo = await cenario.Servico.ConsolidarDuplicadosPorEmailAsync();
         var contadores = Assert.Single(resumo.Grupos).RegistrosMigrados;
@@ -207,6 +211,10 @@ public class ConsolidacaoAtletaServicoTests
         Assert.Equal(1, contadores.PendenciasAtualizadas);
         Assert.Equal(1, contadores.ConvitesAtualizados);
         Assert.Equal(1, contadores.UsuariosAtualizados);
+        Assert.Equal(1, contadores.SaldosQnConsolidados);
+        Assert.Equal(2, contadores.ExtratosQnTransferidos);
+        Assert.Equal(1, contadores.ExtratosQnDeduplicados);
+        Assert.Equal(1, contadores.ResgatesQnTransferidos);
     }
 
     [Fact]
