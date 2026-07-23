@@ -478,11 +478,16 @@ public interface IPontuacaoBeneficioServico
     Task RegistrarCompartilhamentoAsync(RegistrarCompartilhamentoGamificacaoDto dto, CancellationToken cancellationToken = default);
     Task PontuarPartidaValidadaAsync(Partida partida, Guid? usuarioRegistradorId, CancellationToken cancellationToken = default);
     Task PontuarConfirmacaoAprovacaoPartidaAsync(Guid partidaId, Guid atletaId, Guid pendenciaId, Guid usuarioId, CancellationToken cancellationToken = default);
-    Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default);
+    Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default, Guid? criadoPorUsuarioId = null, Guid? atletaId = null);
     Task PontuarPendenciaResolvidaAsync(Guid pendenciaId, Guid atletaId, Guid? partidaId, Guid usuarioId, CancellationToken cancellationToken = default);
     Task PontuarPerfilCompletoAsync(Atleta atleta, Guid usuarioId, CancellationToken cancellationToken = default);
     Task<RecalculoSaldoInicialPontuacaoResultadoDto> RecalcularSaldoInicialRetroativoAsync(
         bool dryRun,
+        CancellationToken cancellationToken = default);
+    Task<ReconciliacaoPontosQNResultadoDto> ReconciliarAsync(
+        bool dryRun = true,
+        Guid? atletaId = null,
+        int limiteDetalhes = 100,
         CancellationToken cancellationToken = default);
 }
 

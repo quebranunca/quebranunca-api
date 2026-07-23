@@ -1,4 +1,5 @@
 using PlataformaFutevolei.Dominio.Enums;
+using PlataformaFutevolei.Dominio.Entidades;
 
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
@@ -10,6 +11,57 @@ public record PontuacaoBeneficioResumoDto(
     int PontosPendentesCompensacao,
     int TotalAcumulado,
     int TotalResgatado);
+
+public record ReconciliacaoPontosQNAnomaliaDto(
+    string Codigo,
+    string Mensagem,
+    bool Bloqueante,
+    string Entidade,
+    Guid? EntidadeId);
+
+public record ReconciliacaoPontosQNAtletaDto(
+    Guid AtletaId,
+    string NomeAtleta,
+    int? SaldoAtualPersistido,
+    int SaldoAtualCalculado,
+    int? TotalAcumuladoPersistido,
+    int TotalAcumuladoCalculado,
+    int? TotalResgatadoPersistido,
+    int TotalResgatadoCalculado,
+    int PontosDisponiveisCalculados,
+    int PontosPendentesCompensacaoCalculados,
+    bool PossuiDivergencia,
+    bool Bloqueada,
+    int EstornosPartidaPendentes,
+    bool Corrigida,
+    IReadOnlyList<ReconciliacaoPontosQNAnomaliaDto> Anomalias);
+
+public record ReconciliacaoPontosQNResultadoDto(
+    bool DryRun,
+    bool Aplicado,
+    DateTime ExecutadoEmUtc,
+    Guid? AtletaIdFiltrado,
+    int AtletasAvaliados,
+    int AtletasConsistentes,
+    int AtletasComDivergencia,
+    int AtletasCorrigidos,
+    int AtletasBloqueados,
+    int ProjecoesCriadas,
+    int ProjecoesAtualizadas,
+    int EstornosPartidaPendentes,
+    int EstornosPartidaCriados,
+    int TotalAnomalias,
+    IReadOnlyList<ReconciliacaoPontosQNAtletaDto> Detalhes,
+    IReadOnlyList<string> Avisos);
+
+public record ReconciliacaoPontosQNCandidatoDto(Guid AtletaId, string NomeAtleta);
+
+public record ReconciliacaoPontosQNDadosDto(
+    Atleta Atleta,
+    PontuacaoBeneficioAtleta? Saldo,
+    IReadOnlyList<ExtratoPontuacaoBeneficio> Extratos,
+    IReadOnlyList<ResgateBeneficioPontuacao> Resgates,
+    IReadOnlyList<Partida> Partidas);
 
 public record NivelPontuacaoBeneficioDto(
     string Nome,

@@ -393,6 +393,10 @@ public interface IPendenciaUsuarioRepositorio
 
 public interface IPontuacaoBeneficioRepositorio
 {
+    Task<IReadOnlyList<ReconciliacaoPontosQNCandidatoDto>> ListarCandidatosReconciliacaoAsync(Guid? atletaId, int skip, int take, CancellationToken cancellationToken = default);
+    Task<ReconciliacaoPontosQNDadosDto?> ObterDadosReconciliacaoAsync(Guid atletaId, bool paraAtualizacao, CancellationToken cancellationToken = default);
+    Task<bool> TentarAdquirirLockReconciliacaoAsync(CancellationToken cancellationToken = default);
+    Task LiberarLockReconciliacaoAsync(CancellationToken cancellationToken = default);
     Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaParaAtualizacaoAsync(Guid atletaId, CancellationToken cancellationToken = default);
     Task AdicionarSaldoAsync(PontuacaoBeneficioAtleta saldo, CancellationToken cancellationToken = default);

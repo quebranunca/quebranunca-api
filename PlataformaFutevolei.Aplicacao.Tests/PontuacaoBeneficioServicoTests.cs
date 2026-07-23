@@ -684,6 +684,135 @@ public class PontuacaoBeneficioServicoTests
         Assert.Single(cenario.Repositorio.Extratos);
     }
 
+    [Fact]
+    public async Task ReconciliarAsync_DryRunReportaDivergenciaSemAlterarProjecao()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        cenario.DefinirSaldo(99, 99);
+        cenario.Repositorio.Extratos.Add(CriarExtrato(cenario.Usuario.AtletaId!.Value, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto));
+        var atualizadoEm = cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].DataAtualizacao;
+
+        var resultado = await cenario.Servico.ReconciliarAsync(dryRun: true);
+
+        Assert.Equal(1, resultado.AtletasComDivergencia);
+        Assert.Equal(99, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].SaldoAtual);
+        Assert.Equal(atualizadoEm, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].DataAtualizacao);
+        Assert.Single(cenario.Repositorio.Extratos);
+    }
+
+    [Fact]
+    public async Task ReconciliarAsync_AplicacaoCorrigeProjecaoEUmaSegundaExecucaoEhIdempotente()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        cenario.DefinirSaldo(99, 99, 7);
+        cenario.Repositorio.Extratos.Add(CriarExtrato(cenario.Usuario.AtletaId!.Value, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto));
+
+        var primeira = await cenario.Servico.ReconciliarAsync(dryRun: false);
+        var atualizadoEm = cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].DataAtualizacao;
+        var segunda = await cenario.Servico.ReconciliarAsync(dryRun: false);
+
+        Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].SaldoAtual);
+        Assert.Equal(10, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].TotalAcumulado);
+        Assert.Equal(0, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].TotalResgatado);
+        Assert.Equal(1, primeira.ProjecoesAtualizadas);
+        Assert.Equal(0, segunda.AtletasCorrigidos);
+        Assert.Equal(atualizadoEm, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId.Value].DataAtualizacao);
+    }
+
+    [Fact]
+    public async Task ReconciliarAsync_ExtratoSemSaldoCriaProjecaoESaldoNegativoEhValido()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        partida.Cancelada = true;
+        cenario.Repositorio.Partidas.Add(partida);
+        cenario.Repositorio.Extratos.Add(CriarExtrato(cenario.Usuario.AtletaId!.Value, -20, TipoEventoPontuacaoBeneficio.EstornoPartida, partida.Id));
+
+        var resultado = await cenario.Servico.ReconciliarAsync(dryRun: false);
+        var detalhe = Assert.Single(resultado.Detalhes);
+
+        Assert.Equal(-20, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(0, detalhe.PontosDisponiveisCalculados);
+        Assert.Equal(20, detalhe.PontosPendentesCompensacaoCalculados);
+        Assert.Equal(1, resultado.ProjecoesCriadas);
+        Assert.False(detalhe.Bloqueada);
+    }
+
+    [Fact]
+    public async Task ReconciliarAsync_SaldoNaoZeroSemExtratoBloqueiaENaoZera()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        cenario.DefinirSaldo(50, 50);
+
+        var resultado = await cenario.Servico.ReconciliarAsync(dryRun: false);
+        var detalhe = Assert.Single(resultado.Detalhes);
+
+        Assert.True(detalhe.Bloqueada);
+        Assert.Contains(detalhe.Anomalias, x => x.Codigo == "SALDO_SEM_EXTRATO");
+        Assert.Equal(50, cenario.Repositorio.Saldos[cenario.Usuario.AtletaId!.Value].SaldoAtual);
+        Assert.Equal(0, resultado.AtletasCorrigidos);
+    }
+
+    [Fact]
+    public async Task ReconciliarAsync_PartidaCanceladaCriaEstornoUmaVez()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        var partida = cenario.CriarPartidaValida(TipoRegistroResultado.PlacarDetalhado);
+        await cenario.Servico.PontuarPartidaValidadaAsync(partida, cenario.Usuario.Id);
+        partida.Cancelada = true;
+        cenario.Repositorio.Partidas.Add(partida);
+
+        var dryRun = await cenario.Servico.ReconciliarAsync(true, cenario.Usuario.AtletaId);
+        Assert.True(dryRun.EstornosPartidaPendentes > 0);
+        Assert.DoesNotContain(cenario.Repositorio.Extratos, x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida);
+
+        var primeira = await cenario.Servico.ReconciliarAsync(false, cenario.Usuario.AtletaId);
+        var quantidade = cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida && x.AtletaId == cenario.Usuario.AtletaId);
+        var segunda = await cenario.Servico.ReconciliarAsync(false, cenario.Usuario.AtletaId);
+
+        Assert.True(primeira.EstornosPartidaCriados > 0);
+        Assert.Equal(quantidade, cenario.Repositorio.Extratos.Count(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoPartida && x.AtletaId == cenario.Usuario.AtletaId));
+        Assert.Equal(0, segunda.EstornosPartidaCriados);
+    }
+
+    [Fact]
+    public async Task ReconciliarAsync_ResgateSemDebitoBloqueiaSemCriarMovimentacao()
+    {
+        var cenario = new Cenario(PerfilUsuario.Administrador);
+        cenario.DefinirSaldo(10, 10);
+        cenario.Repositorio.Extratos.Add(CriarExtrato(cenario.Usuario.AtletaId!.Value, 10, TipoEventoPontuacaoBeneficio.PerfilCompleto));
+        cenario.Repositorio.Resgates.Add(new ResgateBeneficioPontuacao
+        {
+            AtletaId = cenario.Usuario.AtletaId.Value,
+            BeneficioId = Guid.NewGuid(),
+            PontosUtilizados = 5,
+            Status = StatusResgateBeneficioPontuacao.Solicitado
+        });
+
+        var resultado = await cenario.Servico.ReconciliarAsync(false);
+
+        Assert.Contains(Assert.Single(resultado.Detalhes).Anomalias, x => x.Codigo == "RESGATE_SEM_DEBITO" && x.Bloqueante);
+        Assert.Single(cenario.Repositorio.Extratos);
+    }
+
+    private static ExtratoPontuacaoBeneficio CriarExtrato(
+        Guid atletaId,
+        int pontos,
+        TipoEventoPontuacaoBeneficio tipo,
+        Guid? partidaId = null)
+    {
+        return new ExtratoPontuacaoBeneficio
+        {
+            AtletaId = atletaId,
+            PartidaId = partidaId,
+            TipoEvento = tipo,
+            Pontos = pontos,
+            Descricao = "Teste de reconciliação",
+            Origem = "Teste",
+            ChaveIdempotencia = $"TESTE:{Guid.NewGuid()}"
+        };
+    }
+
     private static async Task<bool> SolicitarComResultadoAsync(
         PontuacaoBeneficioServico servico,
         Guid beneficioId)
@@ -723,6 +852,10 @@ public class PontuacaoBeneficioServicoTests
             ];
             Atletas.AddRange(OutrosAtletas);
             Repositorio = new PontuacaoBeneficioRepositorioFake();
+            foreach (var atleta in Atletas)
+            {
+                Repositorio.Atletas[atleta.Id] = atleta;
+            }
             Servico = CriarServicoParaUsuario(Usuario);
         }
 
@@ -814,6 +947,30 @@ public class PontuacaoBeneficioServicoTests
         public List<BeneficioPontuacao> Beneficios { get; } = [];
         public List<ResgateBeneficioPontuacao> Resgates { get; } = [];
         public List<SaldoInicialRetroativoAtletaDto> CalculosSaldoInicial { get; } = [];
+        public Dictionary<Guid, Atleta> Atletas { get; } = [];
+        public List<Partida> Partidas { get; } = [];
+        public bool LockReconciliacaoDisponivel { get; set; } = true;
+
+        public Task<IReadOnlyList<ReconciliacaoPontosQNCandidatoDto>> ListarCandidatosReconciliacaoAsync(Guid? atletaId, int skip, int take, CancellationToken cancellationToken = default)
+        {
+            var ids = Saldos.Keys.Concat(Extratos.Select(x => x.AtletaId)).Concat(Resgates.Select(x => x.AtletaId)).Distinct();
+            if (atletaId.HasValue) ids = ids.Where(x => x == atletaId.Value);
+            return Task.FromResult<IReadOnlyList<ReconciliacaoPontosQNCandidatoDto>>(ids.OrderBy(x => x).Skip(skip).Take(take)
+                .Select(x => new ReconciliacaoPontosQNCandidatoDto(x, Atletas.GetValueOrDefault(x)?.Nome ?? "Atleta")).ToList());
+        }
+
+        public Task<ReconciliacaoPontosQNDadosDto?> ObterDadosReconciliacaoAsync(Guid atletaId, bool paraAtualizacao, CancellationToken cancellationToken = default)
+        {
+            if (!Atletas.TryGetValue(atletaId, out var atleta)) return Task.FromResult<ReconciliacaoPontosQNDadosDto?>(null);
+            var extratos = Extratos.Where(x => x.AtletaId == atletaId).OrderBy(x => x.DataCriacao).ToList();
+            var partidaIds = extratos.Where(x => x.PartidaId.HasValue).Select(x => x.PartidaId!.Value).ToHashSet();
+            return Task.FromResult<ReconciliacaoPontosQNDadosDto?>(new(
+                atleta, Saldos.GetValueOrDefault(atletaId), extratos,
+                Resgates.Where(x => x.AtletaId == atletaId).ToList(), Partidas.Where(x => partidaIds.Contains(x.Id)).ToList()));
+        }
+
+        public Task<bool> TentarAdquirirLockReconciliacaoAsync(CancellationToken cancellationToken = default) => Task.FromResult(LockReconciliacaoDisponivel);
+        public Task LiberarLockReconciliacaoAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public BeneficioPontuacao AdicionarBeneficio(int pontos, bool ativo = true, int? quantidadeDisponivel = null)
         {
