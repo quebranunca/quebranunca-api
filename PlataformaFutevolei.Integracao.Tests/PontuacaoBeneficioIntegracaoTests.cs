@@ -51,6 +51,67 @@ public class PontuacaoBeneficioIntegracaoTests(PostgresIntegracaoFixture fixture
     }
 
     [Fact]
+    public async Task Reconciliacao_DryRunNaoAlteraEAplicacaoCorrigeProjecaoComIdempotencia()
+    {
+        Usuario usuario;
+        await using (var dbContext = fixture.CriarContexto())
+        {
+            usuario = CriarUsuarioComSaldo(dbContext, "reconciliacao", 99);
+            usuario.Perfil = PerfilUsuario.Administrador;
+            dbContext.Add(new ExtratoPontuacaoBeneficio
+            {
+                AtletaId = usuario.AtletaId!.Value,
+                TipoEvento = TipoEventoPontuacaoBeneficio.PerfilCompleto,
+                Pontos = 10,
+                Descricao = "Perfil completo",
+                Origem = "Perfil",
+                ChaveIdempotencia = $"PERFIL_COMPLETO:ATLETA:{usuario.AtletaId}"
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        await using (var dryRunContexto = fixture.CriarContexto())
+        {
+            var dryRun = await CriarServico(dryRunContexto, usuario).ReconciliarAsync(true, usuario.AtletaId);
+            Assert.Equal(1, dryRun.AtletasComDivergencia);
+        }
+        await using (var verificacaoDryRun = fixture.CriarContexto())
+        {
+            Assert.Equal(99, (await verificacaoDryRun.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == usuario.AtletaId)).SaldoAtual);
+        }
+
+        await using (var aplicacaoContexto = fixture.CriarContexto())
+        {
+            var servico = CriarServico(aplicacaoContexto, usuario);
+            var primeira = await servico.ReconciliarAsync(false, usuario.AtletaId);
+            var segunda = await servico.ReconciliarAsync(false, usuario.AtletaId);
+            Assert.Equal(1, primeira.ProjecoesAtualizadas);
+            Assert.Equal(0, segunda.AtletasCorrigidos);
+        }
+        await using var verificacao = fixture.CriarContexto();
+        var saldo = await verificacao.PontuacoesBeneficiosAtletas.SingleAsync(x => x.AtletaId == usuario.AtletaId);
+        Assert.Equal(10, saldo.SaldoAtual);
+        Assert.Equal(10, saldo.TotalAcumulado);
+        Assert.Equal(0, saldo.TotalResgatado);
+        Assert.Single(await verificacao.ExtratosPontuacaoBeneficio.Where(x => x.AtletaId == usuario.AtletaId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Reconciliacao_ApenasUmaAplicacaoAdquireAdvisoryLock()
+    {
+        await using var primeiroContexto = fixture.CriarContexto();
+        await using var segundoContexto = fixture.CriarContexto();
+        var primeiro = new PontuacaoBeneficioRepositorio(primeiroContexto);
+        var segundo = new PontuacaoBeneficioRepositorio(segundoContexto);
+
+        Assert.True(await primeiro.TentarAdquirirLockReconciliacaoAsync());
+        Assert.False(await segundo.TentarAdquirirLockReconciliacaoAsync());
+        await primeiro.LiberarLockReconciliacaoAsync();
+        Assert.True(await segundo.TentarAdquirirLockReconciliacaoAsync());
+        await segundo.LiberarLockReconciliacaoAsync();
+    }
+
+    [Fact]
     public async Task ResgateConcorrente_UltimoEstoque_AceitaSomenteUmaSolicitacao()
     {
         await using (var dbContext = fixture.CriarContexto())
@@ -263,7 +324,9 @@ public class PontuacaoBeneficioIntegracaoTests(PostgresIntegracaoFixture fixture
             => Task.FromResult(usuario);
 
         public Task GarantirAdministradorAsync(CancellationToken cancellationToken = default)
-            => throw new AcessoNegadoException("Apenas administradores podem executar esta operação.");
+            => usuario.Perfil == PerfilUsuario.Administrador
+                ? Task.CompletedTask
+                : throw new AcessoNegadoException("Apenas administradores podem executar esta operação.");
 
         public Task GarantirAdminOuOrganizadorAsync(CancellationToken cancellationToken = default)
             => Task.CompletedTask;

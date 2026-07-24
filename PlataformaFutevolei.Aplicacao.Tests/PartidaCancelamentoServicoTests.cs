@@ -593,7 +593,7 @@ public class PartidaCancelamentoServicoTests
     {
         public List<Guid> EstornosPartida { get; } = [];
 
-        public Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)
+        public Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default, Guid? criadoPorUsuarioId = null, Guid? atletaId = null)
         {
             if (!EstornosPartida.Contains(partidaId))
             {
@@ -620,5 +620,6 @@ public class PartidaCancelamentoServicoTests
         public Task PontuarPendenciaResolvidaAsync(Guid pendenciaId, Guid atletaId, Guid? partidaId, Guid usuarioId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task PontuarPerfilCompletoAsync(Atleta atleta, Guid usuarioId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<RecalculoSaldoInicialPontuacaoResultadoDto> RecalcularSaldoInicialRetroativoAsync(bool dryRun, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+        public Task<ReconciliacaoPontosQNResultadoDto> ReconciliarAsync(bool dryRun = true, Guid? atletaId = null, int limiteDetalhes = 100, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 }

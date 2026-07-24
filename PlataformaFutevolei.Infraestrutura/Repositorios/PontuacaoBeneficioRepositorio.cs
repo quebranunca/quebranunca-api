@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
@@ -10,6 +11,105 @@ namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
 public class PontuacaoBeneficioRepositorio(PlataformaFutevoleiDbContext dbContext) : IPontuacaoBeneficioRepositorio
 {
+    private const long ChaveLockReconciliacao = 716_202_607_230_001;
+
+    public async Task<IReadOnlyList<ReconciliacaoPontosQNCandidatoDto>> ListarCandidatosReconciliacaoAsync(
+        Guid? atletaId,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = dbContext.Atletas.AsNoTracking().Where(x =>
+            dbContext.PontuacoesBeneficiosAtletas.Any(s => s.AtletaId == x.Id) ||
+            dbContext.ExtratosPontuacaoBeneficio.Any(e => e.AtletaId == x.Id) ||
+            dbContext.ResgatesBeneficiosPontuacao.Any(r => r.AtletaId == x.Id));
+        if (atletaId.HasValue)
+        {
+            consulta = consulta.Where(x => x.Id == atletaId.Value);
+        }
+
+        return await consulta.OrderBy(x => x.Id).Skip(skip).Take(take)
+            .Select(x => new ReconciliacaoPontosQNCandidatoDto(x.Id, x.Apelido ?? x.Nome))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ReconciliacaoPontosQNDadosDto?> ObterDadosReconciliacaoAsync(
+        Guid atletaId,
+        bool paraAtualizacao,
+        CancellationToken cancellationToken = default)
+    {
+        if (paraAtualizacao)
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM atletas WHERE id = {atletaId} FOR UPDATE", cancellationToken);
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT 1 FROM pontuacoes_beneficios_atletas WHERE atleta_id = {atletaId} FOR UPDATE", cancellationToken);
+        }
+
+        var atleta = await dbContext.Atletas.AsNoTracking().FirstOrDefaultAsync(x => x.Id == atletaId, cancellationToken);
+        if (atleta is null)
+        {
+            return null;
+        }
+
+        var saldoConsulta = paraAtualizacao
+            ? dbContext.PontuacoesBeneficiosAtletas.AsQueryable()
+            : dbContext.PontuacoesBeneficiosAtletas.AsNoTracking();
+        var saldo = await saldoConsulta.FirstOrDefaultAsync(x => x.AtletaId == atletaId, cancellationToken);
+        var extratos = await dbContext.ExtratosPontuacaoBeneficio.AsNoTracking()
+            .Where(x => x.AtletaId == atletaId).OrderBy(x => x.DataCriacao).ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+        var resgates = await dbContext.ResgatesBeneficiosPontuacao.AsNoTracking()
+            .Where(x => x.AtletaId == atletaId).ToListAsync(cancellationToken);
+        var partidaIds = extratos.Where(x => x.PartidaId.HasValue).Select(x => x.PartidaId!.Value).Distinct().ToList();
+        var partidas = await dbContext.Partidas.AsNoTracking().Where(x => partidaIds.Contains(x.Id)).ToListAsync(cancellationToken);
+        return new ReconciliacaoPontosQNDadosDto(atleta, saldo, extratos, resgates, partidas);
+    }
+
+    public async Task<bool> TentarAdquirirLockReconciliacaoAsync(CancellationToken cancellationToken = default)
+    {
+        await dbContext.Database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await using var comando = dbContext.Database.GetDbConnection().CreateCommand();
+            comando.CommandText = "select pg_try_advisory_lock(@chave)";
+            var parametro = comando.CreateParameter();
+            parametro.ParameterName = "chave";
+            parametro.Value = ChaveLockReconciliacao;
+            comando.Parameters.Add(parametro);
+            var adquirido = (bool)(await comando.ExecuteScalarAsync(cancellationToken) ?? false);
+            if (!adquirido)
+                await dbContext.Database.CloseConnectionAsync();
+
+            return adquirido;
+        }
+        catch
+        {
+            await dbContext.Database.CloseConnectionAsync();
+            throw;
+        }
+    }
+
+    public async Task LiberarLockReconciliacaoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (dbContext.Database.GetDbConnection().State == ConnectionState.Open)
+            {
+                await using var comando = dbContext.Database.GetDbConnection().CreateCommand();
+                comando.CommandText = "select pg_advisory_unlock(@chave)";
+                var parametro = comando.CreateParameter();
+                parametro.ParameterName = "chave";
+                parametro.Value = ChaveLockReconciliacao;
+                comando.Parameters.Add(parametro);
+                await comando.ExecuteScalarAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            await dbContext.Database.CloseConnectionAsync();
+        }
+    }
     public Task<PontuacaoBeneficioAtleta?> ObterSaldoPorAtletaAsync(
         Guid atletaId,
         CancellationToken cancellationToken = default)

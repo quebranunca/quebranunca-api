@@ -11,6 +11,19 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/admin/gamificacao")]
 public class AdminGamificacaoController(IPontuacaoBeneficioServico pontuacaoBeneficioServico) : ControllerBase
 {
+    [HttpPost("reconciliar")]
+    [ProducesResponseType(typeof(ReconciliacaoPontosQNResultadoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Reconciliar(
+        [FromQuery] bool dryRun = true,
+        [FromQuery] Guid? atletaId = null,
+        [FromQuery] int limiteDetalhes = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var resultado = await pontuacaoBeneficioServico.ReconciliarAsync(
+            dryRun, atletaId, limiteDetalhes, cancellationToken);
+        return Ok(resultado);
+    }
+
     [HttpPost("recalcular-saldo-inicial")]
     [ProducesResponseType(typeof(RecalculoSaldoInicialPontuacaoResultadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RecalcularSaldoInicial(

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Excecoes;
@@ -462,10 +463,17 @@ public class PontuacaoBeneficioServico(
             cancellationToken);
     }
 
-    public async Task EstornarPartidaAsync(Guid partidaId, CancellationToken cancellationToken = default)
+    public async Task EstornarPartidaAsync(
+        Guid partidaId,
+        CancellationToken cancellationToken = default,
+        Guid? criadoPorUsuarioId = null,
+        Guid? atletaId = null)
     {
         var extratos = await pontuacaoRepositorio.ListarExtratoPorPartidaAsync(partidaId, cancellationToken);
-        foreach (var extrato in extratos.Where(x => x.Pontos > 0 && x.TipoEvento != TipoEventoPontuacaoBeneficio.EstornoPartida))
+        foreach (var extrato in extratos.Where(x =>
+                     x.Pontos > 0 &&
+                     x.TipoEvento != TipoEventoPontuacaoBeneficio.EstornoPartida &&
+                     (!atletaId.HasValue || x.AtletaId == atletaId.Value)))
         {
             await RegistrarMovimentacaoAsync(
                 extrato.AtletaId,
@@ -477,9 +485,167 @@ public class PontuacaoBeneficioServico(
                 extrato.GrupoId,
                 partidaId,
                 null,
-                null,
+                criadoPorUsuarioId,
                 cancellationToken);
         }
+    }
+
+    public async Task<ReconciliacaoPontosQNResultadoDto> ReconciliarAsync(
+        bool dryRun = true,
+        Guid? atletaId = null,
+        int limiteDetalhes = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var cronometro = Stopwatch.StartNew();
+        var usuario = await autorizacaoUsuarioServico.ObterUsuarioAtualObrigatorioAsync(cancellationToken);
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+        limiteDetalhes = Math.Clamp(limiteDetalhes, 1, 500);
+        var lockAdquirido = false;
+        if (!dryRun)
+        {
+            lockAdquirido = await pontuacaoRepositorio.TentarAdquirirLockReconciliacaoAsync(cancellationToken);
+            if (!lockAdquirido)
+            {
+                throw new ConflitoEstadoException("Já existe uma reconciliação de Pontos QN em aplicação.");
+            }
+        }
+
+        var detalhesCompletos = new List<ReconciliacaoPontosQNAtletaDto>();
+        var projecoesCriadas = 0;
+        var projecoesAtualizadas = 0;
+        var estornosCriados = 0;
+        try
+        {
+            const int tamanhoLote = 200;
+            for (var skip = 0; ; skip += tamanhoLote)
+            {
+                var candidatos = await pontuacaoRepositorio.ListarCandidatosReconciliacaoAsync(
+                    atletaId, skip, tamanhoLote, cancellationToken);
+                if (candidatos.Count == 0)
+                {
+                    break;
+                }
+
+                foreach (var candidato in candidatos)
+                {
+                    if (dryRun)
+                    {
+                        var dados = await pontuacaoRepositorio.ObterDadosReconciliacaoAsync(candidato.AtletaId, false, cancellationToken);
+                        if (dados is not null)
+                        {
+                            detalhesCompletos.Add(AnalisarReconciliacao(dados, simularEstornos: true));
+                        }
+                        continue;
+                    }
+
+                    ReconciliacaoPontosQNAtletaDto? detalhe = null;
+                    await unidadeTrabalho.ExecutarEmTransacaoAsync(async ct =>
+                    {
+                        var dados = await pontuacaoRepositorio.ObterDadosReconciliacaoAsync(candidato.AtletaId, true, ct);
+                        if (dados is null)
+                        {
+                            return;
+                        }
+
+                        var analiseInicial = AnalisarReconciliacao(dados, simularEstornos: false);
+                        if (analiseInicial.Bloqueada)
+                        {
+                            detalhe = analiseInicial;
+                            return;
+                        }
+
+                        var partidasParaEstorno = ObterPartidasComEstornoPendente(dados);
+                        foreach (var partidaIdPendente in partidasParaEstorno)
+                        {
+                            await EstornarPartidaAsync(partidaIdPendente, ct, usuario.Id, candidato.AtletaId);
+                        }
+                        estornosCriados += analiseInicial.EstornosPartidaPendentes;
+
+                        var dadosAtualizados = partidasParaEstorno.Count > 0
+                            ? await pontuacaoRepositorio.ObterDadosReconciliacaoAsync(candidato.AtletaId, true, ct)
+                            : dados;
+                        var analiseFinal = AnalisarReconciliacao(dadosAtualizados!, simularEstornos: false);
+                        var projecao = ProjecaoPontuacaoBeneficioCalculador.Calcular(dadosAtualizados!.Extratos);
+                        var corrigida = partidasParaEstorno.Count > 0;
+                        if (dadosAtualizados.Saldo is null && dadosAtualizados.Extratos.Count > 0)
+                        {
+                            await pontuacaoRepositorio.AdicionarSaldoAsync(new PontuacaoBeneficioAtleta
+                            {
+                                AtletaId = candidato.AtletaId,
+                                SaldoAtual = projecao.SaldoAtual,
+                                TotalAcumulado = projecao.TotalAcumulado,
+                                TotalResgatado = projecao.TotalResgatado
+                            }, ct);
+                            projecoesCriadas++;
+                            corrigida = true;
+                        }
+                        else if (dadosAtualizados.Saldo is not null && ProjecaoDivergente(dadosAtualizados.Saldo, projecao))
+                        {
+                            dadosAtualizados.Saldo.SaldoAtual = projecao.SaldoAtual;
+                            dadosAtualizados.Saldo.TotalAcumulado = projecao.TotalAcumulado;
+                            dadosAtualizados.Saldo.TotalResgatado = projecao.TotalResgatado;
+                            dadosAtualizados.Saldo.AtualizarDataModificacao();
+                            pontuacaoRepositorio.AtualizarSaldo(dadosAtualizados.Saldo);
+                            projecoesAtualizadas++;
+                            corrigida = true;
+                        }
+
+                        if (corrigida)
+                        {
+                            await unidadeTrabalho.SalvarAlteracoesAsync(ct);
+                        }
+                        detalhe = analiseFinal with
+                        {
+                            EstornosPartidaPendentes = analiseInicial.EstornosPartidaPendentes,
+                            Corrigida = corrigida,
+                            Anomalias = analiseInicial.Anomalias
+                        };
+                    }, cancellationToken);
+                    if (detalhe is not null)
+                    {
+                        detalhesCompletos.Add(detalhe);
+                    }
+                }
+
+                if (atletaId.HasValue || candidatos.Count < tamanhoLote)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            if (lockAdquirido)
+            {
+                await pontuacaoRepositorio.LiberarLockReconciliacaoAsync(CancellationToken.None);
+            }
+        }
+
+        var ordenados = detalhesCompletos
+            .OrderByDescending(x => x.Bloqueada)
+            .ThenByDescending(x => x.EstornosPartidaPendentes)
+            .ThenByDescending(DivergenciaAbsoluta)
+            .ThenBy(x => x.NomeAtleta)
+            .ThenBy(x => x.AtletaId)
+            .ToList();
+        var avisos = new List<string> { dryRun ? "Dry run executado: nenhuma alteração foi persistida." : "Foram aplicadas somente correções determinísticas." };
+        if (ordenados.Count > limiteDetalhes)
+        {
+            avisos.Add($"Detalhes truncados em {limiteDetalhes} de {ordenados.Count} atletas avaliados.");
+        }
+        var resultado = new ReconciliacaoPontosQNResultadoDto(
+            dryRun, !dryRun, DateTime.UtcNow, atletaId, ordenados.Count,
+            ordenados.Count(x => !x.PossuiDivergencia && x.Anomalias.Count == 0),
+            ordenados.Count(x => x.PossuiDivergencia), ordenados.Count(x => x.Corrigida),
+            ordenados.Count(x => x.Bloqueada), projecoesCriadas, projecoesAtualizadas,
+            ordenados.Sum(x => x.EstornosPartidaPendentes), estornosCriados,
+            ordenados.Sum(x => x.Anomalias.Count), ordenados.Take(limiteDetalhes).ToList(), avisos);
+        logger.LogInformation(
+            "Reconciliação Pontos QN concluída. DryRun={DryRun} AdministradorId={AdministradorId} AtletaId={AtletaId} Avaliados={Avaliados} Corrigidos={Corrigidos} Bloqueados={Bloqueados} ProjecoesCriadas={ProjecoesCriadas} ProjecoesAtualizadas={ProjecoesAtualizadas} EstornosCriados={EstornosCriados} Anomalias={Anomalias} DuracaoMs={DuracaoMs}",
+            dryRun, usuario.Id, atletaId, resultado.AtletasAvaliados, resultado.AtletasCorrigidos,
+            resultado.AtletasBloqueados, projecoesCriadas, projecoesAtualizadas, estornosCriados,
+            resultado.TotalAnomalias, cronometro.ElapsedMilliseconds);
+        return resultado;
     }
 
     public Task PontuarPendenciaResolvidaAsync(
@@ -799,6 +965,167 @@ public class PontuacaoBeneficioServico(
             saldo?.TotalAcumulado ?? 0,
             saldo?.TotalResgatado ?? 0);
     }
+
+    private static ReconciliacaoPontosQNAtletaDto AnalisarReconciliacao(
+        ReconciliacaoPontosQNDadosDto dados,
+        bool simularEstornos)
+    {
+        var anomalias = new List<ReconciliacaoPontosQNAnomaliaDto>();
+        void Adicionar(string codigo, string mensagem, bool bloqueante, string entidade, Guid? entidadeId = null)
+            => anomalias.Add(new(codigo, mensagem, bloqueante, entidade, entidadeId));
+
+        var extratosCalculo = dados.Extratos.ToList();
+        var partidas = dados.Partidas.ToDictionary(x => x.Id);
+        var chaves = dados.Extratos.Select(x => x.ChaveIdempotencia).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var pendentes = 0;
+
+        foreach (var grupo in dados.Extratos.GroupBy(x => x.ChaveIdempotencia, StringComparer.OrdinalIgnoreCase).Where(x => string.IsNullOrWhiteSpace(x.Key) || x.Count() > 1))
+        {
+            Adicionar("CHAVE_IDEMPOTENCIA_INVALIDA", string.IsNullOrWhiteSpace(grupo.Key) ? "Movimentação sem chave de idempotência." : "Chave de idempotência duplicada.", true, "Extrato", grupo.First().Id);
+        }
+
+        foreach (var extrato in dados.Extratos)
+        {
+            if (!SinalMovimentacaoValido(extrato))
+            {
+                Adicionar("SINAL_MOVIMENTACAO_INVALIDO", "Movimentação possui sinal incompatível com o tipo do evento.", true, "Extrato", extrato.Id);
+            }
+
+            if (EventoExigePartida(extrato.TipoEvento) && !extrato.PartidaId.HasValue)
+            {
+                Adicionar("EXTRATO_PARTIDA_SEM_REFERENCIA", "Movimentação relacionada a partida não possui referência.", true, "Extrato", extrato.Id);
+                continue;
+            }
+            if (extrato.PartidaId.HasValue && EventoExigePartida(extrato.TipoEvento) && !partidas.TryGetValue(extrato.PartidaId.Value, out var partida))
+            {
+                Adicionar("EXTRATO_PARTIDA_SEM_REFERENCIA", "A partida referenciada pela movimentação não foi encontrada.", true, "Extrato", extrato.Id);
+                continue;
+            }
+            if (extrato.Pontos > 0 && extrato.PartidaId.HasValue && partidas.TryGetValue(extrato.PartidaId.Value, out partida))
+            {
+                if (partida.Cancelada || partida.ExcluidaDefinitivamenteEm.HasValue)
+                {
+                    var chaveEstorno = ChaveIdempotenciaPontuacaoBeneficio.MontarReferenciaEstorno(partida.Id, extrato.Id);
+                    if (!chaves.Contains(chaveEstorno))
+                    {
+                        pendentes++;
+                        Adicionar("PARTIDA_CANCELADA_SEM_ESTORNO", "Crédito de partida cancelada ou excluída ainda não foi estornado.", false, "Partida", partida.Id);
+                        if (simularEstornos)
+                        {
+                            extratosCalculo.Add(new ExtratoPontuacaoBeneficio
+                            {
+                                AtletaId = dados.Atleta.Id,
+                                PartidaId = partida.Id,
+                                GrupoId = extrato.GrupoId,
+                                TipoEvento = TipoEventoPontuacaoBeneficio.EstornoPartida,
+                                Pontos = -extrato.Pontos,
+                                Descricao = $"Estorno: {extrato.Descricao}",
+                                Origem = "Partida",
+                                ChaveIdempotencia = chaveEstorno
+                            });
+                        }
+                    }
+                }
+                else if (!PartidaValidaParaCredito(partida))
+                {
+                    Adicionar("CREDITO_PARTIDA_CONTEXTO_INVALIDO", "Crédito vinculado a partida em estado não determinístico.", true, "Partida", partida.Id);
+                }
+            }
+
+            if (EventoExigeResgate(extrato.TipoEvento) && !extrato.ResgateId.HasValue)
+            {
+                Adicionar("EXTRATO_RESGATE_SEM_REFERENCIA", "Movimentação de resgate não possui referência ao resgate.", true, "Extrato", extrato.Id);
+            }
+            if (extrato.TipoEvento == TipoEventoPontuacaoBeneficio.EntradaGrupo && !extrato.GrupoId.HasValue)
+            {
+                Adicionar("EXTRATO_GRUPO_SEM_REFERENCIA", "Movimentação de entrada em grupo não possui referência ao grupo.", true, "Extrato", extrato.Id);
+            }
+        }
+
+        foreach (var resgate in dados.Resgates)
+        {
+            var debitos = dados.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.ResgateBeneficio && x.ResgateId == resgate.Id).ToList();
+            var estornos = dados.Extratos.Where(x => x.TipoEvento == TipoEventoPontuacaoBeneficio.EstornoResgate && x.ResgateId == resgate.Id).ToList();
+            if (debitos.Count == 0) Adicionar("RESGATE_SEM_DEBITO", "Resgate não possui débito correspondente.", true, "Resgate", resgate.Id);
+            else if (debitos.Count > 1) Adicionar("RESGATE_COM_DEBITO_DUPLICADO", "Resgate possui mais de um débito.", true, "Resgate", resgate.Id);
+            if (debitos.Any(x => x.Pontos != -resgate.PontosUtilizados)) Adicionar("RESGATE_COM_VALOR_DIVERGENTE", "Débito do resgate possui valor divergente.", true, "Resgate", resgate.Id);
+            var exigeEstorno = resgate.Status is StatusResgateBeneficioPontuacao.Rejeitado or StatusResgateBeneficioPontuacao.Cancelado;
+            if (exigeEstorno && estornos.Count == 0) Adicionar("RESGATE_SEM_ESTORNO", "Resgate rejeitado ou cancelado não possui estorno.", true, "Resgate", resgate.Id);
+            if (!exigeEstorno && estornos.Count > 0) Adicionar("RESGATE_COM_ESTORNO_INDEVIDO", "Resgate ativo ou utilizado possui estorno indevido.", true, "Resgate", resgate.Id);
+            if (estornos.Count > 1) Adicionar("ESTORNO_RESGATE_DUPLICADO", "Resgate possui mais de um estorno.", true, "Resgate", resgate.Id);
+            if (estornos.Any(x => x.Pontos != resgate.PontosUtilizados)) Adicionar("RESGATE_COM_VALOR_DIVERGENTE", "Estorno do resgate possui valor divergente.", true, "Resgate", resgate.Id);
+        }
+        foreach (var extrato in dados.Extratos.Where(x => EventoExigeResgate(x.TipoEvento) && x.ResgateId.HasValue))
+        {
+            var resgate = dados.Resgates.FirstOrDefault(x => x.Id == extrato.ResgateId);
+            if (resgate is null || resgate.AtletaId != extrato.AtletaId)
+            {
+                Adicionar("EXTRATO_RESGATE_SEM_REFERENCIA", "Movimentação aponta para resgate inexistente ou de outro atleta.", true, "Extrato", extrato.Id);
+            }
+        }
+
+        if (dados.Extratos.Count == 0 && dados.Saldo is { } saldoSemExtrato &&
+            (saldoSemExtrato.SaldoAtual != 0 || saldoSemExtrato.TotalAcumulado != 0 || saldoSemExtrato.TotalResgatado != 0))
+        {
+            Adicionar("SALDO_SEM_EXTRATO", "Existe saldo não zerado sem movimentações de extrato.", true, "Saldo", saldoSemExtrato.Id);
+        }
+        if (dados.Extratos.Count > 0 && dados.Saldo is null)
+        {
+            Adicionar("EXTRATO_SEM_SALDO", "Existem movimentações sem projeção de saldo.", false, "Saldo");
+        }
+
+        var projecao = ProjecaoPontuacaoBeneficioCalculador.Calcular(extratosCalculo);
+        var divergente = dados.Saldo is null ? dados.Extratos.Count > 0 : ProjecaoDivergente(dados.Saldo, projecao);
+        if (divergente)
+        {
+            Adicionar("PROJECAO_DIVERGENTE", "A projeção persistida diverge do extrato.", false, "Saldo", dados.Saldo?.Id);
+        }
+        return new ReconciliacaoPontosQNAtletaDto(
+            dados.Atleta.Id, dados.Atleta.Apelido ?? dados.Atleta.Nome,
+            dados.Saldo?.SaldoAtual, projecao.SaldoAtual,
+            dados.Saldo?.TotalAcumulado, projecao.TotalAcumulado,
+            dados.Saldo?.TotalResgatado, projecao.TotalResgatado,
+            Math.Max(0, projecao.SaldoAtual), Math.Max(0, -projecao.SaldoAtual),
+            divergente, anomalias.Any(x => x.Bloqueante), pendentes, false, anomalias);
+    }
+
+    private static IReadOnlyList<Guid> ObterPartidasComEstornoPendente(ReconciliacaoPontosQNDadosDto dados)
+    {
+        var canceladas = dados.Partidas.Where(x => x.Cancelada || x.ExcluidaDefinitivamenteEm.HasValue).Select(x => x.Id).ToHashSet();
+        var chaves = dados.Extratos.Select(x => x.ChaveIdempotencia).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return dados.Extratos.Where(x => x.Pontos > 0 && x.PartidaId.HasValue && canceladas.Contains(x.PartidaId.Value))
+            .Where(x => !chaves.Contains(ChaveIdempotenciaPontuacaoBeneficio.MontarReferenciaEstorno(x.PartidaId!.Value, x.Id)))
+            .Select(x => x.PartidaId!.Value).Distinct().ToList();
+    }
+
+    private static bool ProjecaoDivergente(PontuacaoBeneficioAtleta saldo, ProjecaoPontuacaoBeneficio projecao)
+        => saldo.SaldoAtual != projecao.SaldoAtual || saldo.TotalAcumulado != projecao.TotalAcumulado || saldo.TotalResgatado != projecao.TotalResgatado;
+
+    private static int DivergenciaAbsoluta(ReconciliacaoPontosQNAtletaDto x)
+        => Math.Abs((x.SaldoAtualPersistido ?? 0) - x.SaldoAtualCalculado) + Math.Abs((x.TotalAcumuladoPersistido ?? 0) - x.TotalAcumuladoCalculado) + Math.Abs((x.TotalResgatadoPersistido ?? 0) - x.TotalResgatadoCalculado);
+
+    private static bool EventoExigePartida(TipoEventoPontuacaoBeneficio tipo) => tipo is
+        TipoEventoPontuacaoBeneficio.PartidaParticipante or TipoEventoPontuacaoBeneficio.PartidaRegistrador or
+        TipoEventoPontuacaoBeneficio.PartidaPlacarCompleto or TipoEventoPontuacaoBeneficio.PartidaVitoria or
+        TipoEventoPontuacaoBeneficio.ConfirmacaoAprovacaoPartida or TipoEventoPontuacaoBeneficio.EstornoPartida;
+
+    private static bool EventoExigeResgate(TipoEventoPontuacaoBeneficio tipo) => tipo is TipoEventoPontuacaoBeneficio.ResgateBeneficio or TipoEventoPontuacaoBeneficio.EstornoResgate;
+
+    private static bool SinalMovimentacaoValido(ExtratoPontuacaoBeneficio extrato)
+    {
+        if (extrato.Pontos == 0) return false;
+        return extrato.TipoEvento switch
+        {
+            TipoEventoPontuacaoBeneficio.ResgateBeneficio => extrato.Pontos < 0,
+            TipoEventoPontuacaoBeneficio.EstornoPartida => extrato.Pontos < 0,
+            TipoEventoPontuacaoBeneficio.EstornoResgate => extrato.Pontos > 0,
+            _ => extrato.Pontos > 0
+        };
+    }
+
+    private static bool PartidaValidaParaCredito(Partida partida)
+        => partida.Ativa && partida.Status == StatusPartida.Encerrada && partida.StatusAprovacao == StatusAprovacaoPartida.Aprovada &&
+           partida.DuplaAId.HasValue && partida.DuplaBId.HasValue && partida.DuplaVencedoraId.HasValue;
 
     private static NivelPontuacaoBeneficioDto MontarNivel(int totalAcumulado)
     {
