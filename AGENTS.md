@@ -44,8 +44,8 @@
 - Validar disponibilidade com `GET http://localhost:5080/health`, `/db-test` e Swagger em `http://localhost:5080/swagger/index.html`
 - Em `Development`, login local pode usar o fluxo de código: `POST /api/autenticacao/login/codigo/solicitar` e depois `POST /api/autenticacao/login/codigo`; não registrar tokens ou códigos gerados em arquivos
 - Massa técnica `[AI TESTE]` deve ser idempotente, habilitada por configuração e usar usuário principal comum
-- Enquanto não houver produção, a credencial técnica de teste do app pode ser documentada/versionada: `gustavodrager+qnf-ai-tester@gmail.com` / `QnfAiTeste@2026`
-- Essa autorização vale apenas para credenciais de usuários técnicos de teste do app; não versionar connection string, senha do Railway, `DATABASE_URL`, `Jwt:Chave`, API keys ou secrets de infraestrutura
+- Em produção, credenciais da massa técnica `[AI TESTE]` devem ficar fora do repositório; a conta deve permanecer inativa fora de janelas explícitas de auditoria
+- O identificador da conta técnica pode ser documentado para rastreabilidade, mas senha, token e códigos de acesso nunca devem ser versionados
 - Não criar partidas automaticamente na massa `[AI TESTE]` base nem tornar competição/categoria obrigatórias para partida comum de grupo
 - Quando houver produção, reavaliar a exposição da credencial `[AI TESTE]` e manter bloqueio de criação automática em `Production`
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp

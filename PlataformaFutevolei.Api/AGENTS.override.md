@@ -40,7 +40,7 @@
 - Em execução local sem Docker, usar `ASPNETCORE_ENVIRONMENT=Development PORT=5080` e manter `Database:MigrateOnStartup=false` ao conectar no Railway
 - Swagger local deve responder em `/swagger/index.html` e o JSON em `/swagger/v1/swagger.json`; uploads `multipart/form-data` com `IFormFile` não devem quebrar a geração do documento
 - Massa `[AI TESTE]` só deve executar quando `MassaTesteAi:Habilitada=true`; não criar automaticamente em `Production`
-- Enquanto não houver produção, a senha técnica do usuário `[AI TESTE]` pode ser documentada/versionada como credencial de app de teste: `QnfAiTeste@2026`
+- Em produção, a conta `[AI TESTE]` deve permanecer inativa fora de janelas explícitas de auditoria e sua senha nunca deve ser documentada ou versionada
 - Não logar senha, token, connection string, senha do Railway, `DATABASE_URL`, `Jwt:Chave`, API keys ou secrets de infraestrutura
 - Payload de request só deve ser logado em caso de erro crítico (500).
 - Deve ser sanitizado antes de logar.
