@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 API_DIR="$ROOT_DIR/quebranunca-api"
 API_PROJECT_DIR="$API_DIR/PlataformaFutevolei.Api"
 WEB_DIR="$ROOT_DIR/quebranunca-web"
-INFRA_DIR="$ROOT_DIR/infra"
+INFRA_DIR="$API_DIR/infra"
 DOCKER_COMPOSE_FILE="$INFRA_DIR/docker-compose.yml"
 RUNTIME_DIR="${TMPDIR:-/tmp}/plataforma-futevolei-local"
 
@@ -210,6 +210,7 @@ iniciar_api() {
   validar_porta_livre "$API_PORT" "$pid_existente" "backend"
 
   export ASPNETCORE_ENVIRONMENT=Development
+  export PORT="$API_PORT"
   export ASPNETCORE_URLS="http://localhost:${API_PORT}"
   export Frontend__Url="http://localhost:${WEB_PORT};http://127.0.0.1:${WEB_PORT}"
   export EmailConvitesCadastro__UrlApp="http://localhost:${WEB_PORT}"
