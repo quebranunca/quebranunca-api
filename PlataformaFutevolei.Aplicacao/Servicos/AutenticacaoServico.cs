@@ -29,6 +29,7 @@ public class AutenticacaoServico(
 {
     private const string StatusCodigoEnviado = "CodigoEnviado";
     private const string StatusCadastroNovoCodigoEnviado = "CadastroNovoCodigoEnviado";
+    private const string StatusCriarContaComSenha = "CriarContaComSenha";
     private const string StatusEntrarComSenha = "EntrarComSenha";
     private const string StatusCriarSenhaNecessarioCodigoEnviado = "CriarSenhaNecessarioCodigoEnviado";
     private const string StatusAutenticado = "Autenticado";
@@ -107,6 +108,16 @@ public class AutenticacaoServico(
 
         if (usuario is null)
         {
+            if (!dto.UsarCodigoCadastro)
+            {
+                return new IniciarAcessoRespostaDto(
+                    StatusCriarContaComSenha,
+                    MascararEmail(emailNormalizado),
+                    PodeEntrarComSenha: false,
+                    CadastroNovo: true,
+                    "Crie uma senha para começar a usar o QuebraNunca.");
+            }
+
             var codigoDesenvolvimento = await CriarEEnviarCodigoAcessoAsync(
                 emailNormalizado,
                 FinalidadeCodigoAcessoEmail.CadastroPublico,
@@ -155,6 +166,51 @@ public class AutenticacaoServico(
             CadastroNovo: false,
             "Encontramos sua conta. Para continuar, confirme seu e-mail e crie uma senha.",
             codigoPrimeiroAcesso);
+    }
+
+    public async Task<RespostaAutenticacaoDto> CadastrarPublicoComSenhaAsync(
+        CadastrarPublicoComSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarCadastroPublicoComSenha(dto);
+        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
+        var usuarioExistente = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
+        if (usuarioExistente is not null)
+        {
+            throw new RegraNegocioException("Já existe um usuário cadastrado com este e-mail.");
+        }
+
+        var agora = DateTime.UtcNow;
+        var usuario = new Usuario
+        {
+            Nome = "Novo atleta",
+            Email = emailNormalizado,
+            SenhaHash = senhaServico.GerarHash(dto.Senha),
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            SenhaDefinidaEmUtc = agora,
+            SenhaAtualizadaEmUtc = agora
+        };
+
+        await usuarioRepositorio.AdicionarAsync(usuario, cancellationToken);
+        await privacidadeServico.RegistrarConsentimentoUsuarioAsync(usuario, new RegistrarConsentimentoLgpdDto(
+            AceitouPoliticaPrivacidade: dto.AceitouPoliticaPrivacidade,
+            AceitouTermosUso: dto.AceitouTermos,
+            AceitouUsoLocalizacao: false,
+            AceitouUsoImagem: false,
+            VersaoPoliticaPrivacidade: dto.VersaoPoliticaPrivacidade,
+            VersaoTermosUso: dto.VersaoTermos,
+            DeclarouMaiorDe18: dto.DeclarouMaiorDe18,
+            AceitouMarketing: false,
+            Origem: "CadastroPublicoSenha",
+            IpAddress: dto.IpAddress,
+            UserAgent: dto.UserAgent), cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        return await CriarRespostaAutenticacaoAsync(
+            usuario,
+            cancellationToken,
+            reutilizarExpiracaoRefreshTokenAtual: false);
     }
 
     public async Task<ConfirmarCodigoAcessoRespostaDto> ConfirmarCodigoAcessoAsync(
@@ -762,6 +818,26 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Nome de exibição é obrigatório.");
         }
 
+        ValidarNovaSenha(dto.Senha, dto.ConfirmacaoSenha);
+
+        if (!dto.AceitouTermos)
+        {
+            throw new RegraNegocioException("É necessário aceitar os Termos de Uso para continuar.");
+        }
+
+        if (!dto.AceitouPoliticaPrivacidade)
+        {
+            throw new RegraNegocioException("É necessário aceitar a Política de Privacidade para continuar.");
+        }
+
+        if (!dto.DeclarouMaiorDe18)
+        {
+            throw new RegraNegocioException("É necessário declarar que você tem 18 anos ou mais para continuar.");
+        }
+    }
+
+    private static void ValidarCadastroPublicoComSenha(CadastrarPublicoComSenhaRequisicaoDto dto)
+    {
         ValidarNovaSenha(dto.Senha, dto.ConfirmacaoSenha);
 
         if (!dto.AceitouTermos)

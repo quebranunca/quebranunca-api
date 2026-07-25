@@ -59,6 +59,8 @@ public class UnidadeTrabalho(PlataformaFutevoleiDbContext dbContext) : IUnidadeT
                 new ConflitoEstadoException("Esta pendência de cancelamento já foi criada para o atleta."),
             "ix_extratos_pontuacao_beneficio_chave_idempotencia" =>
                 new RegraNegocioException("Esta movimentação de Pontos QN já foi processada."),
+            "ix_usuarios_email" =>
+                new RegraNegocioException("Já existe um usuário cadastrado com este e-mail."),
             _ => new RegraNegocioException("Já existe um registro com estes dados.")
         };
     }

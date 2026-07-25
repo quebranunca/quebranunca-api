@@ -68,7 +68,8 @@ public record RenovarTokenRequisicaoDto(
 );
 
 public record IniciarAcessoRequisicaoDto(
-    string Email
+    string Email,
+    bool UsarCodigoCadastro = false
 );
 
 public record IniciarAcessoRespostaDto(
@@ -78,6 +79,19 @@ public record IniciarAcessoRespostaDto(
     bool CadastroNovo,
     string Mensagem,
     string? CodigoDesenvolvimento = null
+);
+
+public record CadastrarPublicoComSenhaRequisicaoDto(
+    string Email,
+    string Senha,
+    string ConfirmacaoSenha,
+    bool AceitouTermos,
+    string? VersaoTermos,
+    bool AceitouPoliticaPrivacidade,
+    string? VersaoPoliticaPrivacidade,
+    bool DeclarouMaiorDe18,
+    string? IpAddress = null,
+    string? UserAgent = null
 );
 
 public record ConfirmarCodigoAcessoRequisicaoDto(

@@ -35,6 +35,22 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         return Ok(resposta);
     }
 
+    [HttpPost("cadastro-publico/senha")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CadastrarPublicoComSenha(
+        [FromBody] CadastrarPublicoComSenhaRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var dtoComAuditoria = dto with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        };
+        var resposta = await autenticacaoServico.CadastrarPublicoComSenhaAsync(dtoComAuditoria, cancellationToken);
+        return Ok(resposta);
+    }
+
     [HttpPost("confirmar-codigo")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ConfirmarCodigoAcessoRespostaDto), StatusCodes.Status200OK)]

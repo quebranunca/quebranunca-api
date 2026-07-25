@@ -10,7 +10,7 @@
 - Regra de negócio fica na aplicação e no domínio
 - Não expor entidades diretamente; seguir DTOs e mapeadores já existentes
 - Reutilizar rotas, padrões de request/response e mensagens já adotados
-- Cadastro público é permitido apenas pelo fluxo `iniciar-acesso` -> confirmação de e-mail -> `completar-cadastro-publico`, com perfil Atleta, dados mínimos e aceites obrigatórios; convites continuam válidos para fluxos administrativos/vínculo que dependem deles
+- O fluxo principal de cadastro público usa `iniciar-acesso` -> cadastro por e-mail e senha, com perfil Atleta e aceites obrigatórios; o cadastro por confirmação de e-mail, convites e fluxos administrativos/vínculo continuam preservados e isolados para possível reativação
 - Em convites, deixar o backend decidir o perfil final do novo usuário e expor ao frontend apenas o necessário para validação e operação
 - Em convites com e-mail automático, o disparo deve sair da API/aplicação; o frontend não deve carregar chave de provedor nem decidir o conteúdo final do envio
 - Falha do provedor de e-mail deve ser rastreável e controlada, sem derrubar a validade do convite nem o fluxo principal

@@ -466,7 +466,9 @@ public class AutenticacaoServicoTests
     {
         var cenario = new Cenario();
 
-        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(" NOVO@EXAMPLE.COM "));
+        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(
+            " NOVO@EXAMPLE.COM ",
+            UsarCodigoCadastro: true));
 
         Assert.Equal("CadastroNovoCodigoEnviado", resposta.Status);
         Assert.True(resposta.CadastroNovo);
@@ -479,6 +481,110 @@ public class AutenticacaoServicoTests
         Assert.Equal("novo@example.com", codigoAcesso.EmailNormalizado);
         Assert.Equal(FinalidadeCodigoAcessoEmail.CadastroPublico, codigoAcesso.Finalidade);
         Assert.Null(codigoAcesso.ConsumidoEmUtc);
+    }
+
+    [Fact]
+    public async Task IniciarAcessoAsync_EmailNovo_OfereceCadastroComSenhaSemEnviarCodigo()
+    {
+        var cenario = new Cenario();
+
+        var resposta = await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(" NOVO@EXAMPLE.COM "));
+
+        Assert.Equal("CriarContaComSenha", resposta.Status);
+        Assert.True(resposta.CadastroNovo);
+        Assert.False(resposta.PodeEntrarComSenha);
+        Assert.Equal("n***@example.com", resposta.EmailMascarado);
+        Assert.Null(resposta.CodigoDesenvolvimento);
+        Assert.Null(cenario.EnvioEmailCodigo.UltimoEmail);
+        Assert.Empty(cenario.CodigosAcesso.Itens);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CadastrarPublicoComSenhaAsync_DadosValidos_CriaUsuarioNormalizadoSemAtletaEAutentica()
+    {
+        var cenario = new Cenario();
+
+        var resposta = await cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+            email: " NOVO@EXAMPLE.COM "));
+
+        var usuario = Assert.Single(cenario.Usuarios.Itens);
+        Assert.Equal("novo@example.com", usuario.Email);
+        Assert.Equal("Novo atleta", usuario.Nome);
+        Assert.Equal("hash:Senha123", usuario.SenhaHash);
+        Assert.Equal(PerfilUsuario.Atleta, usuario.Perfil);
+        Assert.True(usuario.Ativo);
+        Assert.NotNull(usuario.SenhaDefinidaEmUtc);
+        Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+        Assert.Null(usuario.EmailConfirmadoEmUtc);
+        Assert.Null(usuario.CadastroCompletoEmUtc);
+        Assert.Null(usuario.AtletaId);
+        Assert.Null(cenario.ResolvedorAtleta.UltimoEmailInformado);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
+        Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+        Assert.Equal(usuario.Id, resposta.Usuario.Id);
+        Assert.Single(cenario.Privacidade.Consentimentos);
+    }
+
+    [Fact]
+    public async Task CadastrarPublicoComSenhaAsync_ConfirmacaoDiferente_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                confirmacaoSenha: "OutraSenha")));
+
+        Assert.Equal("Senha e confirmação devem ser iguais.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CadastrarPublicoComSenhaAsync_EmailInvalido_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                email: "email-invalido")));
+
+        Assert.Equal("E-mail inválido.", excecao.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CadastrarPublicoComSenhaAsync_EmailExistente_BloqueiaSemDuplicar()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(CriarUsuarioComSenha("123456"));
+
+        var excecao = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                email: " JOAO@EXAMPLE.COM ")));
+
+        Assert.Equal("Já existe um usuário cadastrado com este e-mail.", excecao.Message);
+        Assert.Single(cenario.Usuarios.Itens);
+    }
+
+    [Fact]
+    public async Task CadastrarPublicoComSenhaAsync_SemAceitesObrigatorios_Bloqueia()
+    {
+        var cenario = new Cenario();
+
+        var excecaoTermos = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                aceitouTermos: false)));
+        var excecaoPolitica = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                aceitouPoliticaPrivacidade: false)));
+        var excecaoMaioridade = await Assert.ThrowsAsync<RegraNegocioException>(() =>
+            cenario.Servico.CadastrarPublicoComSenhaAsync(CadastroPublicoComSenhaValido(
+                declarouMaiorDe18: false)));
+
+        Assert.Equal("É necessário aceitar os Termos de Uso para continuar.", excecaoTermos.Message);
+        Assert.Equal("É necessário aceitar a Política de Privacidade para continuar.", excecaoPolitica.Message);
+        Assert.Equal("É necessário declarar que você tem 18 anos ou mais para continuar.", excecaoMaioridade.Message);
+        Assert.Empty(cenario.Usuarios.Itens);
     }
 
     [Fact]
@@ -1481,7 +1587,9 @@ public class AutenticacaoServicoTests
 
     private static async Task<string> ObterCadastroTokenAsync(Cenario cenario, string email)
     {
-        await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(email));
+        await cenario.Servico.IniciarAcessoAsync(new IniciarAcessoRequisicaoDto(
+            email,
+            UsarCodigoCadastro: true));
         var codigo = cenario.EnvioEmailCodigo.UltimoCodigo
             ?? throw new InvalidOperationException("Código de teste não foi enviado.");
         var resposta = await cenario.Servico.ConfirmarCodigoAcessoAsync(
@@ -1512,6 +1620,23 @@ public class AutenticacaoServicoTests
             aceitouMarketing,
             Senha: senha,
             ConfirmacaoSenha: confirmacaoSenha);
+
+    private static CadastrarPublicoComSenhaRequisicaoDto CadastroPublicoComSenhaValido(
+        string email = "novo@example.com",
+        string senha = "Senha123",
+        string confirmacaoSenha = "Senha123",
+        bool aceitouTermos = true,
+        bool aceitouPoliticaPrivacidade = true,
+        bool declarouMaiorDe18 = true)
+        => new(
+            email,
+            senha,
+            confirmacaoSenha,
+            aceitouTermos,
+            PrivacidadeServico.VersaoTermosUsoAtual,
+            aceitouPoliticaPrivacidade,
+            PrivacidadeServico.VersaoPoliticaPrivacidadeAtual,
+            declarouMaiorDe18);
 
     private sealed class Cenario
     {
