@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      QNF_TEST_DATABASE_URL: Host=localhost;Port=5432;Database=plataforma_futevolei_test;Username=postgres;Password=postgres;Ssl Mode=Disable;Include Error Detail=true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore PlataformaFutevolei.sln
+
+      - name: Build
+        run: dotnet build PlataformaFutevolei.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test PlataformaFutevolei.sln --configuration Release --no-build --logger "console;verbosity=normal"
