@@ -19,7 +19,7 @@ public class PrivacidadeServico(
     public const string VersaoTermosUsoAtual = "2026-05-18";
     private static readonly DateTime PoliticaVigenteDesdeUtc = new(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc);
     private const string UrlPoliticaPrivacidadeAtual = "/privacidade";
-    private const string UrlTermosUsoAtual = "/privacidade";
+    private const string UrlTermosUsoAtual = "/termos";
 
     public Task<PoliticaPrivacidadeAtualDto> ObterPoliticaAtualAsync(CancellationToken cancellationToken = default)
     {
