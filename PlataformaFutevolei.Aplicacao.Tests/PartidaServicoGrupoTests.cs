@@ -535,6 +535,29 @@ public class PartidaServicoGrupoTests
     }
 
     [Fact]
+    public async Task CriarComResultadoAsync_GrupoComUmAtletaSelecionadoETresNomesManuais_Registra()
+    {
+        var cenario = Cenario.Criar(publico: false);
+        var dto = cenario.CriarDtoApenasResultado(cenario.Grupo.Id) with
+        {
+            DuplaAAtleta1Id = cenario.Atletas[0].Id,
+            DuplaAAtleta1Nome = cenario.Atletas[0].Nome,
+            DuplaAAtleta2Id = null,
+            DuplaAAtleta2Nome = cenario.Atletas[1].Nome,
+            DuplaBAtleta1Id = null,
+            DuplaBAtleta1Nome = cenario.Atletas[2].Nome,
+            DuplaBAtleta2Id = null,
+            DuplaBAtleta2Nome = cenario.Atletas[3].Nome
+        };
+
+        var partida = await CriarPartidaAsync(cenario, dto);
+
+        Assert.Equal(cenario.Grupo.Id, partida.GrupoId);
+        Assert.Equal(TipoRegistroResultado.ApenasResultado, partida.TipoRegistroResultado);
+        Assert.Equal(5, cenario.GruposAtletas.Vinculos.Select(x => x.AtletaId).Distinct().Count());
+    }
+
+    [Fact]
     public async Task CriarComResultadoAsync_ApenasResultado_ExigeDuplaVencedora()
     {
         var cenario = Cenario.Criar(publico: true);
