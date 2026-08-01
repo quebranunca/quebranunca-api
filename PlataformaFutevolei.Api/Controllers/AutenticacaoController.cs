@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 
@@ -12,6 +14,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     [HttpPost("registrar")]
     [HttpPost("registrar-por-convite")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaCadastro)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RegistrarPorConvite([FromBody] RegistrarUsuarioRequisicaoDto dto, CancellationToken cancellationToken)
     {
@@ -26,6 +29,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("iniciar-acesso")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaEnvioCodigo)]
     [ProducesResponseType(typeof(IniciarAcessoRespostaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> IniciarAcesso(
         [FromBody] IniciarAcessoRequisicaoDto dto,
@@ -37,6 +41,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("cadastro-publico/senha")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaCadastro)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> CadastrarPublicoComSenha(
         [FromBody] CadastrarPublicoComSenhaRequisicaoDto dto,
@@ -53,6 +58,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("confirmar-codigo")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(ConfirmarCodigoAcessoRespostaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ConfirmarCodigo(
         [FromBody] ConfirmarCodigoAcessoRequisicaoDto dto,
@@ -64,6 +70,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("completar-cadastro-publico")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaCadastro)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> CompletarCadastroPublico(
         [FromBody] CompletarCadastroPublicoRequisicaoDto dto,
@@ -80,6 +87,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login([FromBody] LoginRequisicaoDto dto, CancellationToken cancellationToken)
     {
@@ -89,6 +97,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("login/codigo/solicitar")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaEnvioCodigo)]
     [ProducesResponseType(typeof(SolicitarCodigoLoginRespostaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> SolicitarCodigoLogin(
         [FromBody] SolicitarCodigoLoginRequisicaoDto dto,
@@ -100,6 +109,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("login/codigo")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> LoginComCodigo(
         [FromBody] LoginCodigoRequisicaoDto dto,
@@ -111,6 +121,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("renovar-token")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RenovarToken(
         [FromBody] RenovarTokenRequisicaoDto dto,
@@ -122,6 +133,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("esqueci-senha/solicitar")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaEnvioCodigo)]
     [ProducesResponseType(typeof(SolicitarRedefinicaoSenhaRespostaDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> SolicitarRedefinicaoSenha(
         [FromBody] EsqueciSenhaRequisicaoDto dto,
@@ -133,6 +145,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("esqueci-senha/redefinir")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RedefinirSenha(
         [FromBody] RedefinirSenhaRequisicaoDto dto,
@@ -165,6 +178,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("criar-senha-com-token")]
     [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> CriarSenhaComToken(
         [FromBody] CriarSenhaComTokenRequisicaoDto dto,
