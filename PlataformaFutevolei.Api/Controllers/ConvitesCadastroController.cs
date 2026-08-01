@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Dominio.Enums;
@@ -53,6 +55,7 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
     }
 
     [HttpPost]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaConvites)]
     [ProducesResponseType(typeof(ConviteCadastroDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Criar([FromBody] CriarConviteCadastroDto dto, CancellationToken cancellationToken)
     {
@@ -61,6 +64,7 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
     }
 
     [HttpPost("{id:guid}/enviar-email")]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaConvites)]
     [ProducesResponseType(typeof(ConviteCadastroDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnviarEmail(Guid id, CancellationToken cancellationToken)
     {
@@ -69,6 +73,7 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
     }
 
     [HttpPost("{id:guid}/enviar-whatsapp")]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaConvites)]
     [ProducesResponseType(typeof(ConviteCadastroDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnviarWhatsapp(Guid id, CancellationToken cancellationToken)
     {

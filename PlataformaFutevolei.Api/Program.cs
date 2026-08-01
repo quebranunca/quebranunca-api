@@ -113,6 +113,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AdicionarRateLimitingProtecaoAbuso(builder.Configuration);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -283,6 +285,7 @@ app.UseRouting();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapGet("/", (IHostEnvironment environment) =>
