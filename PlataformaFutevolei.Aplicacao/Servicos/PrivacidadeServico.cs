@@ -15,9 +15,9 @@ public class PrivacidadeServico(
     IUsuarioServico usuarioServico
 ) : IPrivacidadeServico
 {
-    public const string VersaoPoliticaPrivacidadeAtual = "2026-05-18";
+    public const string VersaoPoliticaPrivacidadeAtual = "2026-07-31";
     public const string VersaoTermosUsoAtual = "2026-05-18";
-    private static readonly DateTime PoliticaVigenteDesdeUtc = new(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime PoliticaVigenteDesdeUtc = new(2026, 7, 31, 0, 0, 0, DateTimeKind.Utc);
     private const string UrlPoliticaPrivacidadeAtual = "/privacidade";
     private const string UrlTermosUsoAtual = "/termos";
 

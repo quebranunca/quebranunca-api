@@ -25,7 +25,8 @@ public class PrivacidadeServicoTests
         Assert.Equal(PrivacidadeServico.VersaoPoliticaPrivacidadeAtual, politica.Versao);
         Assert.True(politica.ExigeAceitePoliticaPrivacidade);
         Assert.True(politica.ExigeAceiteTermosUso);
-        Assert.Equal(new DateTime(2026, 5, 18, 0, 0, 0, DateTimeKind.Utc), politica.VigenteDesdeUtc);
+        Assert.Equal("2026-07-31", politica.Versao);
+        Assert.Equal(new DateTime(2026, 7, 31, 0, 0, 0, DateTimeKind.Utc), politica.VigenteDesdeUtc);
     }
 
     [Fact]
