@@ -1,3 +1,4 @@
+using System.Globalization;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
@@ -21,6 +22,7 @@ public class DashboardPublicoServico(
     private const int LimiteGrupos = 6;
     private const int LimiteCampeonatos = 4;
     private const int LimiteRegioes = 6;
+    private static readonly CultureInfo CulturaPublica = CultureInfo.GetCultureInfo("pt-BR");
 
     public async Task<DashboardPublicoDto> ObterDashboardAsync(CancellationToken cancellationToken = default)
     {
@@ -126,15 +128,15 @@ public class DashboardPublicoServico(
 
         return
         [
-            new("partidas", "Partidas registradas", resumo.TotalPartidas.ToString("N0"), "histórico da comunidade", "partidas"),
-            new("atletas", "Atletas", resumo.TotalAtletas.ToString("N0"), "nomes no ranking", "atletas"),
-            new("grupos", "Grupos", resumo.TotalGrupos.ToString("N0"), "comunidades ativas", "grupos"),
-            new("campeonatos", "Campeonatos", resumo.TotalCampeonatos.ToString("N0"), "eventos cadastrados", "trofeu"),
-            new("hoje", "Partidas hoje", resumo.PartidasHoje.ToString("N0"), "movimento das últimas horas", "raio"),
-            new("online", "Atletas ativos", resumo.AtletasOnline.ToString("N0"), "com jogo nas últimas 24h", "ativo"),
-            new("cidades", "Cidades", resumo.CidadesAtivas.ToString("N0"), "regiões com atletas", "mapa"),
-            new("media", "Média diária", mediaPartidasDia.ToString("N1"), "partidas por dia", "grafico"),
-            new("sequencia", "Maior sequência", maiorSequencia.ToString("N0"), "vitórias seguidas", "fogo"),
+            new("partidas", "Partidas registradas", resumo.TotalPartidas.ToString("N0", CulturaPublica), "histórico da comunidade", "partidas"),
+            new("atletas", "Atletas", resumo.TotalAtletas.ToString("N0", CulturaPublica), "nomes no ranking", "atletas"),
+            new("grupos", "Grupos", resumo.TotalGrupos.ToString("N0", CulturaPublica), "comunidades ativas", "grupos"),
+            new("campeonatos", "Campeonatos", resumo.TotalCampeonatos.ToString("N0", CulturaPublica), "eventos cadastrados", "trofeu"),
+            new("hoje", "Partidas hoje", resumo.PartidasHoje.ToString("N0", CulturaPublica), "movimento das últimas horas", "raio"),
+            new("online", "Atletas ativos", resumo.AtletasOnline.ToString("N0", CulturaPublica), "com jogo nas últimas 24h", "ativo"),
+            new("cidades", "Cidades", resumo.CidadesAtivas.ToString("N0", CulturaPublica), "regiões com atletas", "mapa"),
+            new("media", "Média diária", mediaPartidasDia.ToString("N1", CulturaPublica), "partidas por dia", "grafico"),
+            new("sequencia", "Maior sequência", maiorSequencia.ToString("N0", CulturaPublica), "vitórias seguidas", "fogo"),
             new("disputada", "Mais disputada", partidaMaisDisputada is null ? "0" : $"{partidaMaisDisputada.PlacarDuplaA} x {partidaMaisDisputada.PlacarDuplaB}", "menor diferença", "placar"),
             new("elastica", "Placar elástico", placarMaisElastico is null ? "0" : $"{placarMaisElastico.PlacarDuplaA} x {placarMaisElastico.PlacarDuplaB}", "maior diferença", "impacto")
         ];
