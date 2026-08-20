@@ -137,6 +137,16 @@ public class ConviteCadastroTests
     }
 
     [Fact]
+    public void ObterSituacaoEnvioWhatsapp_ComNotificacaoAceita_RetornaProcessando()
+    {
+        var convite = CriarConvite();
+        convite.WhatsappCentralNotificacaoId = "central-1";
+        convite.UltimaTentativaEnvioWhatsappEmUtc = Agora;
+
+        Assert.Equal("Processando", convite.ObterSituacaoEnvioWhatsapp());
+    }
+
+    [Fact]
     public void MarcarComoUtilizado_ComData_PreencheUsoELimpaCodigo()
     {
         var convite = CriarConvite();

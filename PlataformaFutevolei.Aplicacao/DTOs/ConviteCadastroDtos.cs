@@ -33,6 +33,7 @@ public record ConviteCadastroDto(
     DateTime? UltimaTentativaEnvioWhatsappEmUtc,
     DateTime? WhatsappEnviadoEmUtc,
     string? ErroEnvioWhatsapp,
+    string? WhatsappCentralNotificacaoId,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
@@ -86,5 +87,6 @@ public record ResultadoEnvioWhatsappConviteDto(
     bool TentativaRealizada,
     bool Enviado,
     string? Erro,
-    string? IdentificadorMensagem
+    string? IdentificadorMensagem,
+    bool Aceito = false
 );

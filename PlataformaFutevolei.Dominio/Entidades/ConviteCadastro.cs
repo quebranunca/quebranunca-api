@@ -23,6 +23,8 @@ public class ConviteCadastro : EntidadeBase
     public DateTime? UltimaTentativaEnvioWhatsappEmUtc { get; set; }
     public DateTime? WhatsappEnviadoEmUtc { get; set; }
     public string? ErroEnvioWhatsapp { get; set; }
+    public string? WhatsappCentralNotificacaoId { get; set; }
+    public string? WhatsappIdempotencyKey { get; set; }
 
     public Usuario? CriadoPorUsuario { get; set; }
     public Atleta? Atleta { get; set; }
@@ -70,7 +72,9 @@ public class ConviteCadastro : EntidadeBase
 
         return UltimaTentativaEnvioWhatsappEmUtc.HasValue && !string.IsNullOrWhiteSpace(ErroEnvioWhatsapp)
             ? "Falhou"
-            : "Pendente";
+            : !string.IsNullOrWhiteSpace(WhatsappCentralNotificacaoId)
+                ? "Processando"
+                : "Pendente";
     }
 
     public void MarcarComoUtilizado(DateTime dataUtc)
@@ -115,6 +119,25 @@ public class ConviteCadastro : EntidadeBase
     {
         UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
         WhatsappEnviadoEmUtc = dataUtc;
+        ErroEnvioWhatsapp = null;
+        AtualizarDataModificacao();
+    }
+
+    public void PrepararSolicitacaoWhatsapp(string idempotencyKey, DateTime dataUtc)
+    {
+        WhatsappIdempotencyKey = idempotencyKey;
+        WhatsappCentralNotificacaoId = null;
+        UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
+        WhatsappEnviadoEmUtc = null;
+        ErroEnvioWhatsapp = null;
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarSolicitacaoWhatsappAceita(string centralNotificacaoId, DateTime dataUtc)
+    {
+        WhatsappCentralNotificacaoId = centralNotificacaoId;
+        UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
+        WhatsappEnviadoEmUtc = null;
         ErroEnvioWhatsapp = null;
         AtualizarDataModificacao();
     }

@@ -450,6 +450,16 @@ public class ConviteCadastroServico(
         CancellationToken cancellationToken)
     {
         var codigoConvite = await ObterOuGerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        if (string.IsNullOrWhiteSpace(conviteCadastro.WhatsappIdempotencyKey) ||
+            conviteCadastro.WhatsappEnviadoEmUtc.HasValue)
+        {
+            conviteCadastro.PrepararSolicitacaoWhatsapp(
+                $"convite-cadastro:{conviteCadastro.Id:N}:{Guid.NewGuid():N}",
+                DateTime.UtcNow);
+            conviteCadastroRepositorio.Atualizar(conviteCadastro);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
+
         var resultado = await envioWhatsappConviteCadastroServico.EnviarAsync(conviteCadastro, codigoConvite, cancellationToken);
         if (!resultado.TentativaRealizada)
         {
@@ -462,11 +472,16 @@ public class ConviteCadastroServico(
             return;
         }
 
+        if (resultado.Aceito && !string.IsNullOrWhiteSpace(resultado.IdentificadorMensagem))
+        {
+            conviteCadastro.RegistrarSolicitacaoWhatsappAceita(resultado.IdentificadorMensagem, DateTime.UtcNow);
+        }
+
         if (resultado.Enviado)
         {
             conviteCadastro.RegistrarEnvioWhatsappComSucesso(DateTime.UtcNow);
         }
-        else
+        else if (!resultado.Aceito)
         {
             conviteCadastro.RegistrarFalhaEnvioWhatsapp(resultado.Erro, DateTime.UtcNow);
         }
@@ -474,7 +489,7 @@ public class ConviteCadastroServico(
         conviteCadastroRepositorio.Atualizar(conviteCadastro);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        if (falharQuandoNaoEnviado && !resultado.Enviado)
+        if (falharQuandoNaoEnviado && !resultado.Enviado && !resultado.Aceito)
         {
             throw new RegraNegocioException(conviteCadastro.ErroEnvioWhatsapp ?? "Falha ao enviar o WhatsApp do convite.");
         }

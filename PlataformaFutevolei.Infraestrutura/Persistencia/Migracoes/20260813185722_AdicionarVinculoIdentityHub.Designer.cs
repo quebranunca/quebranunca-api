@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
@@ -11,9 +12,11 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [DbContext(typeof(PlataformaFutevoleiDbContext))]
-    partial class PlataformaFutevoleiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813185722_AdicionarVinculoIdentityHub")]
+    partial class AdicionarVinculoIdentityHub
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1039,11 +1042,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("usado_em_utc");
 
-                    b.Property<string>("WhatsappCentralNotificacaoId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("whatsapp_central_notificacao_id");
-
                     b.Property<DateTime?>("WhatsappEnviadoEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("whatsapp_enviado_em_utc");
@@ -1052,6 +1050,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("whatsapp_idempotency_key");
+
+                    b.Property<string>("WhatsappNotificationHubId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("whatsapp_notification_hub_id");
 
                     b.HasKey("Id");
 

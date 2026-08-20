@@ -45,6 +45,8 @@ public static class InjecaoDependenciaInfraestrutura
             options.UseNpgsql(ConnectionStringPostgres.Normalizar(connectionString))
         );
 
+        services.Configure<ConfiguracaoIdentityHub>(configuration.GetSection(ConfiguracaoIdentityHub.Secao));
+
         var secaoJwt = configuration.GetSection(ConfiguracaoJwt.Secao);
         var expiracaoMinutos = int.TryParse(secaoJwt["ExpiracaoMinutos"], out var valorExpiracao)
             ? valorExpiracao
@@ -112,9 +114,14 @@ public static class InjecaoDependenciaInfraestrutura
         services.Configure<ConfiguracaoWhatsappConviteCadastro>(options =>
         {
             options.Enabled = secaoWhatsappConvites.GetValue<bool>("Enabled");
-            options.AccountSid = secaoWhatsappConvites["AccountSid"] ?? string.Empty;
-            options.AuthToken = secaoWhatsappConvites["AuthToken"] ?? string.Empty;
-            options.RemetenteWhatsapp = secaoWhatsappConvites["RemetenteWhatsapp"] ?? string.Empty;
+            options.CentralNotificacaoBaseUrl = ObterValorConfiguracaoOuAmbiente(
+                    secaoWhatsappConvites["CentralNotificacaoBaseUrl"], "CENTRAL_NOTIFICACAO_BASE_URL")
+                ?? string.Empty;
+            options.CentralNotificacaoApiKey = ObterValorConfiguracaoOuAmbiente(
+                    secaoWhatsappConvites["CentralNotificacaoApiKey"], "CENTRAL_NOTIFICACAO_API_KEY")
+                ?? string.Empty;
+            options.Source = secaoWhatsappConvites["Source"] ?? "quebra-nunca";
+            options.TemplateKey = secaoWhatsappConvites["TemplateKey"] ?? "qnf.convite.cadastro.v1";
             options.UrlApp = secaoWhatsappConvites["UrlApp"] ?? frontendUrlPadrao;
         });
 
@@ -185,7 +192,16 @@ public static class InjecaoDependenciaInfraestrutura
             client.BaseAddress = CriarUriBaseResendSegura(configuracaoEmail.ObterBaseUrl());
             client.Timeout = TimeSpan.FromSeconds(15);
         });
-        services.AddScoped<IEnvioWhatsappConviteCadastroServico, TwilioWhatsappConviteCadastroServico>();
+        services.AddHttpClient<IEnvioWhatsappConviteCadastroServico, CentralNotificacaoWhatsappConviteCadastroServico>(
+            (serviceProvider, client) =>
+            {
+                var configuracaoWhatsapp = serviceProvider
+                    .GetRequiredService<IOptions<ConfiguracaoWhatsappConviteCadastro>>().Value;
+                client.BaseAddress = CriarUriBaseCentralNotificacao(configuracaoWhatsapp.CentralNotificacaoBaseUrl);
+                client.Timeout = TimeSpan.FromSeconds(25);
+                if (!string.IsNullOrWhiteSpace(configuracaoWhatsapp.CentralNotificacaoApiKey))
+                    client.DefaultRequestHeaders.Add("X-Api-Key", configuracaoWhatsapp.CentralNotificacaoApiKey.Trim());
+            });
 
         return services;
     }
@@ -263,6 +279,14 @@ public static class InjecaoDependenciaInfraestrutura
         }
 
         return new Uri("https://api.resend.com/");
+    }
+
+    private static Uri CriarUriBaseCentralNotificacao(string? baseUrlConfigurada)
+    {
+        var candidata = $"{(baseUrlConfigurada ?? string.Empty).Trim().TrimEnd('/')}/";
+        return Uri.TryCreate(candidata, UriKind.Absolute, out var uri)
+            ? uri
+            : new Uri("http://localhost:3000/");
     }
 
     private static string ObterPrimeiraUrlConfigurada(string? valorConfigurado)

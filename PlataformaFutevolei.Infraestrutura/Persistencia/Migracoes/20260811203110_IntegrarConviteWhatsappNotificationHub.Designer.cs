@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
@@ -11,9 +12,11 @@ using PlataformaFutevolei.Infraestrutura.Persistencia;
 namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
 {
     [DbContext(typeof(PlataformaFutevoleiDbContext))]
-    partial class PlataformaFutevoleiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260811203110_IntegrarConviteWhatsappNotificationHub")]
+    partial class IntegrarConviteWhatsappNotificationHub
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1039,11 +1042,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("usado_em_utc");
 
-                    b.Property<string>("WhatsappCentralNotificacaoId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("whatsapp_central_notificacao_id");
-
                     b.Property<DateTime?>("WhatsappEnviadoEmUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("whatsapp_enviado_em_utc");
@@ -1052,6 +1050,11 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("whatsapp_idempotency_key");
+
+                    b.Property<string>("WhatsappNotificationHubId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("whatsapp_notification_hub_id");
 
                     b.HasKey("Id");
 
@@ -1471,56 +1474,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.HasIndex("UsuarioResponsavelId");
 
                     b.ToTable("historicos_partidas", (string)null);
-                });
-
-            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.IdentidadeExternaUsuario", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("DataAtualizacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_atualizacao");
-
-                    b.Property<DateTime>("DataCriacao")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("data_criacao");
-
-                    b.Property<string>("Emissor")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("emissor");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("subject");
-
-                    b.Property<DateTime>("UltimoLoginEmUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ultimo_login_em_utc");
-
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("usuario_id");
-
-                    b.Property<DateTime>("VinculadaEmUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("vinculada_em_utc");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Emissor", "Subject")
-                        .IsUnique();
-
-                    b.HasIndex("UsuarioId", "Emissor")
-                        .IsUnique();
-
-                    b.ToTable("usuarios_identidades_externas", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.InscricaoCampeonato", b =>
@@ -2833,17 +2786,6 @@ namespace PlataformaFutevolei.Infraestrutura.Persistencia.Migracoes
                     b.Navigation("Atleta");
 
                     b.Navigation("Grupo");
-                });
-
-            modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.IdentidadeExternaUsuario", b =>
-                {
-                    b.HasOne("PlataformaFutevolei.Dominio.Entidades.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("PlataformaFutevolei.Dominio.Entidades.InscricaoCampeonato", b =>
