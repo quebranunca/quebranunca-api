@@ -294,7 +294,7 @@ public class PendenciaServicoContatoTests
                 cenario.Pendencia.Id,
                 new AtualizarContatoPendenciaDto(null, null)));
 
-        Assert.Equal("Informe atletaId ou e-mail, mas não os dois.", excecao.Message);
+        Assert.Equal("Informe atletaId, telefone ou e-mail, usando somente uma opção.", excecao.Message);
         Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
     }
 
@@ -327,7 +327,7 @@ public class PendenciaServicoContatoTests
                 cenario.Pendencia.Id,
                 new AtualizarContatoPendenciaDto("existente@teste.com", atletaExistente.Id)));
 
-        Assert.Equal("Informe atletaId ou e-mail, mas não os dois.", excecao.Message);
+        Assert.Equal("Informe atletaId, telefone ou e-mail, usando somente uma opção.", excecao.Message);
         Assert.Equal(StatusPendenciaUsuario.Pendente, cenario.Pendencia.Status);
     }
 

@@ -22,6 +22,7 @@ public class PendenciaUsuarioMapeamento : IEntityTypeConfiguration<PendenciaUsua
         builder.Property(x => x.DataConclusao).HasColumnName("data_conclusao");
         builder.Property(x => x.Observacao).HasColumnName("observacao").HasMaxLength(1000);
         builder.Property(x => x.EmailInformado).HasColumnName("email_informado").HasMaxLength(150);
+        builder.Property(x => x.TelefoneInformado).HasColumnName("telefone_informado").HasMaxLength(11);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 

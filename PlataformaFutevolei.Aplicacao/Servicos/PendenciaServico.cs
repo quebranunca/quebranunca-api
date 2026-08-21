@@ -211,11 +211,13 @@ public class PendenciaServico(
                 return;
             }
 
-            var emailNormalizado = NormalizarEmail(dto.Email!);
-            var atletaAtivoExistente = await ObterAtletaAtivoPorEmailNoGrupoDaPendenciaAsync(
-                pendencia,
-                emailNormalizado,
-                ct);
+            var telefoneNormalizado = string.IsNullOrWhiteSpace(dto.Telefone)
+                ? null
+                : NormalizadorTelefoneBrasileiro.NormalizarOpcionalOuFalhar(dto.Telefone);
+            var emailNormalizado = string.IsNullOrWhiteSpace(dto.Email) ? null : NormalizarEmail(dto.Email);
+            var atletaAtivoExistente = telefoneNormalizado is not null
+                ? await ObterAtletaAtivoPorTelefoneNoGrupoDaPendenciaAsync(pendencia, telefoneNormalizado, ct)
+                : await ObterAtletaAtivoPorEmailNoGrupoDaPendenciaAsync(pendencia, emailNormalizado!, ct);
             if (atletaAtivoExistente is not null)
             {
                 var pendenciaVinculada = await VincularPendenciaAoAtletaExistenteAsync(
@@ -228,12 +230,28 @@ public class PendenciaServico(
                 return;
             }
 
-            await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, ct);
+            if (telefoneNormalizado is not null &&
+                (await atletaRepositorio.ListarPorTelefoneAsync(telefoneNormalizado, ct)).Any(x => x.Id != atleta.Id))
+            {
+                throw new RegraNegocioException("Este telefone já está vinculado a outro atleta.");
+            }
 
-            deveCriarConvite = true;
+            if (emailNormalizado is not null)
+            {
+                await GarantirEmailUnicoNosGruposDoAtletaAsync(atleta.Id, emailNormalizado, ct);
+            }
+
+            deveCriarConvite = emailNormalizado is not null;
             emailConvite = emailNormalizado;
-            telefoneConvite = atleta.Telefone;
+            telefoneConvite = telefoneNormalizado ?? atleta.Telefone;
             pendencia.EmailInformado = emailNormalizado;
+            pendencia.TelefoneInformado = telefoneNormalizado;
+            if (telefoneNormalizado is not null)
+            {
+                atleta.Telefone = telefoneNormalizado;
+                atleta.TelefoneNormalizado = telefoneNormalizado;
+                atletaRepositorio.Atualizar(atleta);
+            }
             pendencia.Status = StatusPendenciaUsuario.AguardandoCadastro;
             pendencia.DataConclusao = null;
             pendencia.Observacao = "Contato informado. Aguardando cadastro ativo do atleta para concluir o vínculo.";
@@ -555,6 +573,23 @@ public class PendenciaServico(
         }
 
         var atletas = await atletaRepositorio.ListarPorEmailAsync(emailNormalizado, cancellationToken);
+        foreach (var atleta in atletas.OrderBy(x => x.DataCriacao))
+        {
+            if (await AtletaEhAtivoDoGrupoDaPendenciaAsync(pendencia, atleta, cancellationToken))
+            {
+                return atleta;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<Atleta?> ObterAtletaAtivoPorTelefoneNoGrupoDaPendenciaAsync(
+        PendenciaUsuario pendencia,
+        string telefoneNormalizado,
+        CancellationToken cancellationToken)
+    {
+        var atletas = await atletaRepositorio.ListarPorTelefoneAsync(telefoneNormalizado, cancellationToken);
         foreach (var atleta in atletas.OrderBy(x => x.DataCriacao))
         {
             if (await AtletaEhAtivoDoGrupoDaPendenciaAsync(pendencia, atleta, cancellationToken))
@@ -964,7 +999,7 @@ public class PendenciaServico(
         Atleta atleta,
         CancellationToken cancellationToken)
     {
-        if (StatusCadastroAtletaUtil.TemEmail(atleta))
+        if (StatusCadastroAtletaUtil.TemEmail(atleta) || !string.IsNullOrWhiteSpace(atleta.TelefoneNormalizado))
         {
             return;
         }
@@ -1318,17 +1353,19 @@ public class PendenciaServico(
 
         return pendencia.Atleta is not null &&
                !StatusCadastroAtletaUtil.PossuiUsuarioVinculado(pendencia.Atleta) &&
-               !StatusCadastroAtletaUtil.TemEmail(pendencia.Atleta);
+               !StatusCadastroAtletaUtil.TemEmail(pendencia.Atleta) &&
+               string.IsNullOrWhiteSpace(pendencia.Atleta.TelefoneNormalizado);
     }
 
     private static void ValidarResolucaoVinculo(AtualizarContatoPendenciaDto dto)
     {
         var possuiAtleta = dto.AtletaId.HasValue;
         var possuiEmail = !string.IsNullOrWhiteSpace(dto.Email);
+        var possuiTelefone = !string.IsNullOrWhiteSpace(dto.Telefone);
 
-        if (possuiAtleta == possuiEmail)
+        if (new[] { possuiAtleta, possuiEmail, possuiTelefone }.Count(x => x) != 1)
         {
-            throw new RegraNegocioException("Informe atletaId ou e-mail, mas não os dois.");
+            throw new RegraNegocioException("Informe atletaId, telefone ou e-mail, usando somente uma opção.");
         }
     }
 

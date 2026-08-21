@@ -13,6 +13,7 @@ public class PendenciaUsuario : EntidadeBase
     public DateTime? DataConclusao { get; set; }
     public string? Observacao { get; set; }
     public string? EmailInformado { get; set; }
+    public string? TelefoneInformado { get; set; }
 
     public Usuario Usuario { get; set; } = default!;
     public Atleta? Atleta { get; set; }

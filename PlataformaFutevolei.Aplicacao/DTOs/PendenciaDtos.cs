@@ -14,6 +14,7 @@ public record PendenciaUsuarioDto(
     Guid? AtletaId,
     string? NomeAtleta,
     string? EmailAtleta,
+    string? TelefoneAtleta,
     bool? AtletaPossuiUsuarioVinculado,
     Guid? PartidaId,
     Guid? SolicitacaoCancelamentoPartidaId,
@@ -49,7 +50,8 @@ public record ResponderPendenciaPartidaDto(
 
 public record AtualizarContatoPendenciaDto(
     string? Email,
-    Guid? AtletaId = null
+    Guid? AtletaId = null,
+    string? Telefone = null
 );
 
 public record UsuarioAtletaPendenciaDto(

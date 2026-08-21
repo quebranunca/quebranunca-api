@@ -554,6 +554,7 @@ internal static class MapeadorEntidades
             pendencia.AtletaId,
             pendencia.Atleta?.Nome,
             pendencia.EmailInformado ?? pendencia.Atleta?.Email,
+            pendencia.TelefoneInformado ?? pendencia.Atleta?.Telefone,
             pendencia.Atleta is null ? null : StatusCadastroAtletaUtil.PossuiUsuarioVinculado(pendencia.Atleta),
             pendencia.PartidaId,
             pendencia.SolicitacaoCancelamentoPartidaId,
