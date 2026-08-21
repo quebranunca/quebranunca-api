@@ -6,6 +6,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Aplicacao.Servicos;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using Xunit;
@@ -228,6 +229,27 @@ public class AutenticacaoServicoTests
         Assert.Equal("joao@example.com", resposta.Usuario.Email);
         Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
         Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+    }
+
+    [Fact]
+    public async Task LoginAsync_TelefoneBrasileiroVinculado_RetornaTokens()
+    {
+        var cenario = new Cenario();
+        cenario.Usuarios.Itens.Add(new Usuario
+        {
+            Nome = "João",
+            Email = "joao@example.com",
+            SenhaHash = "hash:123456",
+            SenhaDefinidaEmUtc = DateTime.UtcNow.AddDays(-1),
+            Perfil = PerfilUsuario.Atleta,
+            Ativo = true,
+            Atleta = new Atleta { TelefoneNormalizado = "48999999999" }
+        });
+
+        var resposta = await cenario.Servico.LoginAsync(new LoginRequisicaoDto("(48) 99999-9999", "123456"));
+
+        Assert.Equal("joao@example.com", resposta.Usuario.Email);
+        Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
     }
 
     [Fact]
@@ -1700,6 +1722,12 @@ public class AutenticacaoServicoTests
 
         public Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default)
             => Task.FromResult(Itens.FirstOrDefault(x => x.Email == email));
+
+        public Task<Usuario?> ObterPorTelefoneAsync(string telefone, CancellationToken cancellationToken = default)
+        {
+            var normalizado = NormalizadorTelefoneBrasileiro.Normalizar(telefone);
+            return Task.FromResult(Itens.FirstOrDefault(x => x.Atleta?.TelefoneNormalizado == normalizado));
+        }
 
         public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(Itens.FirstOrDefault(x => x.Id == id));

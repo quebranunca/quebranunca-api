@@ -290,14 +290,7 @@ public class ConviteCadastroServico(
     }
 
     private static string? NormalizarTelefone(string? telefone)
-    {
-        var telefoneNormalizado = new string((telefone ?? string.Empty)
-            .Where(c => char.IsDigit(c) || c == '+' || c == ' ')
-            .ToArray())
-            .Trim();
-
-        return string.IsNullOrWhiteSpace(telefoneNormalizado) ? null : telefoneNormalizado;
-    }
+        => NormalizadorTelefoneBrasileiro.NormalizarOpcionalOuFalhar(telefone);
 
     private async Task TentarEnviarEmailAutomaticoAsync(
         ConviteCadastro conviteCadastro,

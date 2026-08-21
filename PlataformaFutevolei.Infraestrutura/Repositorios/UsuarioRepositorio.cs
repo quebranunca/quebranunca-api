@@ -3,6 +3,7 @@ using PlataformaFutevolei.Aplicacao.Interfaces.Repositorios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
+using PlataformaFutevolei.Aplicacao.Utilitarios;
 
 namespace PlataformaFutevolei.Infraestrutura.Repositorios;
 
@@ -78,6 +79,24 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
                 cancellationToken);
     }
 
+    public async Task<Usuario?> ObterPorTelefoneAsync(string telefone, CancellationToken cancellationToken = default)
+    {
+        var telefoneLocal = NormalizadorTelefoneBrasileiro.Normalizar(telefone);
+        if (telefoneLocal is null)
+        {
+            return null;
+        }
+
+        var candidatos = await dbContext.Usuarios
+            .AsNoTracking()
+            .Include(x => x.Atleta)
+            .Where(x => !x.DadosAnonimizados && x.Atleta != null && x.Atleta.TelefoneNormalizado == telefoneLocal)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        return candidatos.Count == 1 ? candidatos[0] : null;
+    }
+
     public Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Usuarios
@@ -120,4 +139,5 @@ public class UsuarioRepositorio(PlataformaFutevoleiDbContext dbContext) : IUsuar
 
     private static string NormalizarEmail(string email)
         => (email ?? string.Empty).Trim().ToLowerInvariant();
+
 }

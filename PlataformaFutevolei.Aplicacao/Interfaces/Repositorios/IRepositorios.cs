@@ -10,6 +10,8 @@ public interface IUsuarioRepositorio
     Task<int> ContarAdministradoresAtivosAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Usuario>> ListarAdministradoresAtivosAsync(CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<Usuario?> ObterPorTelefoneAsync(string telefone, CancellationToken cancellationToken = default)
+        => Task.FromResult<Usuario?>(null);
     Task<Usuario?> ObterPorEmailParaAtualizacaoAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Usuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
@@ -93,6 +95,8 @@ public interface IAtletaRepositorio
     Task<Atleta?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarPorNomeAsync(string nome, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Atleta>> ListarPorEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Atleta>> ListarPorTelefoneAsync(string telefoneNormalizado, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<Atleta>>([]);
     Task AdicionarAsync(Atleta atleta, CancellationToken cancellationToken = default);
     Task AdicionarMedidasAsync(AtletaMedidas medidas, CancellationToken cancellationToken = default);
     void Atualizar(Atleta atleta);

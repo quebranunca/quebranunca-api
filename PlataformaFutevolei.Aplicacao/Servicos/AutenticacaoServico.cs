@@ -103,7 +103,30 @@ public class AutenticacaoServico(
         IniciarAcessoRequisicaoDto dto,
         CancellationToken cancellationToken = default)
     {
-        var emailNormalizado = NormalizarEmailObrigatorio(dto.Email);
+        var identificador = dto.Email?.Trim() ?? string.Empty;
+        var acessoPorTelefone = !identificador.Contains('@');
+        if (acessoPorTelefone)
+        {
+            var usuarioPorTelefone = await usuarioRepositorio.ObterPorTelefoneAsync(identificador, cancellationToken);
+            if (usuarioPorTelefone is null || !usuarioPorTelefone.Ativo)
+            {
+                throw new RegraNegocioException("Telefone não encontrado. Confira o número ou entre com seu e-mail.");
+            }
+
+            if (!UsuarioPossuiSenha(usuarioPorTelefone))
+            {
+                throw new RegraNegocioException("Entre com seu e-mail para confirmar o acesso e criar uma senha.");
+            }
+
+            return new IniciarAcessoRespostaDto(
+                StatusEntrarComSenha,
+                MascararTelefone(identificador),
+                PodeEntrarComSenha: true,
+                CadastroNovo: false,
+                "Digite sua senha para entrar.");
+        }
+
+        var emailNormalizado = NormalizarEmailObrigatorio(identificador);
         var usuario = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
 
         if (usuario is null)
@@ -428,11 +451,13 @@ public class AutenticacaoServico(
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Senha))
         {
-            throw new RegraNegocioException("E-mail e senha são obrigatórios.");
+            throw new RegraNegocioException("E-mail ou telefone e senha são obrigatórios.");
         }
 
-        var emailNormalizado = dto.Email.Trim().ToLowerInvariant();
-        var usuario = await usuarioRepositorio.ObterPorEmailAsync(emailNormalizado, cancellationToken);
+        var identificador = dto.Email.Trim();
+        var usuario = identificador.Contains('@')
+            ? await usuarioRepositorio.ObterPorEmailAsync(identificador.ToLowerInvariant(), cancellationToken)
+            : await usuarioRepositorio.ObterPorTelefoneAsync(identificador, cancellationToken);
         if (usuario is null || !usuario.Ativo)
         {
             throw new RegraNegocioException("Credenciais inválidas.");
@@ -1112,6 +1137,17 @@ public class AutenticacaoServico(
 
         var inicio = partes[0].Length == 0 ? "*" : partes[0][0].ToString();
         return $"{inicio}***@{partes[1]}";
+    }
+
+    private static string MascararTelefone(string telefone)
+    {
+        var digitos = new string(telefone.Where(char.IsDigit).ToArray());
+        if ((digitos.Length is 12 or 13) && digitos.StartsWith("55", StringComparison.Ordinal))
+        {
+            digitos = digitos[2..];
+        }
+
+        return digitos.Length >= 4 ? $"(**) *****-{digitos[^4..]}" : "(**) *****-****";
     }
 
     private static ConfirmarCodigoAcessoRespostaDto RespostaCodigoAutenticado(RespostaAutenticacaoDto autenticacao)

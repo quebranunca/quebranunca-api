@@ -98,11 +98,13 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         if (!string.IsNullOrWhiteSpace(termo))
         {
             var termoNormalizado = termo.Trim().ToLowerInvariant();
+            var telefoneNormalizado = NormalizadorTelefoneBrasileiro.Normalizar(termo);
             query = query.Where(x =>
                 x.Nome.ToLower().Contains(termoNormalizado) ||
                 (x.Apelido != null && x.Apelido.ToLower().Contains(termoNormalizado)) ||
                 (x.Email != null && x.Email.ToLower().Contains(termoNormalizado)) ||
                 (x.Telefone != null && x.Telefone.ToLower().Contains(termoNormalizado)) ||
+                (telefoneNormalizado != null && x.TelefoneNormalizado == telefoneNormalizado) ||
                 (x.Cpf != null && x.Cpf.ToLower().Contains(termoNormalizado)) ||
                 (x.Instagram != null && x.Instagram.ToLower().Contains(termoNormalizado)));
         }
@@ -242,6 +244,15 @@ public class AtletaRepositorio(PlataformaFutevoleiDbContext dbContext) : IAtleta
         return await dbContext.Atletas
             .Include(x => x.Usuario)
             .Where(x => x.Email != null && x.Email.Trim().ToLower() == emailNormalizado)
+            .OrderBy(x => x.DataCriacao)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Atleta>> ListarPorTelefoneAsync(string telefoneNormalizado, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Atletas
+            .Include(x => x.Usuario)
+            .Where(x => x.TelefoneNormalizado == telefoneNormalizado)
             .OrderBy(x => x.DataCriacao)
             .ToListAsync(cancellationToken);
     }

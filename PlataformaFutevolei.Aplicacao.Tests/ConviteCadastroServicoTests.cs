@@ -28,7 +28,7 @@ public class ConviteCadastroServicoTests
         var criado = Assert.Single(cenario.Convites.Itens);
         Assert.Equal("atleta@example.com", convite.Email);
         Assert.Equal("atleta@example.com", criado.Email);
-        Assert.Equal("13 999990000", criado.Telefone);
+        Assert.Equal("13999990000", criado.Telefone);
         Assert.Equal(PerfilUsuario.Atleta, criado.PerfilDestino);
         Assert.Equal(cenario.UsuarioAdmin.Id, criado.CriadoPorUsuarioId);
         Assert.False(string.IsNullOrWhiteSpace(criado.IdentificadorPublico));

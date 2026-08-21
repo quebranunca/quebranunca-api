@@ -433,6 +433,7 @@ public class UsuarioServico(
         atleta.Nome = "Usuário excluído";
         atleta.Apelido = "Usuário excluído";
         atleta.Telefone = null;
+        atleta.TelefoneNormalizado = null;
         atleta.Email = null;
         atleta.Instagram = null;
         atleta.Cpf = null;

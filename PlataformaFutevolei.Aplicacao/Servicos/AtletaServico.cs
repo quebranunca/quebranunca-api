@@ -219,6 +219,10 @@ public class AtletaServico(
             : Normalizar(dto.Nome, dto.Apelido, dto.Telefone, dto.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
         await ValidarPerfilEsportivoAsync(dto, cancellationToken);
+        if (usuarioComum && dados.Telefone is null)
+        {
+            throw new RegraNegocioException("WhatsApp é obrigatório para concluir seu perfil.");
+        }
 
         var criandoMeuProprioAtleta = usuarioComum &&
             !usuario.AtletaId.HasValue &&
@@ -233,10 +237,11 @@ public class AtletaServico(
         Atleta atleta;
         if (criandoMeuProprioAtleta)
         {
-            atleta = await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
-                dados.Nome,
-                dados.Email!,
-                cancellationToken: cancellationToken);
+            atleta = await ObterAtletaDisponivelParaVinculoPorTelefoneAsync(dados.Telefone, cancellationToken)
+                ?? await resolvedorAtletaDuplaServico.ObterOuCriarAtletaParaUsuarioAsync(
+                    dados.Nome,
+                    dados.Email!,
+                    cancellationToken: cancellationToken);
         }
         else
         {
@@ -245,8 +250,10 @@ public class AtletaServico(
         }
 
         atleta.Nome = dados.Nome;
+        await GarantirTelefoneDisponivelAsync(dados.Telefone, atleta.Id, cancellationToken);
         atleta.Apelido = dados.Apelido;
         atleta.Telefone = dados.Telefone;
+        atleta.TelefoneNormalizado = dados.Telefone;
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
@@ -292,6 +299,10 @@ public class AtletaServico(
         var dados = Normalizar(dto.Nome, dto.Apelido, dto.Telefone, usuario.Email, dto.Instagram, dto.Cpf, dto.Bairro, dto.Cidade, dto.Estado);
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, false, dados.PossuiIdentificador);
         await ValidarPerfilEsportivoAsync(dto, cancellationToken);
+        if (dados.Telefone is null)
+        {
+            throw new RegraNegocioException("WhatsApp é obrigatório para concluir seu perfil.");
+        }
 
         Atleta atleta;
         var atletaExistente = true;
@@ -307,10 +318,11 @@ public class AtletaServico(
         }
         else
         {
-            var atletaPorEmail = await ObterAtletaDisponivelParaVinculoAsync(usuario.Email, usuario.AtletaId, cancellationToken);
-            if (atletaPorEmail is not null)
+            var atletaDisponivel = await ObterAtletaDisponivelParaVinculoPorTelefoneAsync(dados.Telefone, cancellationToken)
+                ?? await ObterAtletaDisponivelParaVinculoAsync(usuario.Email, usuario.AtletaId, cancellationToken);
+            if (atletaDisponivel is not null)
             {
-                atleta = atletaPorEmail;
+                atleta = atletaDisponivel;
             }
             else
             {
@@ -320,9 +332,11 @@ public class AtletaServico(
             }
         }
 
+        await GarantirTelefoneDisponivelAsync(dados.Telefone, atleta.Id, cancellationToken);
         atleta.Nome = dados.Nome;
         atleta.Apelido = dados.Apelido;
         atleta.Telefone = dados.Telefone;
+        atleta.TelefoneNormalizado = dados.Telefone;
         atleta.Email = usuario.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
@@ -393,10 +407,20 @@ public class AtletaServico(
         var dataNascimento = Validar(dados.Nome, dados.Cpf, dto.Lado, dto.Nivel, dto.DataNascimento, dto.CadastroPendente, dados.PossuiIdentificador);
         await ValidarPerfilEsportivoAsync(dto, cancellationToken);
         await GarantirEmailDisponivelAsync(dados.Email, atleta.Id, cancellationToken);
+        await GarantirTelefoneDisponivelAsync(dados.Telefone, atleta.Id, cancellationToken);
+
+        if (atleta.Usuario is not null &&
+            usuario.Perfil != PerfilUsuario.Administrador &&
+            usuario.AtletaId != atleta.Id &&
+            !string.Equals(atleta.TelefoneNormalizado, dados.Telefone, StringComparison.Ordinal))
+        {
+            throw new AcessoNegadoException("O WhatsApp de um atleta com usuário vinculado só pode ser alterado pelo próprio atleta ou por um administrador.");
+        }
 
         atleta.Nome = dados.Nome;
         atleta.Apelido = dados.Apelido;
         atleta.Telefone = dados.Telefone;
+        atleta.TelefoneNormalizado = dados.Telefone;
         atleta.Email = dados.Email;
         atleta.Instagram = dados.Instagram;
         atleta.Cpf = dados.Cpf;
@@ -836,7 +860,7 @@ public class AtletaServico(
     {
         var nomeNormalizado = NormalizadorNomeAtleta.NormalizarTexto(nome);
         var apelidoNormalizado = NormalizadorNomeAtleta.NormalizarTexto(apelido);
-        var telefoneNormalizado = NormalizadorNomeAtleta.NormalizarTexto(telefone);
+        var telefoneNormalizado = NormalizadorTelefoneBrasileiro.NormalizarOpcionalOuFalhar(telefone);
         var emailNormalizado = NormalizadorNomeAtleta.NormalizarTexto(email).ToLowerInvariant();
         var instagramNormalizado = NormalizadorNomeAtleta.NormalizarTexto(instagram);
         var cpfNormalizado = ValidadorCpf.Normalizar(cpf);
@@ -847,7 +871,7 @@ public class AtletaServico(
         return (
             nomeNormalizado,
             string.IsNullOrWhiteSpace(apelidoNormalizado) ? null : apelidoNormalizado,
-            string.IsNullOrWhiteSpace(telefoneNormalizado) ? null : telefoneNormalizado,
+            telefoneNormalizado,
             string.IsNullOrWhiteSpace(emailNormalizado) ? null : emailNormalizado,
             string.IsNullOrWhiteSpace(instagramNormalizado) ? null : instagramNormalizado,
             string.IsNullOrWhiteSpace(cpfNormalizado) ? null : cpfNormalizado,
@@ -888,6 +912,24 @@ public class AtletaServico(
         return atletas.FirstOrDefault(x => !atletaIgnoradoId.HasValue || x.Id != atletaIgnoradoId.Value);
     }
 
+    private async Task GarantirTelefoneDisponivelAsync(
+        string? telefoneNormalizado,
+        Guid? atletaIgnoradoId,
+        CancellationToken cancellationToken)
+    {
+        if (telefoneNormalizado is null)
+        {
+            return;
+        }
+
+        var atletas = await atletaRepositorio.ListarPorTelefoneAsync(telefoneNormalizado, cancellationToken);
+        var conflito = atletas.FirstOrDefault(x => !atletaIgnoradoId.HasValue || x.Id != atletaIgnoradoId.Value);
+        if (conflito is not null)
+        {
+            throw new RegraNegocioException("Este WhatsApp já está cadastrado para outro atleta.");
+        }
+    }
+
     private async Task<Atleta?> ObterAtletaDisponivelParaVinculoAsync(
         string email,
         Guid? atletaAtualId,
@@ -919,6 +961,20 @@ public class AtletaServico(
             atletaVinculadoConfiavelId: null,
             emailNormalizado,
             cancellationToken);
+    }
+
+    private async Task<Atleta?> ObterAtletaDisponivelParaVinculoPorTelefoneAsync(
+        string? telefoneNormalizado,
+        CancellationToken cancellationToken)
+    {
+        if (telefoneNormalizado is null)
+        {
+            return null;
+        }
+
+        var candidatos = await atletaRepositorio.ListarPorTelefoneAsync(telefoneNormalizado, cancellationToken);
+        var disponiveis = candidatos.Where(x => x.Usuario is null).ToList();
+        return disponiveis.Count == 1 ? disponiveis[0] : null;
     }
 
     private static string? NormalizarEmailOpcional(string? email)

@@ -16,6 +16,7 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
         builder.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(150).IsRequired();
         builder.Property(x => x.Apelido).HasColumnName("apelido").HasMaxLength(100);
         builder.Property(x => x.Telefone).HasColumnName("telefone").HasMaxLength(30);
+        builder.Property(x => x.TelefoneNormalizado).HasColumnName("telefone_normalizado").HasMaxLength(11);
         // Unicidade de e-mail normalizado fica no indice funcional PostgreSQL
         // ix_atletas_email_normalizado_unico, criado por migration SQL manual.
         // Nao trocar por HasIndex(x => x.Email).IsUnique(); isso validaria e-mail literal.
@@ -49,6 +50,7 @@ public class AtletaMapeamento : IEntityTypeConfiguration<Atleta>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(x => x.Cpf);
+        builder.HasIndex(x => x.TelefoneNormalizado).IsUnique();
         builder.HasIndex(x => x.Nome);
         builder.HasIndex(x => x.UsuarioCriadorId);
         builder.HasIndex(x => x.ArenaPrincipalId);
