@@ -39,6 +39,7 @@ public static class InjecaoDependenciaAplicacao
         services.AddScoped<IPartidaServico, PartidaServico>();
         services.AddScoped<IPartidaCancelamentoServico, PartidaCancelamentoServico>();
         services.AddScoped<IPendenciaServico, PendenciaServico>();
+        services.AddScoped<INotificacaoUsuarioServico, NotificacaoUsuarioServico>();
         services.AddScoped<IPontuacaoBeneficioServico, PontuacaoBeneficioServico>();
         services.AddScoped<IRankingServico, RankingServico>();
         services.AddScoped<IImportacaoServico, ImportacaoServico>();

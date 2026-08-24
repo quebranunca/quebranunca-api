@@ -330,6 +330,17 @@ public interface IPendenciaServico
     Task SincronizarAposVinculoAtletaAsync(Guid atletaId, CancellationToken cancellationToken = default);
 }
 
+public interface INotificacaoUsuarioServico
+{
+    Task<IReadOnlyList<NotificacaoUsuarioDto>> ListarMinhasAsync(
+        bool somenteNaoLidas = false,
+        int limite = 50,
+        CancellationToken cancellationToken = default);
+    Task<NotificacoesResumoDto> ObterResumoAsync(CancellationToken cancellationToken = default);
+    Task<NotificacaoUsuarioDto> MarcarComoLidaAsync(Guid id, CancellationToken cancellationToken = default);
+    Task MarcarTodasComoLidasAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IResolvedorAtletaDuplaServico
 {
     Task<Atleta> ObterAtletaExistenteAsync(

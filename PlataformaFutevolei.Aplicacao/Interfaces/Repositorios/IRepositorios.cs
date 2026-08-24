@@ -395,6 +395,24 @@ public interface IPendenciaUsuarioRepositorio
     void Atualizar(PendenciaUsuario pendencia);
 }
 
+public interface INotificacaoUsuarioRepositorio
+{
+    Task<IReadOnlyList<NotificacaoUsuario>> ListarPorUsuarioAsync(
+        Guid usuarioId,
+        bool somenteNaoLidas,
+        int limite,
+        CancellationToken cancellationToken = default);
+    Task<NotificacaoUsuario?> ObterPorIdAsync(Guid id, Guid usuarioId, CancellationToken cancellationToken = default);
+    Task<IReadOnlySet<string>> ListarChavesDaOrigemAsync(
+        Guid usuarioId,
+        string origem,
+        CancellationToken cancellationToken = default);
+    Task<int> ContarNaoLidasAsync(Guid usuarioId, CancellationToken cancellationToken = default);
+    Task AdicionarIntervaloAsync(IEnumerable<NotificacaoUsuario> notificacoes, CancellationToken cancellationToken = default);
+    Task MarcarTodasComoLidasAsync(Guid usuarioId, DateTime dataUtc, CancellationToken cancellationToken = default);
+    void Atualizar(NotificacaoUsuario notificacao);
+}
+
 public interface IPontuacaoBeneficioRepositorio
 {
     Task<IReadOnlyList<ReconciliacaoPontosQNCandidatoDto>> ListarCandidatosReconciliacaoAsync(Guid? atletaId, int skip, int take, CancellationToken cancellationToken = default);
