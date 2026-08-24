@@ -451,7 +451,7 @@ public class AutenticacaoServico(
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Senha))
         {
-            throw new RegraNegocioException("E-mail ou telefone e senha são obrigatórios.");
+            throw new RegraNegocioException("Telefone ou e-mail e senha são obrigatórios.");
         }
 
         var identificador = dto.Email.Trim();
