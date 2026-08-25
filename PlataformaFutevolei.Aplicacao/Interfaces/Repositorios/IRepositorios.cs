@@ -21,6 +21,14 @@ public interface IUsuarioRepositorio
     void Atualizar(Usuario usuario);
 }
 
+public interface ISessaoUsuarioRepositorio
+{
+    Task<SessaoUsuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AdicionarAsync(SessaoUsuario sessao, CancellationToken cancellationToken = default);
+    void Atualizar(SessaoUsuario sessao);
+    Task RevogarTodasAsync(Guid usuarioId, DateTime agoraUtc, CancellationToken cancellationToken = default);
+}
+
 public interface IUsuarioConsentimentoLgpdRepositorio
 {
     Task<UsuarioConsentimentoLgpd?> ObterUltimoPorUsuarioAsync(

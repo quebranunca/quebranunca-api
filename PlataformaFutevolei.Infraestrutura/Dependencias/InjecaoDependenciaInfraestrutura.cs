@@ -50,10 +50,10 @@ public static class InjecaoDependenciaInfraestrutura
         var secaoJwt = configuration.GetSection(ConfiguracaoJwt.Secao);
         var expiracaoMinutos = int.TryParse(secaoJwt["ExpiracaoMinutos"], out var valorExpiracao)
             ? valorExpiracao
-            : 21600;
+            : 15;
         var expiracaoRefreshTokenDias = int.TryParse(secaoJwt["ExpiracaoRefreshTokenDias"], out var valorExpiracaoRefreshToken)
             ? valorExpiracaoRefreshToken
-            : 90;
+            : 30;
 
         var jwt = new ConfiguracaoJwt
         {
@@ -150,6 +150,7 @@ public static class InjecaoDependenciaInfraestrutura
 
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
+        services.AddScoped<ISessaoUsuarioRepositorio, SessaoUsuarioRepositorio>();
         services.AddScoped<IUsuarioConsentimentoLgpdRepositorio, UsuarioConsentimentoLgpdRepositorio>();
         services.AddScoped<ICodigoAcessoEmailRepositorio, CodigoAcessoEmailRepositorio>();
         services.AddScoped<IConviteCadastroRepositorio, ConviteCadastroRepositorio>();

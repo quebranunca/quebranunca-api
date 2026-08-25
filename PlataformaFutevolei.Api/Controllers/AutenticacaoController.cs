@@ -11,6 +11,7 @@ namespace PlataformaFutevolei.Api.Controllers;
 [Route("api/autenticacao")]
 public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : ControllerBase
 {
+    private const string CookieRefreshToken = "qnf_refresh_token";
     [HttpPost("registrar")]
     [HttpPost("registrar-por-convite")]
     [AllowAnonymous]
@@ -24,7 +25,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.RegistrarAsync(dtoComAuditoria, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("iniciar-acesso")]
@@ -53,7 +54,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.CadastrarPublicoComSenhaAsync(dtoComAuditoria, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("confirmar-codigo")]
@@ -65,6 +66,10 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         CancellationToken cancellationToken)
     {
         var resposta = await autenticacaoServico.ConfirmarCodigoAcessoAsync(dto, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(resposta.RefreshToken) && resposta.RefreshTokenExpiraEmUtc.HasValue)
+        {
+            DefinirCookieRefreshToken(resposta.RefreshToken, resposta.RefreshTokenExpiraEmUtc.Value);
+        }
         return Ok(resposta);
     }
 
@@ -82,7 +87,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.CompletarCadastroPublicoAsync(dtoComAuditoria, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("login")]
@@ -92,7 +97,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     public async Task<IActionResult> Login([FromBody] LoginRequisicaoDto dto, CancellationToken cancellationToken)
     {
         var resposta = await autenticacaoServico.LoginAsync(dto, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("login/codigo/solicitar")]
@@ -116,7 +121,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         CancellationToken cancellationToken)
     {
         var resposta = await autenticacaoServico.LoginComCodigoAsync(dto, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("renovar-token")]
@@ -127,8 +132,21 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         [FromBody] RenovarTokenRequisicaoDto dto,
         CancellationToken cancellationToken)
     {
-        var resposta = await autenticacaoServico.RenovarTokenAsync(dto, cancellationToken);
-        return Ok(resposta);
+        var refreshToken = Request.Cookies[CookieRefreshToken];
+        var resposta = await autenticacaoServico.RenovarTokenAsync(
+            dto with { RefreshToken = refreshToken },
+            cancellationToken);
+        return ResponderAutenticacao(resposta);
+    }
+
+    [HttpPost("sair")]
+    [AllowAnonymous]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
+    public async Task<IActionResult> Sair(CancellationToken cancellationToken)
+    {
+        await autenticacaoServico.RevogarSessaoAsync(Request.Cookies[CookieRefreshToken], cancellationToken);
+        Response.Cookies.Delete(CookieRefreshToken, OpcoesCookie(DateTimeOffset.UnixEpoch));
+        return NoContent();
     }
 
     [HttpPost("esqueci-senha/solicitar")]
@@ -185,7 +203,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         CancellationToken cancellationToken)
     {
         var resposta = await autenticacaoServico.CriarSenhaComTokenAsync(dto, cancellationToken);
-        return Ok(resposta);
+        return ResponderAutenticacao(resposta);
     }
 
     [HttpPost("alterar-senha")]
@@ -207,4 +225,24 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
         var usuario = await autenticacaoServico.ObterUsuarioAtualAsync(cancellationToken);
         return Ok(usuario);
     }
+
+    private IActionResult ResponderAutenticacao(RespostaAutenticacaoDto resposta)
+    {
+        DefinirCookieRefreshToken(resposta.RefreshToken, resposta.RefreshTokenExpiraEmUtc);
+        return Ok(resposta);
+    }
+
+    private void DefinirCookieRefreshToken(string refreshToken, DateTime expiraEmUtc)
+        => Response.Cookies.Append(CookieRefreshToken, refreshToken, OpcoesCookie(expiraEmUtc));
+
+    private CookieOptions OpcoesCookie(DateTimeOffset expiraEm)
+        => new()
+        {
+            HttpOnly = true,
+            Secure = !HttpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Path = "/api/autenticacao",
+            Expires = expiraEm,
+            IsEssential = true
+        };
 }

@@ -7,6 +7,6 @@ public class ConfiguracaoJwt
     public string Chave { get; set; } = string.Empty;
     public string Emissor { get; set; } = "PlataformaFutevolei";
     public string Audiencia { get; set; } = "PlataformaFutevolei.Web";
-    public int ExpiracaoMinutos { get; set; } = 21600;
-    public int ExpiracaoRefreshTokenDias { get; set; } = 90;
+    public int ExpiracaoMinutos { get; set; } = 15;
+    public int ExpiracaoRefreshTokenDias { get; set; } = 30;
 }

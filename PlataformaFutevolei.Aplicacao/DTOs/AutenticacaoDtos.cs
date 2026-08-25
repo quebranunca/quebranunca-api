@@ -1,4 +1,5 @@
 using PlataformaFutevolei.Dominio.Enums;
+using System.Text.Json.Serialization;
 
 namespace PlataformaFutevolei.Aplicacao.DTOs;
 
@@ -63,8 +64,8 @@ public record SegurancaUsuarioDto(
 );
 
 public record RenovarTokenRequisicaoDto(
-    string Token,
-    string RefreshToken
+    string? Token,
+    string? RefreshToken
 );
 
 public record IniciarAcessoRequisicaoDto(
@@ -103,6 +104,7 @@ public record ConfirmarCodigoAcessoRequisicaoDto(
 public record ConfirmarCodigoAcessoRespostaDto(
     string Status,
     string? Token = null,
+    [property: JsonIgnore]
     string? RefreshToken = null,
     DateTime? TokenExpiraEmUtc = null,
     DateTime? RefreshTokenExpiraEmUtc = null,
@@ -249,6 +251,7 @@ public record AtualizarUsuarioDto(
 
 public record RespostaAutenticacaoDto(
     string Token,
+    [property: JsonIgnore]
     string RefreshToken,
     DateTime TokenExpiraEmUtc,
     DateTime RefreshTokenExpiraEmUtc,

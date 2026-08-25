@@ -17,6 +17,7 @@ using PlataformaFutevolei.Aplicacao.Json;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
 using PlataformaFutevolei.Infraestrutura.Dependencias;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
+using PlataformaFutevolei.Dominio.Enums;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
@@ -62,6 +63,10 @@ if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.RequireHeaderSymmetry = true;
+    // A API roda atrás do proxy gerenciado da Railway, cujo endereço não é estático.
+    // A exposição pública deve continuar restrita a esse proxy; nunca publicar o Kestrel diretamente.
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -108,6 +113,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(origensFrontend)
+            .AllowCredentials()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -142,6 +148,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<PlataformaFutevoleiDbContext>();
                 bool usuarioAtivo;
+                PerfilUsuario? perfilAtual;
                 try
                 {
                     usuarioAtivo = await dbContext.Usuarios
@@ -149,6 +156,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                         .AnyAsync(
                             x => x.Id == usuarioId && x.Ativo && !x.DadosAnonimizados,
                             CancellationToken.None);
+                    perfilAtual = usuarioAtivo
+                        ? await dbContext.Usuarios.AsNoTracking()
+                            .Where(x => x.Id == usuarioId)
+                            .Select(x => (PerfilUsuario?)x.Perfil)
+                            .FirstOrDefaultAsync(CancellationToken.None)
+                        : null;
                 }
                 catch (OperationCanceledException) when (context.HttpContext.RequestAborted.IsCancellationRequested)
                 {
@@ -159,6 +172,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!usuarioAtivo)
                 {
                     context.Fail("Usuário inativo ou excluído.");
+                }
+                else if (!string.Equals(
+                    perfilAtual?.ToString(),
+                    context.Principal?.FindFirstValue(ClaimTypes.Role),
+                    StringComparison.Ordinal))
+                {
+                    context.Fail("As permissões da sessão foram alteradas. Entre novamente.");
                 }
             }
         };

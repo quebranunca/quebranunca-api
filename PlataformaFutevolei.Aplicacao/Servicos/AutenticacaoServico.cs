@@ -15,6 +15,7 @@ namespace PlataformaFutevolei.Aplicacao.Servicos;
 
 public class AutenticacaoServico(
     IUsuarioRepositorio usuarioRepositorio,
+    ISessaoUsuarioRepositorio sessaoUsuarioRepositorio,
     IConviteCadastroRepositorio conviteCadastroRepositorio,
     ICodigoAcessoEmailRepositorio codigoAcessoEmailRepositorio,
     IUnidadeTrabalho unidadeTrabalho,
@@ -562,35 +563,55 @@ public class AutenticacaoServico(
         RenovarTokenRequisicaoDto dto,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(dto.Token) || string.IsNullOrWhiteSpace(dto.RefreshToken))
+        if (string.IsNullOrWhiteSpace(dto.RefreshToken))
         {
             throw new RegraNegocioException("Token de renovação inválido.");
         }
 
-        var usuarioId = tokenJwtServico.ObterUsuarioIdTokenExpirado(dto.Token.Trim());
-        if (!usuarioId.HasValue)
+        if (!TentarSepararRefreshToken(dto.RefreshToken, out var sessaoId, out var segredoRefreshToken))
         {
-            throw new RegraNegocioException("Token de renovação inválido.");
+            return await MigrarSessaoLegadaAsync(dto, cancellationToken);
         }
 
-        var usuario = await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioId.Value, cancellationToken);
+        var sessao = await sessaoUsuarioRepositorio.ObterPorIdParaAtualizacaoAsync(sessaoId, cancellationToken);
+        var usuario = sessao is null
+            ? null
+            : await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(sessao.UsuarioId, cancellationToken);
         if (usuario is null || !usuario.Ativo)
         {
             throw new RegraNegocioException("Usuário não encontrado ou inativo.");
         }
 
         var agora = DateTime.UtcNow;
-        var refreshTokenValido = !string.IsNullOrWhiteSpace(usuario.RefreshTokenHash)
-            && usuario.RefreshTokenExpiraEmUtc.HasValue
-            && usuario.RefreshTokenExpiraEmUtc.Value >= agora
-            && senhaServico.Verificar(dto.RefreshToken.Trim(), usuario.RefreshTokenHash);
+        var refreshTokenValido = sessao is not null
+            && sessao.UsuarioId == usuario.Id
+            && sessao.EstaAtiva(agora)
+            && senhaServico.Verificar(segredoRefreshToken, sessao.RefreshTokenHash);
 
         if (!refreshTokenValido)
         {
             throw new RegraNegocioException("Sessão expirada. Faça login novamente.");
         }
 
-        return await CriarRespostaAutenticacaoAsync(usuario, cancellationToken, reutilizarExpiracaoRefreshTokenAtual: true);
+        return await RotacionarSessaoAsync(usuario, sessao!, cancellationToken);
+    }
+
+    public async Task RevogarSessaoAsync(string? refreshToken, CancellationToken cancellationToken = default)
+    {
+        if (!TentarSepararRefreshToken(refreshToken, out var sessaoId, out _))
+        {
+            return;
+        }
+
+        var sessao = await sessaoUsuarioRepositorio.ObterPorIdParaAtualizacaoAsync(sessaoId, cancellationToken);
+        if (sessao is null)
+        {
+            return;
+        }
+
+        sessao.Revogar(DateTime.UtcNow);
+        sessaoUsuarioRepositorio.Atualizar(sessao);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
     public async Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
@@ -648,6 +669,7 @@ public class AutenticacaoServico(
         usuario.SenhaAtualizadaEmUtc = agora;
         usuario.CodigoRedefinicaoSenhaHash = null;
         usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
+        await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         codigoAcesso.ConsumidoEmUtc = agora;
@@ -697,6 +719,7 @@ public class AutenticacaoServico(
         usuario.SenhaHash = senhaServico.GerarHash(dto.Senha);
         usuario.SenhaDefinidaEmUtc ??= agora;
         usuario.SenhaAtualizadaEmUtc = agora;
+        await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.EmailConfirmadoEmUtc ??= agora;
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
@@ -764,6 +787,7 @@ public class AutenticacaoServico(
         var agora = DateTime.UtcNow;
         usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
         usuario.SenhaAtualizadaEmUtc = agora;
+        await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -820,14 +844,19 @@ public class AutenticacaoServico(
             throw new RegraNegocioException("Confirmação de senha é obrigatória.");
         }
 
-        if (novaSenha.Length < 6)
-        {
-            throw new RegraNegocioException("A senha deve ter no mínimo 6 caracteres.");
-        }
-
         if (!string.Equals(novaSenha, confirmacaoSenha, StringComparison.Ordinal))
         {
             throw new RegraNegocioException("Senha e confirmação devem ser iguais.");
+        }
+
+        if (novaSenha.Length < 10)
+        {
+            throw new RegraNegocioException("A senha deve ter no mínimo 10 caracteres.");
+        }
+
+        if (novaSenha.Length > 128)
+        {
+            throw new RegraNegocioException("A senha deve ter no máximo 128 caracteres.");
         }
     }
 
@@ -1096,12 +1125,14 @@ public class AutenticacaoServico(
             ? expiracaoAtual
             : tokenJwtServico.ObterExpiracaoRefreshTokenUtc();
         var expiracaoToken = tokenJwtServico.ObterExpiracaoTokenAcessoUtc(expiracaoRefreshToken);
-        var refreshToken = GerarRefreshToken();
-
-        usuario.RefreshTokenHash = senhaServico.GerarHash(refreshToken);
-        usuario.RefreshTokenExpiraEmUtc = expiracaoRefreshToken;
-        usuario.AtualizarDataModificacao();
-        usuarioRepositorio.Atualizar(usuario);
+        var segredoRefreshToken = GerarRefreshToken();
+        var sessao = new SessaoUsuario
+        {
+            UsuarioId = usuario.Id,
+            RefreshTokenHash = senhaServico.GerarHash(segredoRefreshToken),
+            ExpiraEmUtc = expiracaoRefreshToken
+        };
+        await sessaoUsuarioRepositorio.AdicionarAsync(sessao, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
@@ -1114,10 +1145,93 @@ public class AutenticacaoServico(
 
         return new RespostaAutenticacaoDto(
             token,
-            refreshToken,
+            MontarRefreshToken(sessao.Id, segredoRefreshToken),
             expiracaoToken,
             expiracaoRefreshToken,
             usuarioDto);
+    }
+
+    private async Task<RespostaAutenticacaoDto> RotacionarSessaoAsync(
+        Usuario usuario,
+        SessaoUsuario sessao,
+        CancellationToken cancellationToken)
+    {
+        var agora = DateTime.UtcNow;
+        var segredoRefreshToken = GerarRefreshToken();
+        sessao.RefreshTokenHash = senhaServico.GerarHash(segredoRefreshToken);
+        sessao.UltimoUsoEmUtc = agora;
+        sessao.AtualizarDataModificacao();
+        sessaoUsuarioRepositorio.Atualizar(sessao);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+
+        var expiracaoToken = tokenJwtServico.ObterExpiracaoTokenAcessoUtc(sessao.ExpiraEmUtc);
+        var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
+        var usuarioDto = usuario.ParaDto() with
+        {
+            PoliticaPrivacidadePendente = await privacidadeServico.UsuarioPrecisaAceitarPoliticaAsync(usuario.Id, cancellationToken)
+        };
+        return new RespostaAutenticacaoDto(
+            token,
+            MontarRefreshToken(sessao.Id, segredoRefreshToken),
+            expiracaoToken,
+            sessao.ExpiraEmUtc,
+            usuarioDto);
+    }
+
+    private static string MontarRefreshToken(Guid sessaoId, string segredo)
+        => $"{sessaoId:N}.{segredo}";
+
+    private async Task<RespostaAutenticacaoDto> MigrarSessaoLegadaAsync(
+        RenovarTokenRequisicaoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = string.IsNullOrWhiteSpace(dto.Token)
+            ? null
+            : tokenJwtServico.ObterUsuarioIdTokenExpirado(dto.Token.Trim());
+        var usuario = usuarioId.HasValue
+            ? await usuarioRepositorio.ObterPorIdParaAtualizacaoAsync(usuarioId.Value, cancellationToken)
+            : null;
+        if (usuario is null || !usuario.Ativo)
+        {
+            throw new RegraNegocioException("Usuário não encontrado ou inativo.");
+        }
+
+        var agora = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(usuario.RefreshTokenHash)
+            || usuario.RefreshTokenExpiraEmUtc is null
+            || usuario.RefreshTokenExpiraEmUtc < agora
+            || !senhaServico.Verificar(dto.RefreshToken!, usuario.RefreshTokenHash))
+        {
+            throw new RegraNegocioException("Sessão expirada. Faça login novamente.");
+        }
+
+        var expiracaoLegada = usuario.RefreshTokenExpiraEmUtc.Value;
+        usuario.RefreshTokenHash = null;
+        usuario.RefreshTokenExpiraEmUtc = null;
+        usuarioRepositorio.Atualizar(usuario);
+        var segredo = GerarRefreshToken();
+        var sessao = new SessaoUsuario
+        {
+            UsuarioId = usuario.Id,
+            RefreshTokenHash = senhaServico.GerarHash(segredo),
+            ExpiraEmUtc = expiracaoLegada
+        };
+        await sessaoUsuarioRepositorio.AdicionarAsync(sessao, cancellationToken);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        return await RotacionarSessaoAsync(usuario, sessao, cancellationToken);
+    }
+
+    private static bool TentarSepararRefreshToken(string? refreshToken, out Guid sessaoId, out string segredo)
+    {
+        sessaoId = Guid.Empty;
+        segredo = string.Empty;
+        var partes = refreshToken?.Trim().Split('.', 2);
+        if (partes is not { Length: 2 } || !Guid.TryParseExact(partes[0], "N", out sessaoId) || string.IsNullOrWhiteSpace(partes[1]))
+        {
+            return false;
+        }
+        segredo = partes[1];
+        return true;
     }
 
     private static string NormalizarCodigoAcesso(string? codigo)

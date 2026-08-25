@@ -29,7 +29,7 @@ public class TokenJwtServico(IOptions<ConfiguracaoJwt> configuracaoJwt) : IToken
         var configuracao = ObterConfiguracao();
         var dias = configuracao.ExpiracaoRefreshTokenDias > 0
             ? configuracao.ExpiracaoRefreshTokenDias
-            : 90;
+            : 30;
 
         return DateTime.UtcNow.AddDays(dias);
     }

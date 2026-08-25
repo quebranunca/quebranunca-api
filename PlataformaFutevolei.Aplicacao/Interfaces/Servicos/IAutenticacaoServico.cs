@@ -19,6 +19,7 @@ public interface IAutenticacaoServico
     Task<RespostaAutenticacaoDto> RenovarTokenAsync(
         RenovarTokenRequisicaoDto dto,
         CancellationToken cancellationToken = default);
+    Task RevogarSessaoAsync(string? refreshToken, CancellationToken cancellationToken = default);
     Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
         EsqueciSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default);
