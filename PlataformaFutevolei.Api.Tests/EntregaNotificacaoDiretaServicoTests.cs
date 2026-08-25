@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PlataformaFutevolei.Aplicacao.DTOs;
+using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
 using PlataformaFutevolei.Infraestrutura.Configuracoes;
 using PlataformaFutevolei.Infraestrutura.Servicos;
 using Xunit;
@@ -22,7 +23,8 @@ public sealed class EntregaNotificacaoDiretaServicoTests
             corpo = await request.Content!.ReadAsStringAsync();
             return Json(HttpStatusCode.OK, """{"key":{"id":"mensagem-1"}}""");
         });
-        var servico = CriarServico(handler);
+        var adaptador = CriarAdaptadorWhatsapp(handler);
+        var servico = new EntregaNotificacaoDiretaServico([adaptador]);
 
         var resultado = await servico.EnviarAsync(new SolicitacaoEntregaNotificacaoDto(
             "quebra-nunca", "convite-1", CanalNotificacaoExterna.Whatsapp,
@@ -45,7 +47,7 @@ public sealed class EntregaNotificacaoDiretaServicoTests
     [Fact]
     public async Task EnviarAsync_CanalSemAdaptador_NaoTentaEntrega()
     {
-        var servico = CriarServico(new Handler(_ => throw new InvalidOperationException()));
+        var servico = new EntregaNotificacaoDiretaServico([]);
 
         var resultado = await servico.EnviarAsync(new SolicitacaoEntregaNotificacaoDto(
             "quebra-nunca", "email-1", CanalNotificacaoExterna.Email,
@@ -56,7 +58,7 @@ public sealed class EntregaNotificacaoDiretaServicoTests
         Assert.Contains("não possui um adaptador", resultado.Erro);
     }
 
-    private static EntregaNotificacaoDiretaServico CriarServico(HttpMessageHandler handler) => new(
+    private static AdaptadorWhatsappWhatsMiauServico CriarAdaptadorWhatsapp(HttpMessageHandler handler) => new(
         new HttpClient(handler) { BaseAddress = new Uri("https://api.whatsmiau.dev/v2/") },
         Options.Create(new ConfiguracaoWhatsappConviteCadastro
         {
@@ -68,7 +70,7 @@ public sealed class EntregaNotificacaoDiretaServicoTests
             Source = "quebra-nunca",
             TemplateKey = "qnf.convite.cadastro.v1",
             UrlApp = "https://app.quebranunca.com.br"
-        }), NullLogger<EntregaNotificacaoDiretaServico>.Instance);
+        }), NullLogger<AdaptadorWhatsappWhatsMiauServico>.Instance);
 
     private static HttpResponseMessage Json(HttpStatusCode status, string body) => new(status)
     {

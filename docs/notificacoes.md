@@ -23,6 +23,14 @@
 - Em ambiente, use `WHATSMIAU_BASE_URL`, `WHATSMIAU_API_KEY` e `WHATSMIAU_INSTANCE_NAME`.
 - O template `qnf.convite.cadastro.v1` é renderizado dentro do módulo, sem expor o provedor ao serviço de convites.
 
+## SMS com Zenvia
+
+- O adaptador `AdaptadorSmsZenviaServico` implementa o canal `Sms` sem acoplar os fluxos da aplicação à Zenvia.
+- A integração fica desabilitada por padrão e não gera custo até `Sms:Enabled` ser ativado.
+- Configure `ZENVIA_API_TOKEN` e `ZENVIA_SMS_FROM` no ambiente; `ZENVIA_SMS_BASE_URL` é opcional.
+- Solicitações aceitas pela API retornam `Aceito`, não `Enviado`; confirmação de entrega deve ser processada futuramente pelo webhook `MESSAGE_STATUS`.
+- O contrato espera `Dados["texto"]` e telefone brasileiro com DDD; o adaptador normaliza o destino para o formato `55DDDNÚMERO`.
+
 ## Frontend
 
 - O sino usa `/api/notificacoes/resumo` e abre `/app/notificacoes`.

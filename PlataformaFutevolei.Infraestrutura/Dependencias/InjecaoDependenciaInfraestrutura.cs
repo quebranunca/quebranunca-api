@@ -129,6 +129,19 @@ public static class InjecaoDependenciaInfraestrutura
             options.UrlApp = secaoWhatsappConvites["UrlApp"] ?? frontendUrlPadrao;
         });
 
+        var secaoSms = configuration.GetSection(ConfiguracaoSmsZenvia.Secao);
+        services.Configure<ConfiguracaoSmsZenvia>(options =>
+        {
+            options.Enabled = secaoSms.GetValue<bool>("Enabled");
+            options.Provedor = secaoSms["Provedor"] ?? "Zenvia";
+            options.BaseUrl = ObterValorConfiguracaoOuAmbiente(secaoSms["BaseUrl"], "ZENVIA_SMS_BASE_URL")
+                ?? "https://api.zenvia.com/v1";
+            options.ApiToken = ObterValorConfiguracaoOuAmbiente(secaoSms["ApiToken"], "ZENVIA_API_TOKEN")
+                ?? string.Empty;
+            options.Remetente = ObterValorConfiguracaoOuAmbiente(secaoSms["Remetente"], "ZENVIA_SMS_FROM")
+                ?? string.Empty;
+        });
+
         var secaoCloudinary = configuration.GetSection(CloudinaryConfiguracao.Secao);
         services.Configure<CloudinaryConfiguracao>(options =>
         {
@@ -199,7 +212,7 @@ public static class InjecaoDependenciaInfraestrutura
             client.BaseAddress = CriarUriBaseResendSegura(configuracaoEmail.ObterBaseUrl());
             client.Timeout = TimeSpan.FromSeconds(15);
         });
-        services.AddHttpClient<IEntregaNotificacaoExternaServico, EntregaNotificacaoDiretaServico>(
+        services.AddHttpClient<AdaptadorWhatsappWhatsMiauServico>(
             (serviceProvider, client) =>
             {
                 var configuracaoWhatsapp = serviceProvider
@@ -207,6 +220,17 @@ public static class InjecaoDependenciaInfraestrutura
                 client.BaseAddress = CriarUriBaseProvedorWhatsapp(configuracaoWhatsapp.ProvedorBaseUrl);
                 client.Timeout = TimeSpan.FromSeconds(25);
             });
+        services.AddHttpClient<AdaptadorSmsZenviaServico>((serviceProvider, client) =>
+        {
+            var configuracaoSms = serviceProvider.GetRequiredService<IOptions<ConfiguracaoSmsZenvia>>().Value;
+            client.BaseAddress = CriarUriBaseSegura(configuracaoSms.BaseUrl, "https://api.zenvia.com/v1/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddScoped<IAdaptadorEntregaNotificacaoExterna>(sp =>
+            sp.GetRequiredService<AdaptadorWhatsappWhatsMiauServico>());
+        services.AddScoped<IAdaptadorEntregaNotificacaoExterna>(sp =>
+            sp.GetRequiredService<AdaptadorSmsZenviaServico>());
+        services.AddScoped<IEntregaNotificacaoExternaServico, EntregaNotificacaoDiretaServico>();
         services.AddScoped<IEnvioWhatsappConviteCadastroServico, WhatsappConviteCadastroServico>();
 
         return services;
@@ -293,6 +317,12 @@ public static class InjecaoDependenciaInfraestrutura
         return Uri.TryCreate(candidata, UriKind.Absolute, out var uri)
             ? uri
             : new Uri("https://api.whatsmiau.dev/v2/");
+    }
+
+    private static Uri CriarUriBaseSegura(string? baseUrlConfigurada, string fallback)
+    {
+        var candidata = $"{(baseUrlConfigurada ?? string.Empty).Trim().TrimEnd('/')}/";
+        return Uri.TryCreate(candidata, UriKind.Absolute, out var uri) ? uri : new Uri(fallback);
     }
 
     private static string ObterPrimeiraUrlConfigurada(string? valorConfigurado)
