@@ -472,7 +472,7 @@ public class ConviteCadastroServico(
 
         if (resultado.Enviado)
         {
-            conviteCadastro.RegistrarEnvioWhatsappComSucesso(DateTime.UtcNow);
+            conviteCadastro.RegistrarEnvioWhatsappComSucesso(DateTime.UtcNow, resultado.IdentificadorMensagem);
         }
         else if (!resultado.Aceito)
         {

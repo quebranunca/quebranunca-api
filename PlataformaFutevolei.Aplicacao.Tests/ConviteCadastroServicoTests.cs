@@ -263,18 +263,18 @@ public class ConviteCadastroServicoTests
     }
 
     [Fact]
-    public async Task EnviarWhatsappAsync_AceitoPelaCentralNotificacao_MantemComoProcessando()
+    public async Task EnviarWhatsappAsync_AceitoPeloAdaptadorAssincrono_MantemComoProcessando()
     {
         var cenario = new Cenario();
         var convite = CriarConvite("atleta@example.com", DateTime.UtcNow.AddDays(1), telefone: "13 99999 0000");
         cenario.Convites.Itens.Add(convite);
         cenario.Whatsapp.Resultado = new ResultadoEnvioWhatsappConviteDto(
-            true, false, null, "central-1", Aceito: true);
+            true, false, null, "entrega-1", Aceito: true);
 
         var enviado = await cenario.Servico.EnviarWhatsappAsync(convite.Id);
 
         Assert.Equal("Processando", enviado.SituacaoEnvioWhatsapp);
-        Assert.Equal("central-1", convite.WhatsappCentralNotificacaoId);
+        Assert.Equal("entrega-1", convite.WhatsappEntregaId);
         Assert.NotNull(convite.WhatsappIdempotencyKey);
         Assert.Null(convite.WhatsappEnviadoEmUtc);
         Assert.Null(convite.ErroEnvioWhatsapp);

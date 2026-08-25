@@ -87,7 +87,7 @@ internal static class MapeadorEntidades
             conviteCadastro.UltimaTentativaEnvioWhatsappEmUtc,
             conviteCadastro.WhatsappEnviadoEmUtc,
             conviteCadastro.ErroEnvioWhatsapp,
-            conviteCadastro.WhatsappCentralNotificacaoId,
+            conviteCadastro.WhatsappEntregaId,
             conviteCadastro.DataCriacao,
             conviteCadastro.DataAtualizacao
         );

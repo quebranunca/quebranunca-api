@@ -23,7 +23,7 @@ public class ConviteCadastro : EntidadeBase
     public DateTime? UltimaTentativaEnvioWhatsappEmUtc { get; set; }
     public DateTime? WhatsappEnviadoEmUtc { get; set; }
     public string? ErroEnvioWhatsapp { get; set; }
-    public string? WhatsappCentralNotificacaoId { get; set; }
+    public string? WhatsappEntregaId { get; set; }
     public string? WhatsappIdempotencyKey { get; set; }
 
     public Usuario? CriadoPorUsuario { get; set; }
@@ -72,7 +72,7 @@ public class ConviteCadastro : EntidadeBase
 
         return UltimaTentativaEnvioWhatsappEmUtc.HasValue && !string.IsNullOrWhiteSpace(ErroEnvioWhatsapp)
             ? "Falhou"
-            : !string.IsNullOrWhiteSpace(WhatsappCentralNotificacaoId)
+            : !string.IsNullOrWhiteSpace(WhatsappEntregaId)
                 ? "Processando"
                 : "Pendente";
     }
@@ -115,27 +115,28 @@ public class ConviteCadastro : EntidadeBase
         AtualizarDataModificacao();
     }
 
-    public void RegistrarEnvioWhatsappComSucesso(DateTime dataUtc)
+    public void RegistrarEnvioWhatsappComSucesso(DateTime dataUtc, string? identificadorMensagem = null)
     {
         UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
         WhatsappEnviadoEmUtc = dataUtc;
         ErroEnvioWhatsapp = null;
+        WhatsappEntregaId = identificadorMensagem;
         AtualizarDataModificacao();
     }
 
     public void PrepararSolicitacaoWhatsapp(string idempotencyKey, DateTime dataUtc)
     {
         WhatsappIdempotencyKey = idempotencyKey;
-        WhatsappCentralNotificacaoId = null;
+        WhatsappEntregaId = null;
         UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
         WhatsappEnviadoEmUtc = null;
         ErroEnvioWhatsapp = null;
         AtualizarDataModificacao();
     }
 
-    public void RegistrarSolicitacaoWhatsappAceita(string centralNotificacaoId, DateTime dataUtc)
+    public void RegistrarSolicitacaoWhatsappAceita(string identificadorEntrega, DateTime dataUtc)
     {
-        WhatsappCentralNotificacaoId = centralNotificacaoId;
+        WhatsappEntregaId = identificadorEntrega;
         UltimaTentativaEnvioWhatsappEmUtc = dataUtc;
         WhatsappEnviadoEmUtc = null;
         ErroEnvioWhatsapp = null;

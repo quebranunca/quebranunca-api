@@ -50,6 +50,7 @@
 - Não criar partidas automaticamente na massa `[AI TESTE]` base nem tornar competição/categoria obrigatórias para partida comum de grupo
 - Quando houver produção, reavaliar a exposição da credencial `[AI TESTE]` e manter bloqueio de criação automática em `Production`
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
+- Entregas externas de notificação devem passar por `IEntregaNotificacaoExternaServico`; fluxos de aplicação não devem depender diretamente de WhatsMiau ou de uma central externa.
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável
 - Ao persistir código de convite para reenvio, manter também o hash usado na validação e limpar o código em claro quando o convite for utilizado
 - Pendências de atleta sem e-mail, ao serem resolvidas com um e-mail de atleta ainda não cadastrado, devem disparar automaticamente convite para o atleta, evitando duplicidade de convite.

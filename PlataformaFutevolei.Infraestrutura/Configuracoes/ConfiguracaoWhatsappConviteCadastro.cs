@@ -5,8 +5,10 @@ public class ConfiguracaoWhatsappConviteCadastro
     public const string Secao = "WhatsappConvitesCadastro";
 
     public bool Enabled { get; set; }
-    public string CentralNotificacaoBaseUrl { get; set; } = string.Empty;
-    public string CentralNotificacaoApiKey { get; set; } = string.Empty;
+    public string Provedor { get; set; } = "WhatsMiau";
+    public string ProvedorBaseUrl { get; set; } = "https://api.whatsmiau.dev/v2";
+    public string ProvedorApiKey { get; set; } = string.Empty;
+    public string ProvedorInstancia { get; set; } = string.Empty;
     public string Source { get; set; } = "quebra-nunca";
     public string TemplateKey { get; set; } = "qnf.convite.cadastro.v1";
     public string UrlApp { get; set; } = string.Empty;
@@ -20,14 +22,24 @@ public class ConfiguracaoWhatsappConviteCadastro
 
         var camposAusentes = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(CentralNotificacaoBaseUrl))
+        if (!string.Equals(Provedor, "WhatsMiau", StringComparison.OrdinalIgnoreCase))
         {
-            camposAusentes.Add($"{Secao}:CentralNotificacaoBaseUrl");
+            return $"O provedor de WhatsApp '{Provedor}' não é suportado.";
         }
 
-        if (string.IsNullOrWhiteSpace(CentralNotificacaoApiKey))
+        if (string.IsNullOrWhiteSpace(ProvedorBaseUrl))
         {
-            camposAusentes.Add($"{Secao}:CentralNotificacaoApiKey");
+            camposAusentes.Add($"{Secao}:ProvedorBaseUrl");
+        }
+
+        if (string.IsNullOrWhiteSpace(ProvedorApiKey))
+        {
+            camposAusentes.Add($"{Secao}:ProvedorApiKey");
+        }
+
+        if (string.IsNullOrWhiteSpace(ProvedorInstancia))
+        {
+            camposAusentes.Add($"{Secao}:ProvedorInstancia");
         }
 
         if (string.IsNullOrWhiteSpace(Source))

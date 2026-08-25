@@ -33,7 +33,7 @@ public record ConviteCadastroDto(
     DateTime? UltimaTentativaEnvioWhatsappEmUtc,
     DateTime? WhatsappEnviadoEmUtc,
     string? ErroEnvioWhatsapp,
-    string? WhatsappCentralNotificacaoId,
+    string? WhatsappEntregaId,
     DateTime DataCriacao,
     DateTime DataAtualizacao
 );
