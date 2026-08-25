@@ -23,6 +23,17 @@ public interface IUsuarioContexto
     Guid? UsuarioId { get; }
 }
 
+public interface ISessaoRequisicaoContexto
+{
+    string? IpAddress { get; }
+    string? UserAgent { get; }
+}
+
+public interface IProtecaoAbusoDistribuida
+{
+    Task<bool> TentarConsumirAsync(string chave, int limite, TimeSpan janela, CancellationToken cancellationToken = default);
+}
+
 public interface IAutorizacaoUsuarioServico
 {
     bool EhAdministrador(Usuario? usuario)

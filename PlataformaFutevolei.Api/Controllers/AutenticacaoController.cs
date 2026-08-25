@@ -126,13 +126,16 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
 
     [HttpPost("renovar-token")]
     [AllowAnonymous]
-    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaAcesso)]
     [ProducesResponseType(typeof(RespostaAutenticacaoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RenovarToken(
         [FromBody] RenovarTokenRequisicaoDto dto,
         CancellationToken cancellationToken)
     {
         var refreshToken = Request.Cookies[CookieRefreshToken];
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return NoContent();
+        }
         var resposta = await autenticacaoServico.RenovarTokenAsync(
             dto with { RefreshToken = refreshToken },
             cancellationToken);

@@ -11,6 +11,7 @@ public class Usuario : EntidadeBase
     public DateTime? CadastroCompletoEmUtc { get; set; }
     public DateTime? SenhaDefinidaEmUtc { get; set; }
     public DateTime? SenhaAtualizadaEmUtc { get; set; }
+    public int VersaoSeguranca { get; set; }
     public string? CodigoLoginHash { get; set; }
     public DateTime? CodigoLoginExpiraEmUtc { get; set; }
     public string? CodigoRedefinicaoSenhaHash { get; set; }

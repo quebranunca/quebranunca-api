@@ -22,6 +22,7 @@ public class AutenticacaoServico(
     ISenhaServico senhaServico,
     ITokenJwtServico tokenJwtServico,
     IUsuarioContexto usuarioContexto,
+    ISessaoRequisicaoContexto sessaoRequisicaoContexto,
     IResolvedorAtletaDuplaServico resolvedorAtletaDuplaServico,
     IPendenciaServico pendenciaServico,
     IEnvioEmailCodigoLoginServico envioEmailCodigoLoginServico,
@@ -667,6 +668,7 @@ public class AutenticacaoServico(
         usuario!.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
         usuario.SenhaDefinidaEmUtc ??= agora;
         usuario.SenhaAtualizadaEmUtc = agora;
+        usuario.VersaoSeguranca++;
         usuario.CodigoRedefinicaoSenhaHash = null;
         usuario.CodigoRedefinicaoSenhaExpiraEmUtc = null;
         await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
@@ -719,6 +721,7 @@ public class AutenticacaoServico(
         usuario.SenhaHash = senhaServico.GerarHash(dto.Senha);
         usuario.SenhaDefinidaEmUtc ??= agora;
         usuario.SenhaAtualizadaEmUtc = agora;
+        usuario.VersaoSeguranca++;
         await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.EmailConfirmadoEmUtc ??= agora;
         usuario.AtualizarDataModificacao();
@@ -755,6 +758,8 @@ public class AutenticacaoServico(
         usuario.SenhaHash = senhaServico.GerarHash(dto.Senha);
         usuario.SenhaDefinidaEmUtc = agora;
         usuario.SenhaAtualizadaEmUtc = agora;
+        usuario.VersaoSeguranca++;
+        await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -787,6 +792,7 @@ public class AutenticacaoServico(
         var agora = DateTime.UtcNow;
         usuario.SenhaHash = senhaServico.GerarHash(dto.NovaSenha);
         usuario.SenhaAtualizadaEmUtc = agora;
+        usuario.VersaoSeguranca++;
         await sessaoUsuarioRepositorio.RevogarTodasAsync(usuario.Id, agora, cancellationToken);
         usuario.AtualizarDataModificacao();
         usuarioRepositorio.Atualizar(usuario);
@@ -1130,7 +1136,9 @@ public class AutenticacaoServico(
         {
             UsuarioId = usuario.Id,
             RefreshTokenHash = senhaServico.GerarHash(segredoRefreshToken),
-            ExpiraEmUtc = expiracaoRefreshToken
+            ExpiraEmUtc = expiracaoRefreshToken,
+            IpAddress = sessaoRequisicaoContexto.IpAddress,
+            UserAgent = sessaoRequisicaoContexto.UserAgent
         };
         await sessaoUsuarioRepositorio.AdicionarAsync(sessao, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
@@ -1158,11 +1166,21 @@ public class AutenticacaoServico(
     {
         var agora = DateTime.UtcNow;
         var segredoRefreshToken = GerarRefreshToken();
-        sessao.RefreshTokenHash = senhaServico.GerarHash(segredoRefreshToken);
+        var novoHash = senhaServico.GerarHash(segredoRefreshToken);
+        var rotacionou = await sessaoUsuarioRepositorio.RotacionarAsync(
+            sessao.Id,
+            sessao.RefreshTokenHash,
+            novoHash,
+            agora,
+            sessaoRequisicaoContexto.IpAddress,
+            sessaoRequisicaoContexto.UserAgent,
+            cancellationToken);
+        if (!rotacionou)
+        {
+            throw new RegraNegocioException("A sessão foi renovada em outro dispositivo ou aba. Tente novamente.");
+        }
+        sessao.RefreshTokenHash = novoHash;
         sessao.UltimoUsoEmUtc = agora;
-        sessao.AtualizarDataModificacao();
-        sessaoUsuarioRepositorio.Atualizar(sessao);
-        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
         var expiracaoToken = tokenJwtServico.ObterExpiracaoTokenAcessoUtc(sessao.ExpiraEmUtc);
         var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
@@ -1214,7 +1232,9 @@ public class AutenticacaoServico(
         {
             UsuarioId = usuario.Id,
             RefreshTokenHash = senhaServico.GerarHash(segredo),
-            ExpiraEmUtc = expiracaoLegada
+            ExpiraEmUtc = expiracaoLegada,
+            IpAddress = sessaoRequisicaoContexto.IpAddress,
+            UserAgent = sessaoRequisicaoContexto.UserAgent
         };
         await sessaoUsuarioRepositorio.AdicionarAsync(sessao, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);

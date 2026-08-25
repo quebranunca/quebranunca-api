@@ -15,6 +15,26 @@ public sealed class SessaoUsuarioRepositorio(PlataformaFutevoleiDbContext dbCont
 
     public void Atualizar(SessaoUsuario sessao) => dbContext.SessoesUsuarios.Update(sessao);
 
+    public async Task<bool> RotacionarAsync(
+        Guid sessaoId,
+        string hashAtual,
+        string novoHash,
+        DateTime agoraUtc,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken = default)
+    {
+        var alteradas = await dbContext.SessoesUsuarios
+            .Where(x => x.Id == sessaoId && x.RefreshTokenHash == hashAtual && x.RevogadaEmUtc == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.RefreshTokenHash, novoHash)
+                .SetProperty(x => x.UltimoUsoEmUtc, agoraUtc)
+                .SetProperty(x => x.IpAddress, x => ipAddress ?? x.IpAddress)
+                .SetProperty(x => x.UserAgent, x => userAgent ?? x.UserAgent)
+                .SetProperty(x => x.DataAtualizacao, agoraUtc), cancellationToken);
+        return alteradas == 1;
+    }
+
     public async Task RevogarTodasAsync(Guid usuarioId, DateTime agoraUtc, CancellationToken cancellationToken = default)
     {
         var sessoes = await dbContext.SessoesUsuarios

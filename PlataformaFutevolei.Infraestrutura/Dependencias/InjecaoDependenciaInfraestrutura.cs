@@ -150,6 +150,7 @@ public static class InjecaoDependenciaInfraestrutura
 
         services.AddScoped<IUnidadeTrabalho, UnidadeTrabalho>();
         services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
+        services.AddScoped<IProtecaoAbusoDistribuida, ProtecaoAbusoDistribuidaPostgres>();
         services.AddScoped<ISessaoUsuarioRepositorio, SessaoUsuarioRepositorio>();
         services.AddScoped<IUsuarioConsentimentoLgpdRepositorio, UsuarioConsentimentoLgpdRepositorio>();
         services.AddScoped<ICodigoAcessoEmailRepositorio, CodigoAcessoEmailRepositorio>();

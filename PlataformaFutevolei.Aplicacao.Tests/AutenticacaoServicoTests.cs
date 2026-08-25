@@ -45,6 +45,9 @@ public class AutenticacaoServicoTests
         Assert.Equal(cenario.AtletaRetornado.Id, usuario.Atleta!.Id);
         Assert.False(string.IsNullOrWhiteSpace(resposta.Token));
         Assert.False(string.IsNullOrWhiteSpace(resposta.RefreshToken));
+        var sessao = Assert.Single(cenario.Sessoes.Itens);
+        Assert.Equal("127.0.0.1", sessao.IpAddress);
+        Assert.Equal("Testes", sessao.UserAgent);
         Assert.Equal(resposta.Usuario.Id, usuario.Id);
         Assert.True(convite.FoiUtilizado());
         Assert.NotNull(convite.UsadoEmUtc);
@@ -1140,6 +1143,7 @@ public class AutenticacaoServicoTests
         Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
         Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
         Assert.NotNull(codigoAcesso.ConsumidoEmUtc);
+        Assert.Equal(1, usuario.VersaoSeguranca);
     }
 
     [Fact]
@@ -1168,6 +1172,7 @@ public class AutenticacaoServicoTests
         Assert.Equal("hash:NovaSenha123", usuario.SenhaHash);
         Assert.NotNull(usuario.SenhaDefinidaEmUtc);
         Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
+        Assert.Equal(1, usuario.VersaoSeguranca);
         Assert.Null(usuario.CodigoRedefinicaoSenhaHash);
         Assert.Null(usuario.CodigoRedefinicaoSenhaExpiraEmUtc);
     }
@@ -1369,6 +1374,7 @@ public class AutenticacaoServicoTests
         Assert.Equal(definidaEm, usuario.SenhaDefinidaEmUtc);
         Assert.NotNull(usuario.SenhaAtualizadaEmUtc);
         Assert.NotEqual(definidaEm, usuario.SenhaAtualizadaEmUtc);
+        Assert.Equal(1, usuario.VersaoSeguranca);
     }
 
     [Fact]
@@ -1469,6 +1475,8 @@ public class AutenticacaoServicoTests
         Assert.Equal(login.RefreshToken.Split('.')[0], renovacao.RefreshToken.Split('.')[0]);
         Assert.Single(cenario.Sessoes.Itens);
         Assert.NotNull(cenario.Sessoes.Itens[0].UltimoUsoEmUtc);
+        Assert.Equal("127.0.0.1", cenario.Sessoes.Itens[0].IpAddress);
+        Assert.Equal("Testes", cenario.Sessoes.Itens[0].UserAgent);
     }
 
     [Fact]
@@ -1708,6 +1716,7 @@ public class AutenticacaoServicoTests
                 SenhaServico,
                 TokenJwt,
                 new UsuarioContextoStub(usuarioContexto),
+                new SessaoRequisicaoContextoStub(),
                 ResolvedorAtleta,
                 PendenciaServico,
                 EnvioEmailCodigo,
@@ -1737,6 +1746,12 @@ public class AutenticacaoServicoTests
 
             public Guid? UsuarioId { get; }
         }
+
+        private sealed class SessaoRequisicaoContextoStub : ISessaoRequisicaoContexto
+        {
+            public string? IpAddress => "127.0.0.1";
+            public string? UserAgent => "Testes";
+        }
     }
 
     private sealed class SessaoUsuarioRepositorioMemoria : ISessaoUsuarioRepositorio
@@ -1755,6 +1770,24 @@ public class AutenticacaoServicoTests
         public void Atualizar(SessaoUsuario sessao)
         {
             if (!Itens.Contains(sessao)) Itens.Add(sessao);
+        }
+
+        public Task<bool> RotacionarAsync(
+            Guid sessaoId,
+            string hashAtual,
+            string novoHash,
+            DateTime agoraUtc,
+            string? ipAddress,
+            string? userAgent,
+            CancellationToken cancellationToken = default)
+        {
+            var sessao = Itens.FirstOrDefault(x => x.Id == sessaoId && x.RefreshTokenHash == hashAtual && x.RevogadaEmUtc == null);
+            if (sessao is null) return Task.FromResult(false);
+            sessao.RefreshTokenHash = novoHash;
+            sessao.UltimoUsoEmUtc = agoraUtc;
+            sessao.IpAddress = ipAddress ?? sessao.IpAddress;
+            sessao.UserAgent = userAgent ?? sessao.UserAgent;
+            return Task.FromResult(true);
         }
 
         public Task RevogarTodasAsync(Guid usuarioId, DateTime agoraUtc, CancellationToken cancellationToken = default)

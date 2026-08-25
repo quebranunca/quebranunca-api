@@ -42,6 +42,11 @@ public class UsuarioMapeamento : IEntityTypeConfiguration<Usuario>
         builder.Property(x => x.SenhaAtualizadaEmUtc)
             .HasColumnName("senha_atualizada_em_utc");
 
+        builder.Property(x => x.VersaoSeguranca)
+            .HasColumnName("versao_seguranca")
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(x => x.CodigoLoginHash)
             .HasColumnName("codigo_login_hash")
             .HasMaxLength(255);

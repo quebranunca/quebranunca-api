@@ -91,6 +91,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioContexto, UsuarioContextoHttp>();
+builder.Services.AddScoped<ISessaoRequisicaoContexto, SessaoRequisicaoContextoHttp>();
 builder.Services.AddSingleton(
     builder.Configuration.GetSection(PartidaDuplicidadeOpcoes.Secao).Get<PartidaDuplicidadeOpcoes>()
     ?? new PartidaDuplicidadeOpcoes());
@@ -149,6 +150,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<PlataformaFutevoleiDbContext>();
                 bool usuarioAtivo;
                 PerfilUsuario? perfilAtual;
+                int? versaoSegurancaAtual;
                 try
                 {
                     usuarioAtivo = await dbContext.Usuarios
@@ -160,6 +162,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                         ? await dbContext.Usuarios.AsNoTracking()
                             .Where(x => x.Id == usuarioId)
                             .Select(x => (PerfilUsuario?)x.Perfil)
+                            .FirstOrDefaultAsync(CancellationToken.None)
+                        : null;
+                    versaoSegurancaAtual = usuarioAtivo
+                        ? await dbContext.Usuarios.AsNoTracking()
+                            .Where(x => x.Id == usuarioId)
+                            .Select(x => (int?)x.VersaoSeguranca)
                             .FirstOrDefaultAsync(CancellationToken.None)
                         : null;
                 }
@@ -179,6 +187,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     StringComparison.Ordinal))
                 {
                     context.Fail("As permissões da sessão foram alteradas. Entre novamente.");
+                }
+                else if (!int.TryParse(context.Principal?.FindFirstValue("qnf_security_version"), out var versaoToken)
+                    || versaoSegurancaAtual != versaoToken)
+                {
+                    context.Fail("A segurança da conta foi alterada. Entre novamente.");
                 }
             }
         };
@@ -305,6 +318,7 @@ app.UseRouting();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
+app.UseMiddleware<ProtecaoAbusoDistribuidaMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 

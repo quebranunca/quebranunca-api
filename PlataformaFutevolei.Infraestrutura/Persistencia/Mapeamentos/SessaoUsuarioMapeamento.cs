@@ -13,6 +13,7 @@ public sealed class SessaoUsuarioMapeamento : IEntityTypeConfiguration<SessaoUsu
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.UsuarioId).HasColumnName("usuario_id").IsRequired();
         builder.Property(x => x.RefreshTokenHash).HasColumnName("refresh_token_hash").HasMaxLength(255).IsRequired();
+        builder.Property(x => x.RefreshTokenHash).IsConcurrencyToken();
         builder.Property(x => x.ExpiraEmUtc).HasColumnName("expira_em_utc").IsRequired();
         builder.Property(x => x.UltimoUsoEmUtc).HasColumnName("ultimo_uso_em_utc");
         builder.Property(x => x.RevogadaEmUtc).HasColumnName("revogada_em_utc");

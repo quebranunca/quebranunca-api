@@ -48,7 +48,8 @@ public class TokenJwtServico(IOptions<ConfiguracaoJwt> configuracaoJwt) : IToken
             new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new(ClaimTypes.Name, usuario.Nome),
             new(ClaimTypes.Email, usuario.Email),
-            new(ClaimTypes.Role, usuario.Perfil.ToString())
+            new(ClaimTypes.Role, usuario.Perfil.ToString()),
+            new("qnf_security_version", usuario.VersaoSeguranca.ToString())
         };
 
         var token = new JwtSecurityToken(

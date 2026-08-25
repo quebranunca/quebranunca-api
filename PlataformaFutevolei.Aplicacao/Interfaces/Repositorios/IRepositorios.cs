@@ -26,6 +26,14 @@ public interface ISessaoUsuarioRepositorio
     Task<SessaoUsuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
     Task AdicionarAsync(SessaoUsuario sessao, CancellationToken cancellationToken = default);
     void Atualizar(SessaoUsuario sessao);
+    Task<bool> RotacionarAsync(
+        Guid sessaoId,
+        string hashAtual,
+        string novoHash,
+        DateTime agoraUtc,
+        string? ipAddress,
+        string? userAgent,
+        CancellationToken cancellationToken = default);
     Task RevogarTodasAsync(Guid usuarioId, DateTime agoraUtc, CancellationToken cancellationToken = default);
 }
 

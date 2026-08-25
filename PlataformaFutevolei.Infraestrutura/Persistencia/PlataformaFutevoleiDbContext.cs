@@ -8,6 +8,7 @@ public class PlataformaFutevoleiDbContext(DbContextOptions<PlataformaFutevoleiDb
 {
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<SessaoUsuario> SessoesUsuarios => Set<SessaoUsuario>();
+    public DbSet<ControleRateLimit> ControlesRateLimit => Set<ControleRateLimit>();
     public DbSet<IdentidadeExternaUsuario> UsuariosIdentidadesExternas => Set<IdentidadeExternaUsuario>();
     public DbSet<UsuarioConsentimentoLgpd> UsuariosConsentimentosLgpd => Set<UsuarioConsentimentoLgpd>();
     public DbSet<CodigoAcessoEmail> CodigosAcessoEmail => Set<CodigoAcessoEmail>();
