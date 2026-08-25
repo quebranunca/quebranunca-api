@@ -21,6 +21,7 @@ public class ConviteCadastroServico(
     IGeracaoLinkConviteCadastroServico geracaoLinkConviteCadastroServico,
     IEnvioEmailConviteCadastroServico envioEmailConviteCadastroServico,
     IEnvioWhatsappConviteCadastroServico envioWhatsappConviteCadastroServico,
+    IEnvioSmsConviteCadastroServico envioSmsConviteCadastroServico,
     ILogger<ConviteCadastroServico> logger
 ) : IConviteCadastroServico
 {
@@ -138,8 +139,7 @@ public class ConviteCadastroServico(
         var conviteCriado = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(convite.Id, cancellationToken)
             ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
 
-        await TentarEnviarEmailAutomaticoAsync(conviteCriado, cancellationToken);
-        await TentarEnviarWhatsappAutomaticoAsync(conviteCriado, cancellationToken);
+        await TentarEnviarComFallbackAutomaticoAsync(conviteCriado, cancellationToken);
 
         return conviteCriado.ParaDto();
     }
@@ -206,7 +206,7 @@ public class ConviteCadastroServico(
 
             var conviteCriado = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(convite.Id, cancellationToken)
                 ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
-            await TentarEnviarEmailAutomaticoAsync(conviteCriado, cancellationToken);
+            await TentarEnviarComFallbackAutomaticoAsync(conviteCriado, cancellationToken);
 
             return new ConvitePendenciaAtletaResultadoDto(true, false, false, convite.Id);
         }
@@ -322,6 +322,72 @@ public class ConviteCadastroServico(
             falharSemConfiguracao: false,
             falharQuandoNaoEnviado: false,
             cancellationToken);
+    }
+
+    private async Task TentarEnviarComFallbackAutomaticoAsync(
+        ConviteCadastro conviteCadastro,
+        CancellationToken cancellationToken)
+    {
+        var canal = conviteCadastro.CanalEnvio?.Trim() ?? CanalEmail;
+        var modoAutomatico = canal.Equals("Automático", StringComparison.OrdinalIgnoreCase);
+        var permiteWhatsapp = modoAutomatico || DeveEnviarWhatsappAutomaticamente(canal);
+        var permiteEmail = modoAutomatico || DeveEnviarEmailAutomaticamente(canal);
+
+        if (permiteWhatsapp && !string.IsNullOrWhiteSpace(conviteCadastro.Telefone))
+        {
+            await EnviarWhatsappConviteAsync(
+                conviteCadastro,
+                falharSemConfiguracao: false,
+                falharQuandoNaoEnviado: false,
+                cancellationToken);
+            if (conviteCadastro.WhatsappEnviadoEmUtc.HasValue ||
+                (!string.IsNullOrWhiteSpace(conviteCadastro.WhatsappEntregaId) &&
+                 string.IsNullOrWhiteSpace(conviteCadastro.ErroEnvioWhatsapp)))
+                return;
+        }
+
+        if (permiteEmail && !string.IsNullOrWhiteSpace(conviteCadastro.Email))
+        {
+            await EnviarEmailConviteAsync(
+                conviteCadastro,
+                falharSemConfiguracao: false,
+                falharQuandoNaoEnviado: false,
+                cancellationToken);
+            if (conviteCadastro.EmailEnviadoEmUtc.HasValue)
+                return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(conviteCadastro.Telefone))
+            await TentarEnviarSmsAutomaticoAsync(conviteCadastro, cancellationToken);
+    }
+
+    private async Task TentarEnviarSmsAutomaticoAsync(
+        ConviteCadastro conviteCadastro,
+        CancellationToken cancellationToken)
+    {
+        var codigoConvite = await ObterOuGerarCodigoConviteAsync(conviteCadastro, cancellationToken);
+        if (string.IsNullOrWhiteSpace(conviteCadastro.SmsIdempotencyKey) || conviteCadastro.SmsEnviadoEmUtc.HasValue)
+        {
+            conviteCadastro.PrepararSolicitacaoSms(
+                $"convite-cadastro-sms:{conviteCadastro.Id:N}:{Guid.NewGuid():N}", DateTime.UtcNow);
+            conviteCadastroRepositorio.Atualizar(conviteCadastro);
+            await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        }
+
+        var resultado = await envioSmsConviteCadastroServico.EnviarAsync(
+            conviteCadastro, codigoConvite, cancellationToken);
+        if (!resultado.TentativaRealizada)
+            return;
+
+        if (resultado.Enviado)
+            conviteCadastro.RegistrarEnvioSmsComSucesso(DateTime.UtcNow, resultado.IdentificadorMensagem);
+        else if (resultado.Aceito && !string.IsNullOrWhiteSpace(resultado.IdentificadorMensagem))
+            conviteCadastro.RegistrarSolicitacaoSmsAceita(resultado.IdentificadorMensagem, DateTime.UtcNow);
+        else
+            conviteCadastro.RegistrarFalhaEnvioSms(resultado.Erro, DateTime.UtcNow);
+
+        conviteCadastroRepositorio.Atualizar(conviteCadastro);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
     private static DateTime NormalizarExpiracao(DateTime? expiraEmUtc)

@@ -33,6 +33,11 @@ public class ConviteCadastroMapeamento : IEntityTypeConfiguration<ConviteCadastr
         builder.Property(x => x.ErroEnvioWhatsapp).HasColumnName("erro_envio_whatsapp").HasMaxLength(500);
         builder.Property(x => x.WhatsappEntregaId).HasColumnName("whatsapp_entrega_id").HasMaxLength(128);
         builder.Property(x => x.WhatsappIdempotencyKey).HasColumnName("whatsapp_idempotency_key").HasMaxLength(200);
+        builder.Property(x => x.UltimaTentativaEnvioSmsEmUtc).HasColumnName("ultima_tentativa_envio_sms_em_utc");
+        builder.Property(x => x.SmsEnviadoEmUtc).HasColumnName("sms_enviado_em_utc");
+        builder.Property(x => x.ErroEnvioSms).HasColumnName("erro_envio_sms").HasMaxLength(500);
+        builder.Property(x => x.SmsEntregaId).HasColumnName("sms_entrega_id").HasMaxLength(128);
+        builder.Property(x => x.SmsIdempotencyKey).HasColumnName("sms_idempotency_key").HasMaxLength(200);
         builder.Property(x => x.DataCriacao).HasColumnName("data_criacao").IsRequired();
         builder.Property(x => x.DataAtualizacao).HasColumnName("data_atualizacao").IsRequired();
 

@@ -25,6 +25,11 @@ public class ConviteCadastro : EntidadeBase
     public string? ErroEnvioWhatsapp { get; set; }
     public string? WhatsappEntregaId { get; set; }
     public string? WhatsappIdempotencyKey { get; set; }
+    public DateTime? UltimaTentativaEnvioSmsEmUtc { get; set; }
+    public DateTime? SmsEnviadoEmUtc { get; set; }
+    public string? ErroEnvioSms { get; set; }
+    public string? SmsEntregaId { get; set; }
+    public string? SmsIdempotencyKey { get; set; }
 
     public Usuario? CriadoPorUsuario { get; set; }
     public Atleta? Atleta { get; set; }
@@ -75,6 +80,13 @@ public class ConviteCadastro : EntidadeBase
             : !string.IsNullOrWhiteSpace(WhatsappEntregaId)
                 ? "Processando"
                 : "Pendente";
+    }
+
+    public string ObterSituacaoEnvioSms()
+    {
+        if (SmsEnviadoEmUtc.HasValue) return "Enviado";
+        if (UltimaTentativaEnvioSmsEmUtc.HasValue && !string.IsNullOrWhiteSpace(ErroEnvioSms)) return "Falhou";
+        return !string.IsNullOrWhiteSpace(SmsEntregaId) ? "Processando" : "Pendente";
     }
 
     public void MarcarComoUtilizado(DateTime dataUtc)
@@ -150,6 +162,42 @@ public class ConviteCadastro : EntidadeBase
         ErroEnvioWhatsapp = string.IsNullOrWhiteSpace(mensagemErro)
             ? "Falha ao enviar o WhatsApp do convite."
             : mensagemErro.Trim();
+        AtualizarDataModificacao();
+    }
+
+    public void PrepararSolicitacaoSms(string idempotencyKey, DateTime dataUtc)
+    {
+        SmsIdempotencyKey = idempotencyKey;
+        SmsEntregaId = null;
+        UltimaTentativaEnvioSmsEmUtc = dataUtc;
+        SmsEnviadoEmUtc = null;
+        ErroEnvioSms = null;
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarSolicitacaoSmsAceita(string identificadorEntrega, DateTime dataUtc)
+    {
+        SmsEntregaId = identificadorEntrega;
+        UltimaTentativaEnvioSmsEmUtc = dataUtc;
+        SmsEnviadoEmUtc = null;
+        ErroEnvioSms = null;
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarEnvioSmsComSucesso(DateTime dataUtc, string? identificadorMensagem = null)
+    {
+        SmsEntregaId = identificadorMensagem;
+        UltimaTentativaEnvioSmsEmUtc = dataUtc;
+        SmsEnviadoEmUtc = dataUtc;
+        ErroEnvioSms = null;
+        AtualizarDataModificacao();
+    }
+
+    public void RegistrarFalhaEnvioSms(string? mensagemErro, DateTime dataUtc)
+    {
+        UltimaTentativaEnvioSmsEmUtc = dataUtc;
+        SmsEnviadoEmUtc = null;
+        ErroEnvioSms = string.IsNullOrWhiteSpace(mensagemErro) ? "Falha ao enviar o SMS do convite." : mensagemErro.Trim();
         AtualizarDataModificacao();
     }
 }

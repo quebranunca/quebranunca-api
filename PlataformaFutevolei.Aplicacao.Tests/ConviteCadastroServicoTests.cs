@@ -92,6 +92,53 @@ public class ConviteCadastroServicoTests
     }
 
     [Fact]
+    public async Task CriarAsync_Automatico_WhatsappAceito_NaoTentaEmailNemSms()
+    {
+        var cenario = new Cenario();
+        cenario.Whatsapp.Resultado = new(true, false, null, "wa-1", Aceito: true);
+
+        var convite = await cenario.Servico.CriarAsync(new CriarConviteCadastroDto(
+            "atleta@example.com", "13 99999-0000", null, DateTime.UtcNow.AddDays(1), "Automático"));
+
+        Assert.Single(cenario.Whatsapp.Envios);
+        Assert.Empty(cenario.Email.Envios);
+        Assert.Empty(cenario.Sms.Envios);
+        Assert.Equal("Processando", convite.SituacaoEnvioWhatsapp);
+    }
+
+    [Fact]
+    public async Task CriarAsync_Automatico_WhatsappFalhaEmailEnviado_NaoTentaSms()
+    {
+        var cenario = new Cenario();
+        cenario.Whatsapp.Resultado = new(true, false, "Falha WhatsApp", null);
+        cenario.Email.Resultado = new(true, true, null, "email-1");
+
+        var convite = await cenario.Servico.CriarAsync(new CriarConviteCadastroDto(
+            "atleta@example.com", "13 99999-0000", null, DateTime.UtcNow.AddDays(1), "Automático"));
+
+        Assert.Single(cenario.Whatsapp.Envios);
+        Assert.Single(cenario.Email.Envios);
+        Assert.Empty(cenario.Sms.Envios);
+        Assert.Equal("Enviado", convite.SituacaoEnvioEmail);
+    }
+
+    [Fact]
+    public async Task CriarAsync_WhatsappFalhaEEmailRecusado_TentaSmsComoUltimoRecurso()
+    {
+        var cenario = new Cenario();
+        cenario.Whatsapp.Resultado = new(true, false, "Falha WhatsApp", null);
+        cenario.Sms.Resultado = new(true, false, null, "sms-1", Aceito: true);
+
+        var convite = await cenario.Servico.CriarAsync(new CriarConviteCadastroDto(
+            "atleta@example.com", "13 99999-0000", null, DateTime.UtcNow.AddDays(1), "WhatsApp"));
+
+        Assert.Single(cenario.Whatsapp.Envios);
+        Assert.Empty(cenario.Email.Envios);
+        Assert.Single(cenario.Sms.Envios);
+        Assert.Equal("Processando", convite.SituacaoEnvioSms);
+    }
+
+    [Fact]
     public async Task CriarParaPendenciaAtletaAsync_EmailComConviteAtivo_NaoDuplicaConvite()
     {
         var cenario = new Cenario();
@@ -325,6 +372,7 @@ public class ConviteCadastroServicoTests
             Convites = new ConviteCadastroRepositorioStub();
             Email = new EnvioEmailConviteCadastroServicoStub();
             Whatsapp = new EnvioWhatsappConviteCadastroServicoStub();
+            Sms = new EnvioSmsConviteCadastroServicoStub();
             Servico = new ConviteCadastroServico(
                 Convites,
                 new AtletaRepositorioStub(),
@@ -334,6 +382,7 @@ public class ConviteCadastroServicoTests
                 new GeracaoLinkConviteCadastroServicoStub(),
                 Email,
                 Whatsapp,
+                Sms,
                 NullLogger<ConviteCadastroServico>.Instance);
         }
 
@@ -342,6 +391,7 @@ public class ConviteCadastroServicoTests
         public ConviteCadastroRepositorioStub Convites { get; }
         public EnvioEmailConviteCadastroServicoStub Email { get; }
         public EnvioWhatsappConviteCadastroServicoStub Whatsapp { get; }
+        public EnvioSmsConviteCadastroServicoStub Sms { get; }
         public ConviteCadastroServico Servico { get; }
     }
 
@@ -506,6 +556,21 @@ public class ConviteCadastroServicoTests
         public List<(Guid ConviteId, string CodigoConvite)> Envios { get; } = [];
 
         public Task<ResultadoEnvioWhatsappConviteDto> EnviarAsync(
+            ConviteCadastro conviteCadastro,
+            string codigoConvite,
+            CancellationToken cancellationToken = default)
+        {
+            Envios.Add((conviteCadastro.Id, codigoConvite));
+            return Task.FromResult(Resultado);
+        }
+    }
+
+    private sealed class EnvioSmsConviteCadastroServicoStub : IEnvioSmsConviteCadastroServico
+    {
+        public ResultadoEnvioSmsConviteDto Resultado { get; set; } = new(false, false, null, null);
+        public List<(Guid ConviteId, string CodigoConvite)> Envios { get; } = [];
+
+        public Task<ResultadoEnvioSmsConviteDto> EnviarAsync(
             ConviteCadastro conviteCadastro,
             string codigoConvite,
             CancellationToken cancellationToken = default)

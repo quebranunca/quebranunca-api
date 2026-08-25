@@ -140,6 +140,8 @@ public static class InjecaoDependenciaInfraestrutura
                 ?? string.Empty;
             options.Remetente = ObterValorConfiguracaoOuAmbiente(secaoSms["Remetente"], "ZENVIA_SMS_FROM")
                 ?? string.Empty;
+            options.TemplateKey = secaoSms["TemplateKey"] ?? "qnf.convite.cadastro.sms.v1";
+            options.UrlApp = secaoSms["UrlApp"] ?? frontendUrlPadrao;
         });
 
         var secaoCloudinary = configuration.GetSection(CloudinaryConfiguracao.Secao);
@@ -232,6 +234,7 @@ public static class InjecaoDependenciaInfraestrutura
             sp.GetRequiredService<AdaptadorSmsZenviaServico>());
         services.AddScoped<IEntregaNotificacaoExternaServico, EntregaNotificacaoDiretaServico>();
         services.AddScoped<IEnvioWhatsappConviteCadastroServico, WhatsappConviteCadastroServico>();
+        services.AddScoped<IEnvioSmsConviteCadastroServico, SmsConviteCadastroServico>();
 
         return services;
     }

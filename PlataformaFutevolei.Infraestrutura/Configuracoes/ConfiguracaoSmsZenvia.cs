@@ -9,6 +9,8 @@ public sealed class ConfiguracaoSmsZenvia
     public string BaseUrl { get; set; } = "https://api.zenvia.com/v1";
     public string ApiToken { get; set; } = string.Empty;
     public string Remetente { get; set; } = string.Empty;
+    public string TemplateKey { get; set; } = "qnf.convite.cadastro.sms.v1";
+    public string UrlApp { get; set; } = string.Empty;
 
     public string? ObterMensagemConfiguracaoIncompleta()
     {
@@ -21,6 +23,8 @@ public sealed class ConfiguracaoSmsZenvia
         if (string.IsNullOrWhiteSpace(BaseUrl)) camposAusentes.Add($"{Secao}:BaseUrl");
         if (string.IsNullOrWhiteSpace(ApiToken)) camposAusentes.Add($"{Secao}:ApiToken");
         if (string.IsNullOrWhiteSpace(Remetente)) camposAusentes.Add($"{Secao}:Remetente");
+        if (string.IsNullOrWhiteSpace(TemplateKey)) camposAusentes.Add($"{Secao}:TemplateKey");
+        if (string.IsNullOrWhiteSpace(UrlApp)) camposAusentes.Add($"{Secao}:UrlApp");
 
         return camposAusentes.Count == 0
             ? null

@@ -30,6 +30,8 @@
 - Configure `ZENVIA_API_TOKEN` e `ZENVIA_SMS_FROM` no ambiente; `ZENVIA_SMS_BASE_URL` é opcional.
 - Solicitações aceitas pela API retornam `Aceito`, não `Enviado`; confirmação de entrega deve ser processada futuramente pelo webhook `MESSAGE_STATUS`.
 - O contrato espera `Dados["texto"]` e telefone brasileiro com DDD; o adaptador normaliza o destino para o formato `55DDDNÚMERO`.
+- Convites no modo `Automático` seguem `WhatsApp → e-mail → SMS` e param assim que um canal envia ou aceita a solicitação.
+- A opção somente `WhatsApp` representa recusa do e-mail; em caso de falha, o fallback vai diretamente para SMS.
 
 ## Frontend
 

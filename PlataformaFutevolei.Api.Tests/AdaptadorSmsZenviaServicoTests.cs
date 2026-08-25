@@ -67,7 +67,9 @@ public sealed class AdaptadorSmsZenviaServicoTests
             Provedor = "Zenvia",
             BaseUrl = "https://api.zenvia.com/v1",
             ApiToken = "token-teste",
-            Remetente = "QuebraNunca"
+            Remetente = "QuebraNunca",
+            TemplateKey = "qnf.codigo.acesso.v1",
+            UrlApp = "https://app.quebranunca.com.br"
         }), NullLogger<AdaptadorSmsZenviaServico>.Instance);
 
     private static HttpResponseMessage Json(HttpStatusCode status, string body) => new(status)
