@@ -63,6 +63,16 @@ public record SegurancaUsuarioDto(
     bool PossuiSenha
 );
 
+public record SessaoUsuarioDto(
+    Guid Id,
+    string Dispositivo,
+    string? IpMascarado,
+    DateTime CriadaEmUtc,
+    DateTime? UltimoUsoEmUtc,
+    DateTime ExpiraEmUtc,
+    bool Atual
+);
+
 public record RenovarTokenRequisicaoDto(
     string? Token,
     string? RefreshToken

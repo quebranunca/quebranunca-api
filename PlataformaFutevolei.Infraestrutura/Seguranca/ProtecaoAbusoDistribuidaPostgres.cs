@@ -1,14 +1,19 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
 using PlataformaFutevolei.Infraestrutura.Persistencia;
 
 namespace PlataformaFutevolei.Infraestrutura.Seguranca;
 
-public sealed class ProtecaoAbusoDistribuidaPostgres(PlataformaFutevoleiDbContext dbContext)
+public sealed class ProtecaoAbusoDistribuidaPostgres(
+    PlataformaFutevoleiDbContext dbContext,
+    ILogger<ProtecaoAbusoDistribuidaPostgres> logger)
     : IProtecaoAbusoDistribuida
 {
+    private static int operacoes;
+
     public async Task<bool> TentarConsumirAsync(
         string chave,
         int limite,
@@ -49,6 +54,10 @@ public sealed class ProtecaoAbusoDistribuidaPostgres(PlataformaFutevoleiDbContex
             comando.Parameters.AddWithValue("agora", agora);
             comando.Parameters.AddWithValue("expira", expiraEm);
             var contador = Convert.ToInt32(await comando.ExecuteScalarAsync(cancellationToken));
+            if ((Interlocked.Increment(ref operacoes) & 255) == 0)
+            {
+                await LimparRegistrosExpiradosAsync(conexao, agora);
+            }
             return contador <= limite;
         }
         finally
@@ -57,6 +66,21 @@ public sealed class ProtecaoAbusoDistribuidaPostgres(PlataformaFutevoleiDbContex
             {
                 await conexao.CloseAsync();
             }
+        }
+    }
+
+    private async Task LimparRegistrosExpiradosAsync(NpgsqlConnection conexao, DateTime agoraUtc)
+    {
+        try
+        {
+            await using var comando = conexao.CreateCommand();
+            comando.CommandText = "DELETE FROM controles_rate_limit WHERE expira_em_utc <= @agora;";
+            comando.Parameters.AddWithValue("agora", agoraUtc);
+            await comando.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+        catch (Exception excecao)
+        {
+            logger.LogWarning(excecao, "Não foi possível limpar controles de rate limit expirados.");
         }
     }
 }

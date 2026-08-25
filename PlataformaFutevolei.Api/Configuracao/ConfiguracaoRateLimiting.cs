@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using PlataformaFutevolei.Api.Seguranca;
 
 namespace PlataformaFutevolei.Api.Configuracao;
 
@@ -60,7 +61,7 @@ public static class ConfiguracaoRateLimiting
         int limite,
         TimeSpan janela)
     {
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido";
+        var ip = EnderecoIpClienteHttp.Obter(context) ?? "desconhecido";
         return CriarLimitador($"{politica}:ip:{ip}", limite, janela);
     }
 
@@ -72,7 +73,7 @@ public static class ConfiguracaoRateLimiting
     {
         var usuarioId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var particao = string.IsNullOrWhiteSpace(usuarioId)
-            ? $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido"}"
+            ? $"ip:{EnderecoIpClienteHttp.Obter(context) ?? "desconhecido"}"
             : $"usuario:{usuarioId}";
 
         return CriarLimitador($"{politica}:{particao}", limite, janela);

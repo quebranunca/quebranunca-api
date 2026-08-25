@@ -70,6 +70,7 @@
 ## Contexto Railway/produção
 
 - `postgres.railway.internal` só resolve dentro da rede privada da Railway; para comandos locais como `dotnet ef database update`, usar a URL pública/TCP Proxy (`*.proxy.rlwy.net` com porta numérica)
+- O IP real do cliente chega em `X-Real-IP`; aceitar esse cabeçalho somente quando a conexão imediata vier da rede interna `100.0.0.0/8` da Railway. Não usar `X-Forwarded-For` sem validação para auditoria ou rate limiting.
 - Em `Production`, a API exige `Jwt__Chave` e `Frontend__Url` válidos; para debug local temporário, pode-se passar por variável de ambiente, sem salvar secrets no repositório
 - Não colocar connection string real, senha de banco ou chave JWT em `appsettings.Production.json`; se isso acontecer, remover antes de commit e rotacionar o segredo exposto
 - Se `POST /api/partidas` falhar em produção com coluna/tabela faltando, validar no banco alvo a existência de `partidas.status_aprovacao`, `partidas_aprovacoes` e `pendencias_usuarios`, e validar pelo EF se as migrations acima aparecem no catálogo

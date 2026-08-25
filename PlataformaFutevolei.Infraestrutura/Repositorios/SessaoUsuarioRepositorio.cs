@@ -10,6 +10,16 @@ public sealed class SessaoUsuarioRepositorio(PlataformaFutevoleiDbContext dbCont
     public Task<SessaoUsuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default)
         => dbContext.SessoesUsuarios.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<SessaoUsuario>> ListarAtivasPorUsuarioAsync(
+        Guid usuarioId,
+        DateTime agoraUtc,
+        CancellationToken cancellationToken = default)
+        => await dbContext.SessoesUsuarios
+            .AsNoTracking()
+            .Where(x => x.UsuarioId == usuarioId && x.RevogadaEmUtc == null && x.ExpiraEmUtc >= agoraUtc)
+            .OrderByDescending(x => x.UltimoUsoEmUtc ?? x.DataCriacao)
+            .ToListAsync(cancellationToken);
+
     public Task AdicionarAsync(SessaoUsuario sessao, CancellationToken cancellationToken = default)
         => dbContext.SessoesUsuarios.AddAsync(sessao, cancellationToken).AsTask();
 
@@ -44,5 +54,19 @@ public sealed class SessaoUsuarioRepositorio(PlataformaFutevoleiDbContext dbCont
         {
             sessao.Revogar(agoraUtc);
         }
+    }
+
+    public async Task<bool> RevogarAsync(
+        Guid sessaoId,
+        Guid usuarioId,
+        DateTime agoraUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var alteradas = await dbContext.SessoesUsuarios
+            .Where(x => x.Id == sessaoId && x.UsuarioId == usuarioId && x.RevogadaEmUtc == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.RevogadaEmUtc, agoraUtc)
+                .SetProperty(x => x.DataAtualizacao, agoraUtc), cancellationToken);
+        return alteradas == 1;
     }
 }

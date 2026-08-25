@@ -4,7 +4,9 @@ namespace PlataformaFutevolei.Api.Seguranca;
 
 public sealed class SessaoRequisicaoContextoHttp(IHttpContextAccessor httpContextAccessor) : ISessaoRequisicaoContexto
 {
-    public string? IpAddress => httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+    public string? IpAddress => httpContextAccessor.HttpContext is { } context
+        ? EnderecoIpClienteHttp.Obter(context)
+        : null;
 
     public string? UserAgent
     {

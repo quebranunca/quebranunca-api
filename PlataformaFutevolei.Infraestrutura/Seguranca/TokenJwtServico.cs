@@ -34,7 +34,7 @@ public class TokenJwtServico(IOptions<ConfiguracaoJwt> configuracaoJwt) : IToken
         return DateTime.UtcNow.AddDays(dias);
     }
 
-    public string GerarToken(Usuario usuario, DateTime expiraEmUtc)
+    public string GerarToken(Usuario usuario, Guid sessaoId, DateTime expiraEmUtc)
     {
         var configuracao = ObterConfiguracao();
 
@@ -49,7 +49,8 @@ public class TokenJwtServico(IOptions<ConfiguracaoJwt> configuracaoJwt) : IToken
             new(ClaimTypes.Name, usuario.Nome),
             new(ClaimTypes.Email, usuario.Email),
             new(ClaimTypes.Role, usuario.Perfil.ToString()),
-            new("qnf_security_version", usuario.VersaoSeguranca.ToString())
+            new("qnf_security_version", usuario.VersaoSeguranca.ToString()),
+            new("qnf_session_id", sessaoId.ToString("N"))
         };
 
         var token = new JwtSecurityToken(

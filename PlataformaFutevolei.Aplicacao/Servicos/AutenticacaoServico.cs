@@ -8,6 +8,7 @@ using PlataformaFutevolei.Aplicacao.Utilitarios;
 using PlataformaFutevolei.Dominio.Entidades;
 using PlataformaFutevolei.Dominio.Enums;
 using System.Net.Mail;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -615,6 +616,43 @@ public class AutenticacaoServico(
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SessaoUsuarioDto>> ListarSessoesAtuaisAsync(
+        string? refreshToken,
+        CancellationToken cancellationToken = default)
+    {
+        var usuarioId = usuarioContexto.UsuarioId
+            ?? throw new AcessoNegadoException("Usuário não autenticado.");
+        TentarSepararRefreshToken(refreshToken, out var sessaoAtualId, out _);
+        var sessoes = await sessaoUsuarioRepositorio.ListarAtivasPorUsuarioAsync(
+            usuarioId,
+            DateTime.UtcNow,
+            cancellationToken);
+
+        return sessoes.Select(sessao => new SessaoUsuarioDto(
+            sessao.Id,
+            DescreverDispositivo(sessao.UserAgent),
+            MascararIp(sessao.IpAddress),
+            sessao.DataCriacao,
+            sessao.UltimoUsoEmUtc,
+            sessao.ExpiraEmUtc,
+            sessao.Id == sessaoAtualId)).ToList();
+    }
+
+    public async Task RevogarSessaoPorIdAsync(Guid sessaoId, CancellationToken cancellationToken = default)
+    {
+        var usuarioId = usuarioContexto.UsuarioId
+            ?? throw new AcessoNegadoException("Usuário não autenticado.");
+        var revogada = await sessaoUsuarioRepositorio.RevogarAsync(
+            sessaoId,
+            usuarioId,
+            DateTime.UtcNow,
+            cancellationToken);
+        if (!revogada)
+        {
+            throw new EntidadeNaoEncontradaException("Sessão não encontrada ou já encerrada.");
+        }
+    }
+
     public async Task<SolicitarRedefinicaoSenhaRespostaDto> SolicitarRedefinicaoSenhaAsync(
         EsqueciSenhaRequisicaoDto dto,
         CancellationToken cancellationToken = default)
@@ -1143,7 +1181,7 @@ public class AutenticacaoServico(
         await sessaoUsuarioRepositorio.AdicionarAsync(sessao, cancellationToken);
         await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
 
-        var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
+        var token = tokenJwtServico.GerarToken(usuario, sessao.Id, expiracaoToken);
         var usuarioDto = usuario.ParaDto() with
         {
             PoliticaPrivacidadePendente = await privacidadeServico.UsuarioPrecisaAceitarPoliticaAsync(
@@ -1183,7 +1221,7 @@ public class AutenticacaoServico(
         sessao.UltimoUsoEmUtc = agora;
 
         var expiracaoToken = tokenJwtServico.ObterExpiracaoTokenAcessoUtc(sessao.ExpiraEmUtc);
-        var token = tokenJwtServico.GerarToken(usuario, expiracaoToken);
+        var token = tokenJwtServico.GerarToken(usuario, sessao.Id, expiracaoToken);
         var usuarioDto = usuario.ParaDto() with
         {
             PoliticaPrivacidadePendente = await privacidadeServico.UsuarioPrecisaAceitarPoliticaAsync(usuario.Id, cancellationToken)
@@ -1252,6 +1290,39 @@ public class AutenticacaoServico(
         }
         segredo = partes[1];
         return true;
+    }
+
+    private static string DescreverDispositivo(string? userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent)) return "Dispositivo não identificado";
+        var sistema = userAgent.Contains("iPhone", StringComparison.OrdinalIgnoreCase) ? "iPhone"
+            : userAgent.Contains("iPad", StringComparison.OrdinalIgnoreCase) ? "iPad"
+            : userAgent.Contains("Android", StringComparison.OrdinalIgnoreCase) ? "Android"
+            : userAgent.Contains("Windows", StringComparison.OrdinalIgnoreCase) ? "Windows"
+            : userAgent.Contains("Mac OS", StringComparison.OrdinalIgnoreCase) ? "macOS"
+            : userAgent.Contains("Linux", StringComparison.OrdinalIgnoreCase) ? "Linux"
+            : "dispositivo desconhecido";
+        var navegador = userAgent.Contains("Edg/", StringComparison.OrdinalIgnoreCase) ? "Edge"
+            : userAgent.Contains("OPR/", StringComparison.OrdinalIgnoreCase) ? "Opera"
+            : userAgent.Contains("Chrome/", StringComparison.OrdinalIgnoreCase) ? "Chrome"
+            : userAgent.Contains("Firefox/", StringComparison.OrdinalIgnoreCase) ? "Firefox"
+            : userAgent.Contains("Safari/", StringComparison.OrdinalIgnoreCase) ? "Safari"
+            : "Navegador";
+        return $"{navegador} em {sistema}";
+    }
+
+    private static string? MascararIp(string? valor)
+    {
+        if (!IPAddress.TryParse(valor, out var endereco)) return null;
+        if (endereco.IsIPv4MappedToIPv6) endereco = endereco.MapToIPv4();
+        if (endereco.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var partes = endereco.ToString().Split('.');
+            return $"{partes[0]}.{partes[1]}.{partes[2]}.***";
+        }
+
+        var segmentos = endereco.GetAddressBytes();
+        return $"{segmentos[0]:x2}{segmentos[1]:x2}:{segmentos[2]:x2}{segmentos[3]:x2}:****";
     }
 
     private static string NormalizarCodigoAcesso(string? codigo)

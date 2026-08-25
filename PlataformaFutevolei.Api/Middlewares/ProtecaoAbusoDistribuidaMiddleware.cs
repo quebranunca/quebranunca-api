@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
+using PlataformaFutevolei.Api.Seguranca;
 
 namespace PlataformaFutevolei.Api.Middlewares;
 
@@ -19,7 +20,7 @@ public sealed class ProtecaoAbusoDistribuidaMiddleware(RequestDelegate next)
         }
 
         var identificador = await ObterIdentificadorAsync(context.Request, context.RequestAborted);
-        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "desconhecido";
+        var ip = EnderecoIpClienteHttp.Obter(context) ?? "desconhecido";
         var chaves = new List<string> { GerarChave(regra.Value.Politica, "ip", ip) };
         if (!string.IsNullOrWhiteSpace(identificador))
         {

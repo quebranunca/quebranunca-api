@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Api.Seguranca;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -47,7 +48,7 @@ public class PrivacidadeController(IPrivacidadeServico privacidadeServico) : Con
     {
         var dtoComAuditoria = dto with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            IpAddress = EnderecoIpClienteHttp.Obter(HttpContext),
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var preferencias = await privacidadeServico.RegistrarConsentimentoAsync(dtoComAuditoria, cancellationToken);

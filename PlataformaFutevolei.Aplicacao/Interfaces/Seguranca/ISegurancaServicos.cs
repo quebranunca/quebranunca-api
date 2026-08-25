@@ -12,7 +12,7 @@ public interface ISenhaServico
 
 public interface ITokenJwtServico
 {
-    string GerarToken(Usuario usuario, DateTime expiraEmUtc);
+    string GerarToken(Usuario usuario, Guid sessaoId, DateTime expiraEmUtc);
     Guid? ObterUsuarioIdTokenExpirado(string token);
     DateTime ObterExpiracaoTokenAcessoUtc(DateTime? limiteMaximoUtc = null);
     DateTime ObterExpiracaoRefreshTokenUtc();

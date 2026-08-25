@@ -1495,6 +1495,44 @@ public class AutenticacaoServicoTests
     }
 
     [Fact]
+    public async Task ListarSessoesAtuaisAsync_RetornaSomenteDadosMascaradosEMarcaSessaoAtual()
+    {
+        var usuario = CriarUsuarioComSenha("senha-atual");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+        var login = await cenario.Servico.LoginAsync(new LoginRequisicaoDto(usuario.Email, "senha-atual"));
+
+        var sessoes = await cenario.Servico.ListarSessoesAtuaisAsync(login.RefreshToken);
+
+        var sessao = Assert.Single(sessoes);
+        Assert.True(sessao.Atual);
+        Assert.Equal("127.0.0.***", sessao.IpMascarado);
+        Assert.Equal("Navegador em dispositivo desconhecido", sessao.Dispositivo);
+    }
+
+    [Fact]
+    public async Task RevogarSessaoPorIdAsync_SessaoDoUsuario_EncerraSomenteDispositivoEscolhido()
+    {
+        var usuario = CriarUsuarioComSenha("senha-atual");
+        var cenario = new Cenario(usuario.Id);
+        cenario.Usuarios.Itens.Add(usuario);
+        var loginAtual = await cenario.Servico.LoginAsync(new LoginRequisicaoDto(usuario.Email, "senha-atual"));
+        var sessaoAtualId = Guid.ParseExact(loginAtual.RefreshToken.Split('.')[0], "N");
+        var outraSessao = new SessaoUsuario
+        {
+            UsuarioId = usuario.Id,
+            RefreshTokenHash = "hash:outra",
+            ExpiraEmUtc = DateTime.UtcNow.AddDays(1)
+        };
+        cenario.Sessoes.Itens.Add(outraSessao);
+
+        await cenario.Servico.RevogarSessaoPorIdAsync(outraSessao.Id);
+
+        Assert.NotNull(outraSessao.RevogadaEmUtc);
+        Assert.Null(cenario.Sessoes.Itens.Single(x => x.Id == sessaoAtualId).RevogadaEmUtc);
+    }
+
+    [Fact]
     public async Task RenovarTokenAsync_UsuarioInexistente_Bloqueia()
     {
         var cenario = new Cenario();
@@ -1761,6 +1799,15 @@ public class AutenticacaoServicoTests
         public Task<SessaoUsuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(Itens.FirstOrDefault(x => x.Id == id));
 
+        public Task<IReadOnlyList<SessaoUsuario>> ListarAtivasPorUsuarioAsync(
+            Guid usuarioId,
+            DateTime agoraUtc,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SessaoUsuario>>(Itens
+                .Where(x => x.UsuarioId == usuarioId && x.EstaAtiva(agoraUtc))
+                .OrderByDescending(x => x.UltimoUsoEmUtc ?? x.DataCriacao)
+                .ToList());
+
         public Task AdicionarAsync(SessaoUsuario sessao, CancellationToken cancellationToken = default)
         {
             Itens.Add(sessao);
@@ -1794,6 +1841,18 @@ public class AutenticacaoServicoTests
         {
             foreach (var sessao in Itens.Where(x => x.UsuarioId == usuarioId)) sessao.Revogar(agoraUtc);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> RevogarAsync(
+            Guid sessaoId,
+            Guid usuarioId,
+            DateTime agoraUtc,
+            CancellationToken cancellationToken = default)
+        {
+            var sessao = Itens.FirstOrDefault(x => x.Id == sessaoId && x.UsuarioId == usuarioId && x.RevogadaEmUtc == null);
+            if (sessao is null) return Task.FromResult(false);
+            sessao.Revogar(agoraUtc);
+            return Task.FromResult(true);
         }
     }
 
@@ -2001,7 +2060,7 @@ public class AutenticacaoServicoTests
     {
         public Guid? ResultadoUsuarioId { get; set; }
 
-        public string GerarToken(Usuario usuario, DateTime expiraEmUtc)
+        public string GerarToken(Usuario usuario, Guid sessaoId, DateTime expiraEmUtc)
             => "token";
 
         public Guid? ObterUsuarioIdTokenExpirado(string token)

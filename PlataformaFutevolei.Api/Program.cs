@@ -62,13 +62,12 @@ if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
     options.ForwardLimit = 1;
-    options.RequireHeaderSymmetry = true;
-    // A API roda atrás do proxy gerenciado da Railway, cujo endereço não é estático.
-    // A exposição pública deve continuar restrita a esse proxy; nunca publicar o Kestrel diretamente.
+    options.RequireHeaderSymmetry = false;
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("100.0.0.0/8"));
 });
 
 var configuracaoJwt = builder.Configuration.GetSection(ConfiguracaoJwt.Secao).Get<ConfiguracaoJwt>() ?? new ConfiguracaoJwt();
@@ -146,30 +145,42 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Fail("Usuário não identificado.");
                     return;
                 }
+                if (!Guid.TryParseExact(
+                    context.Principal?.FindFirstValue("qnf_session_id"),
+                    "N",
+                    out var sessaoId))
+                {
+                    context.Fail("Sessão não identificada.");
+                    return;
+                }
 
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<PlataformaFutevoleiDbContext>();
-                bool usuarioAtivo;
-                PerfilUsuario? perfilAtual;
-                int? versaoSegurancaAtual;
+                PerfilUsuario? perfilAtual = null;
+                int? versaoSegurancaAtual = null;
+                var usuarioAtivo = false;
+                var sessaoAtiva = false;
                 try
                 {
-                    usuarioAtivo = await dbContext.Usuarios
+                    var agoraUtc = DateTime.UtcNow;
+                    var estadoUsuario = await dbContext.Usuarios
                         .AsNoTracking()
-                        .AnyAsync(
-                            x => x.Id == usuarioId && x.Ativo && !x.DadosAnonimizados,
-                            CancellationToken.None);
-                    perfilAtual = usuarioAtivo
-                        ? await dbContext.Usuarios.AsNoTracking()
-                            .Where(x => x.Id == usuarioId)
-                            .Select(x => (PerfilUsuario?)x.Perfil)
-                            .FirstOrDefaultAsync(CancellationToken.None)
-                        : null;
-                    versaoSegurancaAtual = usuarioAtivo
-                        ? await dbContext.Usuarios.AsNoTracking()
-                            .Where(x => x.Id == usuarioId)
-                            .Select(x => (int?)x.VersaoSeguranca)
-                            .FirstOrDefaultAsync(CancellationToken.None)
-                        : null;
+                        .Where(x => x.Id == usuarioId)
+                        .Select(x => new
+                        {
+                            Ativo = x.Ativo && !x.DadosAnonimizados,
+                            Perfil = (PerfilUsuario?)x.Perfil,
+                            VersaoSeguranca = (int?)x.VersaoSeguranca,
+                            SessaoAtiva = dbContext.SessoesUsuarios.Any(sessao =>
+                                sessao.Id == sessaoId
+                                && sessao.UsuarioId == x.Id
+                                && sessao.RevogadaEmUtc == null
+                                && sessao.ExpiraEmUtc >= agoraUtc)
+                        })
+                        .FirstOrDefaultAsync(CancellationToken.None);
+                    usuarioAtivo = estadoUsuario?.Ativo == true;
+                    perfilAtual = estadoUsuario?.Perfil;
+                    versaoSegurancaAtual = estadoUsuario?.VersaoSeguranca;
+                    sessaoAtiva = estadoUsuario?.SessaoAtiva == true;
                 }
                 catch (OperationCanceledException) when (context.HttpContext.RequestAborted.IsCancellationRequested)
                 {
@@ -180,6 +191,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!usuarioAtivo)
                 {
                     context.Fail("Usuário inativo ou excluído.");
+                }
+                else if (!sessaoAtiva)
+                {
+                    context.Fail("Sessão encerrada ou expirada.");
                 }
                 else if (!string.Equals(
                     perfilAtual?.ToString(),
@@ -254,7 +269,7 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("Scheme", httpContext.Request.Scheme);
         diagnosticContext.Set("QueryString", SanitizarQueryString(httpContext.Request.QueryString));
         diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
-        diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString());
+        diagnosticContext.Set("RemoteIpAddress", EnderecoIpClienteHttp.Obter(httpContext));
         diagnosticContext.Set("UsuarioId", httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier));
     };
 });

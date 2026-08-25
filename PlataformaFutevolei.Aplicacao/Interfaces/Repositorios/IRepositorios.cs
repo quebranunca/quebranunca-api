@@ -24,6 +24,10 @@ public interface IUsuarioRepositorio
 public interface ISessaoUsuarioRepositorio
 {
     Task<SessaoUsuario?> ObterPorIdParaAtualizacaoAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SessaoUsuario>> ListarAtivasPorUsuarioAsync(
+        Guid usuarioId,
+        DateTime agoraUtc,
+        CancellationToken cancellationToken = default);
     Task AdicionarAsync(SessaoUsuario sessao, CancellationToken cancellationToken = default);
     void Atualizar(SessaoUsuario sessao);
     Task<bool> RotacionarAsync(
@@ -35,6 +39,11 @@ public interface ISessaoUsuarioRepositorio
         string? userAgent,
         CancellationToken cancellationToken = default);
     Task RevogarTodasAsync(Guid usuarioId, DateTime agoraUtc, CancellationToken cancellationToken = default);
+    Task<bool> RevogarAsync(
+        Guid sessaoId,
+        Guid usuarioId,
+        DateTime agoraUtc,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IUsuarioConsentimentoLgpdRepositorio

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Aplicacao.DTOs;
 using PlataformaFutevolei.Aplicacao.Interfaces.Servicos;
+using PlataformaFutevolei.Api.Seguranca;
 
 namespace PlataformaFutevolei.Api.Controllers;
 
@@ -21,7 +22,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     {
         var dtoComAuditoria = dto with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            IpAddress = EnderecoIpClienteHttp.Obter(HttpContext),
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.RegistrarAsync(dtoComAuditoria, cancellationToken);
@@ -50,7 +51,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     {
         var dtoComAuditoria = dto with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            IpAddress = EnderecoIpClienteHttp.Obter(HttpContext),
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.CadastrarPublicoComSenhaAsync(dtoComAuditoria, cancellationToken);
@@ -83,7 +84,7 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     {
         var dtoComAuditoria = dto with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            IpAddress = EnderecoIpClienteHttp.Obter(HttpContext),
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var resposta = await autenticacaoServico.CompletarCadastroPublicoAsync(dtoComAuditoria, cancellationToken);
@@ -149,6 +150,31 @@ public class AutenticacaoController(IAutenticacaoServico autenticacaoServico) : 
     {
         await autenticacaoServico.RevogarSessaoAsync(Request.Cookies[CookieRefreshToken], cancellationToken);
         Response.Cookies.Delete(CookieRefreshToken, OpcoesCookie(DateTimeOffset.UnixEpoch));
+        return NoContent();
+    }
+
+    [HttpGet("sessoes")]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyList<SessaoUsuarioDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarSessoes(CancellationToken cancellationToken)
+    {
+        var sessoes = await autenticacaoServico.ListarSessoesAtuaisAsync(
+            Request.Cookies[CookieRefreshToken],
+            cancellationToken);
+        return Ok(sessoes);
+    }
+
+    [HttpDelete("sessoes/{sessaoId:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RevogarSessao(Guid sessaoId, CancellationToken cancellationToken)
+    {
+        await autenticacaoServico.RevogarSessaoPorIdAsync(sessaoId, cancellationToken);
+        var refreshToken = Request.Cookies[CookieRefreshToken];
+        if (refreshToken?.StartsWith($"{sessaoId:N}.", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            Response.Cookies.Delete(CookieRefreshToken, OpcoesCookie(DateTimeOffset.UnixEpoch));
+        }
         return NoContent();
     }
 
