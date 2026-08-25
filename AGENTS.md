@@ -37,6 +37,8 @@
 
 ## Contexto local recorrente
 
+- Cadastro público deve confirmar o e-mail antes de ativar a conta; telefone permanece a identificação principal após ser concluído no perfil, sem reabrir cadastro público direto apenas por senha
+
 - Para execução local sem Docker, usar `ASPNETCORE_ENVIRONMENT=Development` e preferencialmente `PORT=5080`, pois `5000` pode estar ocupada no macOS
 - Backend local conectado ao Railway deve usar conexão pública/TCP Proxy; nunca usar `postgres.railway.internal` fora do Railway
 - Secrets locais devem ficar em `dotnet user-secrets` ou variáveis de ambiente; não versionar connection strings, `DATABASE_URL`, `Jwt:Chave`, senhas de infraestrutura, `.env.local` ou `appsettings.Development.json`

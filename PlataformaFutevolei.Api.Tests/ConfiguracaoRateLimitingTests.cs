@@ -53,7 +53,6 @@ public class ConfiguracaoRateLimitingTests
 
     [Theory]
     [InlineData(typeof(AutenticacaoController), nameof(AutenticacaoController.Login), ConfiguracaoRateLimiting.PoliticaAcesso)]
-    [InlineData(typeof(AutenticacaoController), nameof(AutenticacaoController.CadastrarPublicoComSenha), ConfiguracaoRateLimiting.PoliticaCadastro)]
     [InlineData(typeof(AutenticacaoController), nameof(AutenticacaoController.SolicitarRedefinicaoSenha), ConfiguracaoRateLimiting.PoliticaEnvioCodigo)]
     [InlineData(typeof(ConvitesCadastroController), nameof(ConvitesCadastroController.Criar), ConfiguracaoRateLimiting.PoliticaConvites)]
     [InlineData(typeof(ConvitesCadastroController), nameof(ConvitesCadastroController.EnviarEmail), ConfiguracaoRateLimiting.PoliticaConvites)]

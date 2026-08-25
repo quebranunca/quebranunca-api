@@ -67,7 +67,6 @@ public sealed class ProtecaoAbusoDistribuidaMiddleware(RequestDelegate next)
                 => ("envio-codigo", configuration.GetValue("ProtecaoAbuso:CodigosPorDezMinutos", 3), TimeSpan.FromMinutes(10)),
             "/api/autenticacao/registrar" or
             "/api/autenticacao/registrar-por-convite" or
-            "/api/autenticacao/cadastro-publico/senha" or
             "/api/autenticacao/completar-cadastro-publico"
                 => ("cadastro", configuration.GetValue("ProtecaoAbuso:CadastroPorDezMinutos", 5), TimeSpan.FromMinutes(10)),
             _ => null
