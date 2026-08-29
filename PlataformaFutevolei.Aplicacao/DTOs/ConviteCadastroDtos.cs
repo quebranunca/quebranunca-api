@@ -103,3 +103,12 @@ public record ResultadoEnvioSmsConviteDto(
     string? IdentificadorMensagem,
     bool Aceito = false
 );
+
+public record EnvioWhatsappManualPendenteDto(
+    Guid ConviteId,
+    string Destinatario,
+    string Telefone,
+    string Mensagem,
+    DateTime ExpiraEmUtc,
+    DateTime DataCriacao
+);

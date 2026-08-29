@@ -254,6 +254,46 @@ public class ConviteCadastroServico(
         return convite.ParaDto();
     }
 
+    public async Task<IReadOnlyList<EnvioWhatsappManualPendenteDto>> ListarEnviosWhatsappManuaisAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+        var agoraUtc = DateTime.UtcNow;
+        var convites = await conviteCadastroRepositorio.ListarAsync(cancellationToken);
+
+        return convites
+            .Where(x => x.PodeSerUsado(agoraUtc))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Telefone))
+            .Where(x => !string.IsNullOrWhiteSpace(x.CodigoConvite))
+            .Where(x => !x.WhatsappEnviadoEmUtc.HasValue && string.IsNullOrWhiteSpace(x.WhatsappEntregaId))
+            .Where(x => !x.EmailEnviadoEmUtc.HasValue && !x.SmsEnviadoEmUtc.HasValue && string.IsNullOrWhiteSpace(x.SmsEntregaId))
+            .Where(x => x.CanalEnvio?.Equals("Automático", StringComparison.OrdinalIgnoreCase) == true ||
+                        DeveEnviarWhatsappAutomaticamente(x.CanalEnvio))
+            .OrderBy(x => x.DataCriacao)
+            .Select(x => new EnvioWhatsappManualPendenteDto(
+                x.Id,
+                x.Email,
+                x.Telefone!,
+                MontarMensagemWhatsappManual(x),
+                x.ExpiraEmUtc,
+                x.DataCriacao))
+            .ToList();
+    }
+
+    public async Task MarcarWhatsappManualComoEnviadoAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
+        var convite = await conviteCadastroRepositorio.ObterPorIdParaAtualizacaoAsync(id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Convite de cadastro não encontrado.");
+        ValidarConviteParaEnvioWhatsapp(convite);
+
+        convite.RegistrarEnvioWhatsappComSucesso(DateTime.UtcNow, $"manual:{Guid.NewGuid():N}");
+        conviteCadastroRepositorio.Atualizar(convite);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+    }
+
     public async Task DesativarAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await autorizacaoUsuarioServico.GarantirAdministradorAsync(cancellationToken);
@@ -344,6 +384,13 @@ public class ConviteCadastroServico(
                 (!string.IsNullOrWhiteSpace(conviteCadastro.WhatsappEntregaId) &&
                  string.IsNullOrWhiteSpace(conviteCadastro.ErroEnvioWhatsapp)))
                 return;
+
+            // Sem tentativa significa provedor indisponível/configuração ausente. Mantém na caixa
+            // manual do administrador em vez de avançar e duplicar o contato por outro canal.
+            if (!string.IsNullOrWhiteSpace(conviteCadastro.WhatsappIdempotencyKey) &&
+                conviteCadastro.UltimaTentativaEnvioWhatsappEmUtc.HasValue &&
+                string.IsNullOrWhiteSpace(conviteCadastro.ErroEnvioWhatsapp))
+                return;
         }
 
         if (permiteEmail && !string.IsNullOrWhiteSpace(conviteCadastro.Email))
@@ -432,6 +479,15 @@ public class ConviteCadastroServico(
             CodigoConviteUtilitario.GerarHash(codigoConvite));
 
         return codigoConvite;
+    }
+
+    private string MontarMensagemWhatsappManual(ConviteCadastro conviteCadastro)
+    {
+        var link = geracaoLinkConviteCadastroServico.Gerar(conviteCadastro);
+        return $"Você recebeu um convite para a Plataforma QuebraNunca Futevôlei.\n\n" +
+               $"Código: {conviteCadastro.CodigoConvite}\n" +
+               $"Acesse: {link}\n\n" +
+               "Se você não esperava esta mensagem, ignore.";
     }
 
     private async Task<string> GerarIdentificadorPublicoUnicoAsync(CancellationToken cancellationToken)

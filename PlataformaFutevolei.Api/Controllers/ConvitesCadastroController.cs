@@ -81,6 +81,23 @@ public class ConvitesCadastroController(IConviteCadastroServico conviteCadastroS
         return Ok(convite);
     }
 
+    [HttpGet("envios-manuais-whatsapp")]
+    [ProducesResponseType(typeof(IReadOnlyList<EnvioWhatsappManualPendenteDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarEnviosWhatsappManuais(CancellationToken cancellationToken)
+    {
+        var pendentes = await conviteCadastroServico.ListarEnviosWhatsappManuaisAsync(cancellationToken);
+        return Ok(pendentes);
+    }
+
+    [HttpPost("{id:guid}/marcar-whatsapp-manual-enviado")]
+    [EnableRateLimiting(ConfiguracaoRateLimiting.PoliticaConvites)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> MarcarWhatsappManualComoEnviado(Guid id, CancellationToken cancellationToken)
+    {
+        await conviteCadastroServico.MarcarWhatsappManualComoEnviadoAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Desativar(Guid id, CancellationToken cancellationToken)

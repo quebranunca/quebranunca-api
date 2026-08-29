@@ -751,6 +751,7 @@ public class AtletaServicoTests
     private sealed class ConviteCadastroServicoStub : IConviteCadastroServico
     {
         public Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ConviteCadastroDto>>([]);
+        public Task<IReadOnlyList<EnvioWhatsappManualPendenteDto>> ListarEnviosWhatsappManuaisAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EnvioWhatsappManualPendenteDto>>([]);
         public Task<IReadOnlyList<AtletaElegivelConviteCadastroDto>> ListarAtletasElegiveisAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<AtletaElegivelConviteCadastroDto>>([]);
         public Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
@@ -759,6 +760,7 @@ public class AtletaServicoTests
         public Task<ConvitePendenciaAtletaResultadoDto> CriarParaPendenciaAtletaAsync(CriarConvitePendenciaAtletaDto dto, CancellationToken cancellationToken = default) => Task.FromResult(new ConvitePendenciaAtletaResultadoDto(true, false, false, Guid.NewGuid()));
         public Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task MarcarWhatsappManualComoEnviadoAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task DesativarAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

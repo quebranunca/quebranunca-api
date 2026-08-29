@@ -1019,6 +1019,7 @@ public class PendenciaServicoContatoTests
     {
         public List<CriarConvitePendenciaAtletaDto> Criados { get; } = [];
         public Task<IReadOnlyList<ConviteCadastroDto>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ConviteCadastroDto>>([]);
+        public Task<IReadOnlyList<EnvioWhatsappManualPendenteDto>> ListarEnviosWhatsappManuaisAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<EnvioWhatsappManualPendenteDto>>([]);
         public Task<IReadOnlyList<AtletaElegivelConviteCadastroDto>> ListarAtletasElegiveisAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<AtletaElegivelConviteCadastroDto>>([]);
         public Task<ConviteCadastroDto> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ConviteCadastroLinkAceiteDto> ObterLinkAceiteAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
@@ -1032,6 +1033,7 @@ public class PendenciaServicoContatoTests
 
         public Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task MarcarWhatsappManualComoEnviadoAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task DesativarAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

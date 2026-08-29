@@ -107,6 +107,41 @@ public class ConviteCadastroServicoTests
     }
 
     [Fact]
+    public async Task CriarAsync_Automatico_WhatsappNaoConfigurado_AcumulaParaEnvioManual()
+    {
+        var cenario = new Cenario();
+        cenario.Whatsapp.Resultado = new(false, false, "WhatsApp desabilitado", null);
+
+        var convite = await cenario.Servico.CriarAsync(new CriarConviteCadastroDto(
+            "atleta@example.com", "13 99999-0000", null, DateTime.UtcNow.AddDays(1), "Automático"));
+        var pendentes = await cenario.Servico.ListarEnviosWhatsappManuaisAsync();
+
+        Assert.Empty(cenario.Email.Envios);
+        Assert.Empty(cenario.Sms.Envios);
+        var pendente = Assert.Single(pendentes);
+        Assert.Equal(convite.Id, pendente.ConviteId);
+        Assert.Contains("Código:", pendente.Mensagem);
+        Assert.Contains("https://app.test/convites/", pendente.Mensagem);
+    }
+
+    [Fact]
+    public async Task MarcarWhatsappManualComoEnviadoAsync_RemoveDaFila()
+    {
+        var cenario = new Cenario();
+        var convite = CriarConvite("atleta@example.com", DateTime.UtcNow.AddDays(1), telefone: "13999990000");
+        convite.CanalEnvio = "Automático";
+        convite.DefinirCodigoConvite("123-456", "hash");
+        cenario.Convites.Itens.Add(convite);
+
+        await cenario.Servico.MarcarWhatsappManualComoEnviadoAsync(convite.Id);
+        var pendentes = await cenario.Servico.ListarEnviosWhatsappManuaisAsync();
+
+        Assert.NotNull(convite.WhatsappEnviadoEmUtc);
+        Assert.StartsWith("manual:", convite.WhatsappEntregaId);
+        Assert.Empty(pendentes);
+    }
+
+    [Fact]
     public async Task CriarAsync_Automatico_WhatsappFalhaEmailEnviado_NaoTentaSms()
     {
         var cenario = new Cenario();

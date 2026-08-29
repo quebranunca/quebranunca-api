@@ -102,6 +102,8 @@ public interface IConviteCadastroServico
         CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarEmailAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ConviteCadastroDto> EnviarWhatsappAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<EnvioWhatsappManualPendenteDto>> ListarEnviosWhatsappManuaisAsync(CancellationToken cancellationToken = default);
+    Task MarcarWhatsappManualComoEnviadoAsync(Guid id, CancellationToken cancellationToken = default);
     Task DesativarAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
