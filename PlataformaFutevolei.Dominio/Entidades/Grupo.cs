@@ -10,6 +10,8 @@ public class Grupo : EntidadeBase
     public Guid? ArenaId { get; set; }
     public string? LocalPrincipal { get; set; }
     public string[]? DiasDaSemana { get; set; }
+    public TimeOnly? HorarioInicio { get; set; }
+    public TimeOnly? HorarioFim { get; set; }
     public Guid? UsuarioOrganizadorId { get; set; }
     public bool Publico { get; set; }
     public string? ImagemUrl { get; set; }
@@ -20,4 +22,5 @@ public class Grupo : EntidadeBase
     public Usuario? UsuarioOrganizador { get; set; }
     public ICollection<GrupoAtleta> Atletas { get; set; } = new List<GrupoAtleta>();
     public ICollection<Partida> Partidas { get; set; } = new List<Partida>();
+    public ICollection<EncontroGrupo> Encontros { get; set; } = new List<EncontroGrupo>();
 }

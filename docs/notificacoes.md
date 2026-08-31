@@ -22,6 +22,19 @@
 - `Provedor`, `ProvedorBaseUrl`, `ProvedorApiKey` e `ProvedorInstancia` configuram o adaptador direto.
 - Em ambiente, use `WHATSMIAU_BASE_URL`, `WHATSMIAU_API_KEY` e `WHATSMIAU_INSTANCE_NAME`.
 - O template `qnf.convite.cadastro.v1` é renderizado dentro do módulo, sem expor o provedor ao serviço de convites.
+- O mesmo adaptador renderiza `qnf.grupo.presenca.v1` para os pedidos de presença, usando nome do atleta, grupo, data, horário, Arena e link individual.
+
+## Confirmação de presença dos grupos
+
+- Grupos podem ter agenda semanal com dias, horário inicial, horário final e uma `Arena` cadastrada.
+- `AgendaPresencaGrupos` processa os grupos no fuso `America/Sao_Paulo`, cria um encontro por grupo/data e uma confirmação por membro.
+- Encontro, confirmação e notificação interna usam chaves únicas estáveis. O WhatsApp é reservado atomicamente antes do disparo, evitando concorrência entre instâncias e permitindo retomada segura após uma interrupção.
+- A partir de `HoraEnvioLocal` e até o fim do jogo, membros com WhatsApp recebem o template `qnf.grupo.presenca.v1`; falhas reais têm no máximo três tentativas, com intervalo mínimo de uma hora.
+- O link público usa `/presenca#<codigo>`. O código fica no fragmento do navegador, não na URL enviada ao servidor, e é transmitido à API somente no corpo das chamadas de consulta e resposta.
+- O código individual possui 192 bits aleatórios, não é exibido em logs e deixa de aceitar alterações ao fim do horário do encontro.
+- Membros vinculados a usuário ativo também recebem uma notificação interna com o mesmo fluxo de confirmação.
+- O painel `/api/grupos/{grupoId}/presencas/painel` exige permissão de gestão do grupo; os endpoints públicos apenas consultam ou registram a resposta correspondente ao código individual.
+- Em produção, `AgendaPresencaGrupos:Habilitada` deve estar ativa, `AgendaPresencaGrupos:UrlApp` deve apontar para o frontend e o adaptador de WhatsApp deve estar configurado pelas variáveis do WhatsMiau.
 
 ## SMS com Zenvia
 

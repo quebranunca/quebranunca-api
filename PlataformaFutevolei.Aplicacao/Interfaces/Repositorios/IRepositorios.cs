@@ -285,6 +285,23 @@ public interface IGrupoAtletaRepositorio
     void Remover(GrupoAtleta grupoAtleta);
 }
 
+public interface IPresencaGrupoRepositorio
+{
+    Task<IReadOnlyList<Grupo>> ListarGruposComAgendaAsync(CancellationToken cancellationToken = default);
+    Task<Grupo?> ObterGrupoComAgendaAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<EncontroGrupo?> ObterEncontroAsync(Guid grupoId, DateOnly dataJogo, CancellationToken cancellationToken = default);
+    Task<ConfirmacaoPresencaGrupo?> ObterConfirmacaoPorCodigoAsync(string codigo, CancellationToken cancellationToken = default);
+    Task AdicionarEncontroAsync(EncontroGrupo encontro, CancellationToken cancellationToken = default);
+    Task AdicionarConfirmacaoAsync(ConfirmacaoPresencaGrupo confirmacao, CancellationToken cancellationToken = default);
+    Task<bool> TentarReservarEnvioWhatsappAsync(
+        Guid confirmacaoId,
+        DateTime agoraUtc,
+        TimeSpan intervaloMinimo,
+        int maximoTentativas,
+        CancellationToken cancellationToken = default);
+    void AtualizarConfirmacao(ConfirmacaoPresencaGrupo confirmacao);
+}
+
 public interface IFormatoCampeonatoRepositorio
 {
     Task<IReadOnlyList<FormatoCampeonato>> ListarAsync(CancellationToken cancellationToken = default);

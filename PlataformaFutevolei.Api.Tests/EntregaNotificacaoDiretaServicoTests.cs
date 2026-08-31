@@ -58,6 +58,37 @@ public sealed class EntregaNotificacaoDiretaServicoTests
         Assert.Contains("não possui um adaptador", resultado.Erro);
     }
 
+    [Fact]
+    public async Task EnviarAsync_PresencaGrupo_MontaMensagemComAgendaELink()
+    {
+        string? corpo = null;
+        var handler = new Handler(async request =>
+        {
+            corpo = await request.Content!.ReadAsStringAsync();
+            return Json(HttpStatusCode.OK, """{"key":{"id":"presenca-1"}}""");
+        });
+        var servico = new EntregaNotificacaoDiretaServico([CriarAdaptadorWhatsapp(handler)]);
+
+        var resultado = await servico.EnviarAsync(new SolicitacaoEntregaNotificacaoDto(
+            "presenca-grupo", "confirmacao-1", CanalNotificacaoExterna.Whatsapp,
+            "qnf.grupo.presenca.v1", "48999999999",
+            new Dictionary<string, string>
+            {
+                ["nomeAtleta"] = "Gus",
+                ["nomeGrupo"] = "Grupo de Quarta",
+                ["dataJogo"] = "02/09/2026",
+                ["horarioJogo"] = "19:00 às 21:00",
+                ["localJogo"] = "Arena Long Beach",
+                ["linkConfirmacao"] = "https://app.quebranunca.com.br/presenca#codigo-seguro"
+            }));
+
+        Assert.True(resultado.Enviado);
+        Assert.Contains("Grupo de Quarta", corpo);
+        Assert.Contains("Arena Long Beach", corpo);
+        Assert.Contains("19:00", corpo);
+        Assert.Contains("presenca#codigo-seguro", corpo);
+    }
+
     private static AdaptadorWhatsappWhatsMiauServico CriarAdaptadorWhatsapp(HttpMessageHandler handler) => new(
         new HttpClient(handler) { BaseAddress = new Uri("https://api.whatsmiau.dev/v2/") },
         Options.Create(new ConfiguracaoWhatsappConviteCadastro

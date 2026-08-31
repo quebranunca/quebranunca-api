@@ -10,6 +10,7 @@ using PlataformaFutevolei.Api.Configuracao;
 using PlataformaFutevolei.Api.Inicializacao;
 using PlataformaFutevolei.Api.Middlewares;
 using PlataformaFutevolei.Api.Seguranca;
+using PlataformaFutevolei.Api.Servicos;
 using PlataformaFutevolei.Aplicacao.Configuracoes;
 using PlataformaFutevolei.Aplicacao.Dependencias;
 using PlataformaFutevolei.Aplicacao.Interfaces.Seguranca;
@@ -94,6 +95,19 @@ builder.Services.AddScoped<ISessaoRequisicaoContexto, SessaoRequisicaoContextoHt
 builder.Services.AddSingleton(
     builder.Configuration.GetSection(PartidaDuplicidadeOpcoes.Secao).Get<PartidaDuplicidadeOpcoes>()
     ?? new PartidaDuplicidadeOpcoes());
+
+var agendaPresencaGrupoConfiguracao = builder.Configuration
+    .GetSection(AgendaPresencaGrupoConfiguracao.Secao)
+    .Get<AgendaPresencaGrupoConfiguracao>() ?? new AgendaPresencaGrupoConfiguracao();
+if (string.IsNullOrWhiteSpace(agendaPresencaGrupoConfiguracao.UrlApp))
+{
+    agendaPresencaGrupoConfiguracao.UrlApp = builder.Configuration.GetValue<string>("Frontend:Url") ?? string.Empty;
+}
+builder.Services.AddSingleton(agendaPresencaGrupoConfiguracao);
+if (agendaPresencaGrupoConfiguracao.Habilitada)
+{
+    builder.Services.AddHostedService<AgendaPresencaGruposWorker>();
+}
 
 builder.Services.AdicionarAplicacao();
 builder.Services.AdicionarInfraestrutura(builder.Configuration, builder.Environment.EnvironmentName);

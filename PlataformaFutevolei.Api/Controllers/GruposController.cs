@@ -95,6 +95,17 @@ public class GruposController(
         return Ok(grupo);
     }
 
+    [HttpPut("{id:guid}/agenda")]
+    [ProducesResponseType(typeof(GrupoDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AtualizarAgenda(
+        Guid id,
+        [FromBody] AtualizarAgendaGrupoDto dto,
+        CancellationToken cancellationToken)
+    {
+        var grupo = await grupoServico.AtualizarAgendaAsync(id, dto, cancellationToken);
+        return Ok(grupo);
+    }
+
     [HttpPost("{id:guid}/imagem")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(GrupoImagemRespostaDto), StatusCodes.Status200OK)]

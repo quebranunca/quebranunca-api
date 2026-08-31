@@ -20,6 +20,8 @@ public class GrupoMapeamento : IEntityTypeConfiguration<Grupo>
         builder.Property(x => x.ArenaId).HasColumnName("arena_id");
         builder.Property(x => x.LocalPrincipal).HasColumnName("local_principal").HasMaxLength(200);
         builder.Property(x => x.DiasDaSemana).HasColumnName("dias_da_semana").HasColumnType("text[]");
+        builder.Property(x => x.HorarioInicio).HasColumnName("horario_inicio").HasColumnType("time without time zone");
+        builder.Property(x => x.HorarioFim).HasColumnName("horario_fim").HasColumnType("time without time zone");
         builder.Property(x => x.UsuarioOrganizadorId).HasColumnName("usuario_organizador_id");
         builder.Property(x => x.Publico).HasColumnName("publico").HasDefaultValue(false);
         builder.Property(x => x.ImagemUrl).HasColumnName("imagem_url").HasMaxLength(500);

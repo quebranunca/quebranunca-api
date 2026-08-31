@@ -211,6 +211,46 @@ public class GrupoServicoTests
     }
 
     [Fact]
+    public async Task CriarAsync_ComAgendaCompleta_CadastraArenaDiasEHorarios()
+    {
+        var arena = new Arena { Nome = "Arena Long Beach" };
+        var servico = CriarServico(grupos: [], arenas: new ArenaRepositorioStub(arena));
+
+        var grupo = await servico.CriarAsync(new CriarGrupoDto(
+            "Grupo de Quarta",
+            Descricao: null,
+            Link: null,
+            DataInicio: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            DataFim: null,
+            LocalId: null,
+            Privacidade: "Privado",
+            ArenaId: arena.Id,
+            DiasDaSemana: ["quarta"],
+            HorarioInicio: "19:00",
+            HorarioFim: "21:00"));
+
+        Assert.Equal(arena.Id, grupo.ArenaId);
+        Assert.Equal(["Quarta"], grupo.DiasDaSemana);
+        Assert.Equal("19:00", grupo.HorarioInicio);
+        Assert.Equal("21:00", grupo.HorarioFim);
+    }
+
+    [Fact]
+    public async Task AtualizarAgendaAsync_HorarioForaDoIntervaloDeQuinzeMinutos_BloqueiaAlteracao()
+    {
+        var arena = new Arena { Nome = "Arena Long Beach" };
+        var grupo = new Grupo { Nome = "Grupo", DataInicio = DateTime.UtcNow, Publico = false };
+        var servico = CriarServico(grupos: [grupo], arenas: new ArenaRepositorioStub(arena));
+
+        var erro = await Assert.ThrowsAsync<RegraNegocioException>(() => servico.AtualizarAgendaAsync(
+            grupo.Id,
+            new AtualizarAgendaGrupoDto(arena.Id, null, ["Quarta"], "19:10", "21:00")));
+
+        Assert.Equal("Os horários do grupo devem usar intervalos de 15 minutos.", erro.Message);
+        Assert.Null(grupo.HorarioInicio);
+    }
+
+    [Fact]
     public async Task AtualizarAsync_AlteraNomeEPrivacidade()
     {
         var grupo = new Grupo
@@ -461,12 +501,13 @@ public class GrupoServicoTests
         RankingServicoStub? ranking = null,
         GrupoPadraoServicoStub? grupoPadrao = null,
         AutorizacaoUsuarioServicoStub? autorizacao = null,
-        FotoPerfilServiceStub? fotos = null)
+        FotoPerfilServiceStub? fotos = null,
+        ArenaRepositorioStub? arenas = null)
     {
         return new GrupoServico(
             grupoRepositorio ?? new GrupoRepositorioStub(grupos),
             grupoAtletas ?? new GrupoAtletaRepositorioStub(),
-            new ArenaRepositorioStub(),
+            arenas ?? new ArenaRepositorioStub(),
             new PartidaRepositorioStub(partidas ?? []),
             ranking ?? new RankingServicoStub(),
             grupoPadrao ?? new GrupoPadraoServicoStub(),
@@ -564,7 +605,7 @@ public class GrupoServicoTests
         public void Remover(GrupoAtleta grupoAtleta) { }
     }
 
-    private sealed class ArenaRepositorioStub : IArenaRepositorio
+    private sealed class ArenaRepositorioStub(Arena? arena = null) : IArenaRepositorio
     {
         public Task<IReadOnlyList<ArenaListagemPublicaResponse>> ListarPublicasAsync(ArenaFiltroPublicoRequest filtro, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ArenaListagemPublicaResponse>>([]);
         public Task<ArenaDetalhePublicoResponse?> ObterPublicaPorSlugAsync(string slug, CancellationToken cancellationToken = default) => Task.FromResult<ArenaDetalhePublicoResponse?>(null);
@@ -572,8 +613,8 @@ public class GrupoServicoTests
         public Task<IReadOnlyList<Arena>> ListarAdministradasAsync(Guid usuarioId, bool incluirTodas, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Arena>>([]);
         public Task<Arena?> ObterAdminPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Arena?>(null);
         public Task<IReadOnlyList<Arena>> ListarAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Arena>>([]);
-        public Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Arena?>(null);
-        public Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult<Arena?>(null);
+        public Task<Arena?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(arena?.Id == id ? arena : null);
+        public Task<Arena?> ObterPorNomeAsync(string nome, CancellationToken cancellationToken = default) => Task.FromResult(string.Equals(arena?.Nome, nome, StringComparison.OrdinalIgnoreCase) ? arena : null);
         public Task<bool> ExisteSlugAsync(string slug, Guid? idIgnorado, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<IReadOnlyList<ArenaEspaco>> ListarEspacosPorArenaAsync(Guid arenaId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ArenaEspaco>>([]);
         public Task<ArenaEspaco?> ObterEspacoPorIdEArenaAsync(Guid arenaId, Guid espacoId, CancellationToken cancellationToken = default) => Task.FromResult<ArenaEspaco?>(null);

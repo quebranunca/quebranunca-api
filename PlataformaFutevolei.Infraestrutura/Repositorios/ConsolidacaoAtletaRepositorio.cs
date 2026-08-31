@@ -78,6 +78,12 @@ public class ConsolidacaoAtletaRepositorio(
             .GroupBy(x => x.AtletaId)
             .Select(x => new { AtletaId = x.Key, Total = x.Count() })
             .ToDictionaryAsync(x => x.AtletaId, x => x.Total, cancellationToken);
+        var confirmacoesPresenca = await dbContext.ConfirmacoesPresencaGrupos
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AtletaId))
+            .GroupBy(x => x.AtletaId)
+            .Select(x => new { AtletaId = x.Key, Total = x.Count() })
+            .ToDictionaryAsync(x => x.AtletaId, x => x.Total, cancellationToken);
         var usuarios = await dbContext.Usuarios
             .AsNoTracking()
             .Where(x => x.AtletaId.HasValue && ids.Contains(x.AtletaId.Value))
@@ -112,7 +118,8 @@ public class ConsolidacaoAtletaRepositorio(
                     pendencias.GetValueOrDefault(x.Id),
                     convites.GetValueOrDefault(x.Id),
                     medidas.GetValueOrDefault(x.Id),
-                    x.DataCriacao);
+                    x.DataCriacao,
+                    confirmacoesPresenca.GetValueOrDefault(x.Id));
             });
     }
 
@@ -158,6 +165,7 @@ public class ConsolidacaoAtletaRepositorio(
         await MigrarPendenciasAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarConvitesAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarMedidasAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
+        await MigrarConfirmacoesPresencaAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarUsuariosAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await MigrarPontuacaoBeneficiosAsync(vencedor.Id, perdedor.Id, contador, cancellationToken);
         await GarantirSemReferenciasAoPerdedorAsync(perdedor.Id, cancellationToken);
@@ -360,6 +368,41 @@ public class ConsolidacaoAtletaRepositorio(
             aprovacao.AtletaId = atletaVencedorId;
             aprovacao.AtualizarDataModificacao();
             contador.AprovacoesAtualizadas++;
+        }
+    }
+
+    private async Task MigrarConfirmacoesPresencaAsync(
+        Guid atletaVencedorId,
+        Guid atletaPerdedorId,
+        ContadorSaneamento contador,
+        CancellationToken cancellationToken)
+    {
+        var confirmacoes = await dbContext.ConfirmacoesPresencaGrupos
+            .Where(x => x.AtletaId == atletaPerdedorId)
+            .OrderBy(x => x.DataCriacao)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var confirmacao in confirmacoes)
+        {
+            var existente = await dbContext.ConfirmacoesPresencaGrupos
+                .FirstOrDefaultAsync(
+                    x => x.Id != confirmacao.Id &&
+                         x.EncontroGrupoId == confirmacao.EncontroGrupoId &&
+                         x.AtletaId == atletaVencedorId,
+                    cancellationToken);
+
+            if (existente is not null)
+            {
+                MesclarConfirmacaoPresenca(existente, confirmacao);
+                dbContext.ConfirmacoesPresencaGrupos.Remove(confirmacao);
+                contador.ConfirmacoesPresencaConsolidadas++;
+                continue;
+            }
+
+            confirmacao.AtletaId = atletaVencedorId;
+            confirmacao.AtualizarDataModificacao();
+            contador.ConfirmacoesPresencaAtualizadas++;
         }
     }
 
@@ -690,6 +733,10 @@ public class ConsolidacaoAtletaRepositorio(
             await ExisteReferenciaFinalAsync(
                 dbContext.ResgatesBeneficiosPontuacao.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
                 x => x.AtletaId == atletaPerdedorId,
+                cancellationToken) ||
+            await ExisteReferenciaFinalAsync(
+                dbContext.ConfirmacoesPresencaGrupos.AsNoTracking().Where(x => x.AtletaId == atletaPerdedorId),
+                x => x.AtletaId == atletaPerdedorId,
                 cancellationToken);
 
         if (possuiReferencia)
@@ -763,6 +810,44 @@ public class ConsolidacaoAtletaRepositorio(
         if (origem.DataSolicitacao < destino.DataSolicitacao)
         {
             destino.DataSolicitacao = origem.DataSolicitacao;
+        }
+
+        destino.AtualizarDataModificacao();
+    }
+
+    private static void MesclarConfirmacaoPresenca(
+        ConfirmacaoPresencaGrupo destino,
+        ConfirmacaoPresencaGrupo origem)
+    {
+        if (origem.RespondidaEmUtc.HasValue &&
+            (!destino.RespondidaEmUtc.HasValue || origem.RespondidaEmUtc > destino.RespondidaEmUtc))
+        {
+            destino.Status = origem.Status;
+            destino.RespondidaEmUtc = origem.RespondidaEmUtc;
+        }
+
+        if (origem.ExpiraEmUtc > destino.ExpiraEmUtc)
+        {
+            destino.ExpiraEmUtc = origem.ExpiraEmUtc;
+        }
+
+        destino.TentativasEnvioWhatsapp = Math.Max(
+            destino.TentativasEnvioWhatsapp,
+            origem.TentativasEnvioWhatsapp);
+
+        if (origem.UltimaTentativaEnvioWhatsappEmUtc.HasValue &&
+            (!destino.UltimaTentativaEnvioWhatsappEmUtc.HasValue ||
+             origem.UltimaTentativaEnvioWhatsappEmUtc > destino.UltimaTentativaEnvioWhatsappEmUtc))
+        {
+            destino.UltimaTentativaEnvioWhatsappEmUtc = origem.UltimaTentativaEnvioWhatsappEmUtc;
+            destino.ErroEnvioWhatsapp = origem.ErroEnvioWhatsapp;
+        }
+
+        if (!destino.WhatsappEnviadoEmUtc.HasValue && origem.WhatsappEnviadoEmUtc.HasValue)
+        {
+            destino.WhatsappEnviadoEmUtc = origem.WhatsappEnviadoEmUtc;
+            destino.WhatsappMensagemId = origem.WhatsappMensagemId;
+            destino.ErroEnvioWhatsapp = null;
         }
 
         destino.AtualizarDataModificacao();
@@ -892,6 +977,8 @@ public class ConsolidacaoAtletaRepositorio(
         public int ExtratosQnTransferidos { get; set; }
         public int ExtratosQnDeduplicados { get; set; }
         public int ResgatesQnTransferidos { get; set; }
+        public int ConfirmacoesPresencaAtualizadas { get; set; }
+        public int ConfirmacoesPresencaConsolidadas { get; set; }
 
         public SaneamentoAtletasEmailContadoresDto ParaDto()
         {
@@ -912,7 +999,9 @@ public class ConsolidacaoAtletaRepositorio(
                 SaldosQnConsolidados,
                 ExtratosQnTransferidos,
                 ExtratosQnDeduplicados,
-                ResgatesQnTransferidos);
+                ResgatesQnTransferidos,
+                ConfirmacoesPresencaAtualizadas,
+                ConfirmacoesPresencaConsolidadas);
         }
     }
 }

@@ -21,15 +21,12 @@ public sealed class AdaptadorWhatsappWhatsMiauServico(
     {
         var erroConfiguracao = configuracao.ObterMensagemConfiguracaoIncompleta();
         if (erroConfiguracao is not null) return Falha(false, erroConfiguracao);
-        if (!string.Equals(solicitacao.TemplateKey, "qnf.convite.cadastro.v1", StringComparison.Ordinal))
-            return Falha(false, $"O template '{solicitacao.TemplateKey}' não está registrado no módulo de notificações.");
-        if (!solicitacao.Dados.TryGetValue("codigoConvite", out var codigo) ||
-            !solicitacao.Dados.TryGetValue("linkConvite", out var link))
-            return Falha(false, "Os dados obrigatórios do template de convite não foram informados.");
+        var mensagem = MontarMensagem(solicitacao);
+        if (mensagem is null)
+            return Falha(false, $"O template '{solicitacao.TemplateKey}' não está registrado ou possui dados incompletos.");
 
         var telefone = NormalizarTelefoneBrasileiro(solicitacao.Destinatario);
         if (telefone is null) return Falha(false, "O telefone informado não é válido para envio por WhatsApp.");
-        var mensagem = $"Você recebeu um convite para a Plataforma QuebraNunca Futevôlei.\n\nCódigo: {codigo}\nAcesse: {link}\n\nSe você não esperava esta mensagem, ignore.";
 
         try
         {
@@ -55,6 +52,29 @@ public sealed class AdaptadorWhatsappWhatsMiauServico(
     }
 
     private static ResultadoEntregaNotificacaoDto Falha(bool tentativa, string erro) => new(tentativa, false, erro, null);
+
+    private static string? MontarMensagem(SolicitacaoEntregaNotificacaoDto solicitacao)
+    {
+        if (string.Equals(solicitacao.TemplateKey, "qnf.convite.cadastro.v1", StringComparison.Ordinal) &&
+            solicitacao.Dados.TryGetValue("codigoConvite", out var codigo) &&
+            solicitacao.Dados.TryGetValue("linkConvite", out var link))
+        {
+            return $"Você recebeu um convite para a Plataforma QuebraNunca Futevôlei.\n\nCódigo: {codigo}\nAcesse: {link}\n\nSe você não esperava esta mensagem, ignore.";
+        }
+
+        if (string.Equals(solicitacao.TemplateKey, "qnf.grupo.presenca.v1", StringComparison.Ordinal) &&
+            solicitacao.Dados.TryGetValue("nomeAtleta", out var nomeAtleta) &&
+            solicitacao.Dados.TryGetValue("nomeGrupo", out var nomeGrupo) &&
+            solicitacao.Dados.TryGetValue("dataJogo", out var dataJogo) &&
+            solicitacao.Dados.TryGetValue("horarioJogo", out var horarioJogo) &&
+            solicitacao.Dados.TryGetValue("localJogo", out var localJogo) &&
+            solicitacao.Dados.TryGetValue("linkConfirmacao", out var linkConfirmacao))
+        {
+            return $"Oi, {nomeAtleta}! O grupo {nomeGrupo} joga hoje ({dataJogo}), das {horarioJogo}, em {localJogo}.\n\nVocê vai? Confirme aqui: {linkConfirmacao}";
+        }
+
+        return null;
+    }
 
     internal static string? NormalizarTelefoneBrasileiro(string telefone)
     {

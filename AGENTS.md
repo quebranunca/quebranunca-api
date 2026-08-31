@@ -53,6 +53,7 @@
 - Quando houver produção, reavaliar a exposição da credencial `[AI TESTE]` e manter bloqueio de criação automática em `Production`
 - Convites de cadastro usam código curto no formato `000-000`; manter um único código vigente por convite e reutilizá-lo em link, e-mail e WhatsApp
 - Entregas externas de notificação devem passar por `IEntregaNotificacaoExternaServico`; fluxos de aplicação não devem depender diretamente de WhatsMiau ou de uma central externa.
+- Agenda recorrente de grupo usa `Arena` oficial, dias e horários em intervalos de 15 minutos; cada ocorrência diária deve manter snapshot do local e confirmação individual idempotente, com código aleatório fora de logs e resposta pública limitada ao horário do jogo.
 - SMS usa adaptador Zenvia desabilitado por padrão; aceite da API não equivale a entrega e deve permanecer distinto até confirmação por webhook.
 - Não regenerar código de convite como efeito colateral de consultar link, enviar e-mail ou enviar WhatsApp; regeneração só deve existir como ação explícita e rastreável
 - Ao persistir código de convite para reenvio, manter também o hash usado na validação e limpar o código em claro quando o convite for utilizado

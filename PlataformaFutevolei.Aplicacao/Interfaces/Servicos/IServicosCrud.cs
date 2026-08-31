@@ -180,9 +180,18 @@ public interface IGrupoServico
     Task<GrupoDashboardDetalheDto> ObterDashboardAsync(Guid id, CancellationToken cancellationToken = default);
     Task<GrupoDto> CriarAsync(CriarGrupoDto dto, CancellationToken cancellationToken = default);
     Task<GrupoDto> AtualizarAsync(Guid id, AtualizarGrupoDto dto, CancellationToken cancellationToken = default);
+    Task<GrupoDto> AtualizarAgendaAsync(Guid id, AtualizarAgendaGrupoDto dto, CancellationToken cancellationToken = default);
     Task<GrupoImagemRespostaDto> AtualizarImagemAsync(Guid id, ArquivoFotoPerfilDto arquivo, CancellationToken cancellationToken = default);
     Task RemoverImagemAsync(Guid id, CancellationToken cancellationToken = default);
     Task RemoverAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IPresencaGrupoServico
+{
+    Task ProcessarAgendaDoDiaAsync(DateTime agoraUtc, CancellationToken cancellationToken = default);
+    Task<PainelPresencaGrupoDto> ObterPainelAsync(Guid grupoId, CancellationToken cancellationToken = default);
+    Task<ConfirmacaoPresencaGrupoPublicaDto> ConsultarAsync(string codigo, CancellationToken cancellationToken = default);
+    Task<ConfirmacaoPresencaGrupoPublicaDto> ResponderAsync(string codigo, bool vaiParticipar, CancellationToken cancellationToken = default);
 }
 
 public interface IGrupoPadraoServico

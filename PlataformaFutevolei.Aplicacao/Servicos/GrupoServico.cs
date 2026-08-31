@@ -100,7 +100,13 @@ public class GrupoServico(
                 podeRegistrarPartida,
                 podeGerirGrupo,
                 usuarioEhCriador,
-                usuarioEhAdministrador),
+                usuarioEhAdministrador,
+                grupo.ArenaId,
+                grupo.Arena?.Nome,
+                grupo.LocalPrincipal,
+                grupo.DiasDaSemana ?? [],
+                grupo.HorarioInicio?.ToString("HH:mm"),
+                grupo.HorarioFim?.ToString("HH:mm")),
             new GrupoDashboardResumoDto(
                 totalMembros,
                 partidasEncerradas.Count,
@@ -163,8 +169,19 @@ public class GrupoServico(
         var dataInicioUtc = NormalizarParaUtc(dto.DataInicio);
         var dataFimUtc = dto.DataFim.HasValue ? NormalizarParaUtc(dto.DataFim.Value) : (DateTime?)null;
         var arenaId = dto.ArenaId ?? dto.LocalId;
-        await ValidarArenaAsync(arenaId, cancellationToken);
+        var arena = await ValidarArenaAsync(arenaId, cancellationToken);
         var publico = EhPublico(dto.Privacidade);
+        var diasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana);
+        var (horarioInicio, horarioFim) = NormalizarHorarios(diasDaSemana, dto.HorarioInicio, dto.HorarioFim);
+        var localPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal);
+
+        if (diasDaSemana is { Length: > 0 } &&
+            horarioInicio.HasValue &&
+            !arenaId.HasValue &&
+            string.IsNullOrWhiteSpace(localPrincipal))
+        {
+            throw new RegraNegocioException("Informe a Arena do grupo para ativar a confirmação de presença.");
+        }
 
         var grupo = new Grupo
         {
@@ -174,8 +191,11 @@ public class GrupoServico(
             DataInicio = dataInicioUtc,
             DataFim = dataFimUtc,
             ArenaId = arenaId,
-            LocalPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal),
-            DiasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana),
+            Arena = arena,
+            LocalPrincipal = localPrincipal,
+            DiasDaSemana = diasDaSemana,
+            HorarioInicio = horarioInicio,
+            HorarioFim = horarioFim,
             UsuarioOrganizadorId = usuario.Id,
             Publico = publico,
             ImagemUrl = NormalizarImagemUrl(dto.ImagemUrl)
@@ -216,6 +236,48 @@ public class GrupoServico(
         grupo.Publico = ResolverPublico(dto, grupo.Publico);
         grupo.LocalPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal);
         grupo.DiasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana);
+        if (grupo.DiasDaSemana is null)
+        {
+            grupo.HorarioInicio = null;
+            grupo.HorarioFim = null;
+        }
+        grupo.AtualizarDataModificacao();
+
+        grupoRepositorio.Atualizar(grupo);
+        await unidadeTrabalho.SalvarAlteracoesAsync(cancellationToken);
+        var atualizado = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken);
+        return atualizado!.ParaDto();
+    }
+
+    public async Task<GrupoDto> AtualizarAgendaAsync(
+        Guid id,
+        AtualizarAgendaGrupoDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        await autorizacaoUsuarioServico.GarantirGestaoGrupoAsync(id, cancellationToken);
+        var grupo = await grupoRepositorio.ObterPorIdAsync(id, cancellationToken)
+            ?? throw new EntidadeNaoEncontradaException("Grupo não encontrado.");
+        GarantirGrupoAtivo(grupo);
+
+        var arena = await ValidarArenaAsync(dto.ArenaId, cancellationToken);
+        var localPrincipal = NormalizarLocalPrincipal(dto.LocalPrincipal);
+        var diasDaSemana = NormalizarDiasDaSemana(dto.DiasDaSemana);
+        var (horarioInicio, horarioFim) = NormalizarHorarios(diasDaSemana, dto.HorarioInicio, dto.HorarioFim);
+
+        if (diasDaSemana is { Length: > 0 } &&
+            horarioInicio.HasValue &&
+            !dto.ArenaId.HasValue &&
+            string.IsNullOrWhiteSpace(localPrincipal))
+        {
+            throw new RegraNegocioException("Informe a Arena do grupo para ativar a confirmação de presença.");
+        }
+
+        grupo.ArenaId = dto.ArenaId;
+        grupo.Arena = arena;
+        grupo.LocalPrincipal = localPrincipal;
+        grupo.DiasDaSemana = diasDaSemana;
+        grupo.HorarioInicio = horarioInicio;
+        grupo.HorarioFim = horarioFim;
         grupo.AtualizarDataModificacao();
 
         grupoRepositorio.Atualizar(grupo);
@@ -312,17 +374,20 @@ public class GrupoServico(
         }
     }
 
-    private async Task ValidarArenaAsync(Guid? arenaId, CancellationToken cancellationToken)
+    private async Task<Arena?> ValidarArenaAsync(Guid? arenaId, CancellationToken cancellationToken)
     {
         if (!arenaId.HasValue)
         {
-            return;
+            return null;
         }
 
-        if (await arenaRepositorio.ObterPorIdAsync(arenaId.Value, cancellationToken) is null)
+        var arena = await arenaRepositorio.ObterPorIdAsync(arenaId.Value, cancellationToken);
+        if (arena is null)
         {
             throw new RegraNegocioException("Arena informada não foi encontrada.");
         }
+
+        return arena;
     }
 
     private static string Validar(string nome, DateTime dataInicio, DateTime? dataFim, string? link)
@@ -394,6 +459,48 @@ public class GrupoServico(
 
         var normalizados = ordem.Where(selecionados.Contains).ToArray();
         return normalizados.Length == 0 ? null : normalizados;
+    }
+
+    private static (TimeOnly? Inicio, TimeOnly? Fim) NormalizarHorarios(
+        IReadOnlyCollection<string>? diasDaSemana,
+        string? horarioInicio,
+        string? horarioFim)
+    {
+        var inicioInformado = !string.IsNullOrWhiteSpace(horarioInicio);
+        var fimInformado = !string.IsNullOrWhiteSpace(horarioFim);
+
+        if (!inicioInformado && !fimInformado)
+        {
+            return (null, null);
+        }
+
+        if (!inicioInformado || !fimInformado)
+        {
+            throw new RegraNegocioException("Informe os horários de início e término do grupo.");
+        }
+
+        if (diasDaSemana is null || diasDaSemana.Count == 0)
+        {
+            throw new RegraNegocioException("Selecione ao menos um dia da semana para definir os horários.");
+        }
+
+        if (!TimeOnly.TryParse(horarioInicio!.Trim(), CultureInfo.InvariantCulture, out var inicio) ||
+            !TimeOnly.TryParse(horarioFim!.Trim(), CultureInfo.InvariantCulture, out var fim))
+        {
+            throw new RegraNegocioException("Horário do grupo inválido.");
+        }
+
+        if (fim <= inicio)
+        {
+            throw new RegraNegocioException("O horário de término deve ser posterior ao horário de início.");
+        }
+
+        if (inicio.Minute % 15 != 0 || fim.Minute % 15 != 0)
+        {
+            throw new RegraNegocioException("Os horários do grupo devem usar intervalos de 15 minutos.");
+        }
+
+        return (inicio, fim);
     }
 
     private static DateTime NormalizarParaUtc(DateTime data)

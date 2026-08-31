@@ -32,4 +32,5 @@ public class Atleta : EntidadeBase
     public ICollection<Dupla> DuplasComoAtleta1 { get; set; } = new List<Dupla>();
     public ICollection<Dupla> DuplasComoAtleta2 { get; set; } = new List<Dupla>();
     public ICollection<GrupoAtleta> Grupos { get; set; } = new List<GrupoAtleta>();
+    public ICollection<ConfirmacaoPresencaGrupo> ConfirmacoesPresencaGrupo { get; set; } = new List<ConfirmacaoPresencaGrupo>();
 }

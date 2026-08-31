@@ -11,7 +11,9 @@ public record CriarGrupoDto(
     string? ImagemUrl = null,
     Guid? ArenaId = null,
     string? LocalPrincipal = null,
-    IReadOnlyList<string>? DiasDaSemana = null
+    IReadOnlyList<string>? DiasDaSemana = null,
+    string? HorarioInicio = null,
+    string? HorarioFim = null
 );
 
 public record AtualizarGrupoDto(
@@ -20,6 +22,14 @@ public record AtualizarGrupoDto(
     string? Privacidade = null,
     string? LocalPrincipal = null,
     IReadOnlyList<string>? DiasDaSemana = null
+);
+
+public record AtualizarAgendaGrupoDto(
+    Guid? ArenaId,
+    string? LocalPrincipal,
+    IReadOnlyList<string>? DiasDaSemana,
+    string? HorarioInicio,
+    string? HorarioFim
 );
 
 public record GrupoImagemRespostaDto(
@@ -45,7 +55,9 @@ public record GrupoDto(
     string? NomeArena,
     string? LocalPrincipal,
     IReadOnlyList<string> DiasDaSemana,
-    bool Ativo
+    bool Ativo,
+    string? HorarioInicio,
+    string? HorarioFim
 );
 
 public record GrupoSelecaoDto(
@@ -117,7 +129,13 @@ public record GrupoDashboardCabecalhoDto(
     bool PodeRegistrarPartida,
     bool PodeExcluir,
     bool EhCriador,
-    bool EhAdministrador
+    bool EhAdministrador,
+    Guid? ArenaId,
+    string? NomeArena,
+    string? LocalPrincipal,
+    IReadOnlyList<string> DiasDaSemana,
+    string? HorarioInicio,
+    string? HorarioFim
 );
 
 public record GrupoDashboardResumoDto(

@@ -135,6 +135,75 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
     }
 
     [Fact]
+    public async Task ConfirmacaoPresencaDuplicada_PreservaRespostaMaisRecenteNoVencedor()
+    {
+        Guid vencedorId;
+        Guid perdedorId;
+        Guid encontroId;
+        var respondidaEmUtc = DateTime.UtcNow.AddMinutes(-5);
+
+        await using (var dbContext = fixture.CriarContexto())
+        {
+            var vencedor = CriarAtleta("Vencedor presença", Email("vencedor-presenca"));
+            var perdedor = CriarAtleta("Perdedor presença", Email("perdedor-presenca"));
+            var grupo = new Grupo
+            {
+                Nome = $"{prefixo}-grupo-presenca",
+                DataInicio = DateTime.UtcNow.Date,
+                Publico = false
+            };
+            var encontro = new EncontroGrupo
+            {
+                Grupo = grupo,
+                DataJogo = DateOnly.FromDateTime(DateTime.UtcNow),
+                HorarioInicio = new TimeOnly(19, 0),
+                HorarioFim = new TimeOnly(21, 0),
+                LocalSnapshot = "Arena de teste"
+            };
+            var confirmacaoVencedor = new ConfirmacaoPresencaGrupo
+            {
+                EncontroGrupo = encontro,
+                Atleta = vencedor,
+                CodigoAcesso = $"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..48],
+                ExpiraEmUtc = DateTime.UtcNow.AddHours(4)
+            };
+            var confirmacaoPerdedor = new ConfirmacaoPresencaGrupo
+            {
+                EncontroGrupo = encontro,
+                Atleta = perdedor,
+                CodigoAcesso = $"{Guid.NewGuid():N}{Guid.NewGuid():N}"[..48],
+                ExpiraEmUtc = DateTime.UtcNow.AddHours(5)
+            };
+            confirmacaoPerdedor.Responder(vaiParticipar: true, respondidaEmUtc);
+
+            dbContext.AddRange(
+                vencedor,
+                perdedor,
+                grupo,
+                encontro,
+                confirmacaoVencedor,
+                confirmacaoPerdedor);
+            await dbContext.SaveChangesAsync();
+
+            vencedorId = vencedor.Id;
+            perdedorId = perdedor.Id;
+            encontroId = encontro.Id;
+
+            await CriarServico(dbContext).ConsolidarCandidatosAsync(
+                [vencedor, perdedor], vencedor.Id, vencedor.Email);
+        }
+
+        await using var verificacao = fixture.CriarContexto();
+        Assert.False(await verificacao.Atletas.AnyAsync(x => x.Id == perdedorId));
+        var confirmacaoFinal = await verificacao.ConfirmacoesPresencaGrupos
+            .SingleAsync(x => x.EncontroGrupoId == encontroId);
+        Assert.Equal(vencedorId, confirmacaoFinal.AtletaId);
+        Assert.Equal(StatusConfirmacaoPresencaGrupo.Confirmada, confirmacaoFinal.Status);
+        Assert.Equal(respondidaEmUtc, confirmacaoFinal.RespondidaEmUtc);
+        Assert.False(await ExisteReferenciaAoAtletaAsync(verificacao, perdedorId));
+    }
+
+    [Fact]
     public async Task PendenciaEConviteDuplicados_MesclaSemReabrirResolvidos()
     {
         await using var dbContext = fixture.CriarContexto();
@@ -498,7 +567,8 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
             await dbContext.AtletasMedidas.AnyAsync(x => x.AtletaId == atletaId) ||
             await dbContext.PontuacoesBeneficiosAtletas.AnyAsync(x => x.AtletaId == atletaId) ||
             await dbContext.ExtratosPontuacaoBeneficio.AnyAsync(x => x.AtletaId == atletaId) ||
-            await dbContext.ResgatesBeneficiosPontuacao.AnyAsync(x => x.AtletaId == atletaId);
+            await dbContext.ResgatesBeneficiosPontuacao.AnyAsync(x => x.AtletaId == atletaId) ||
+            await dbContext.ConfirmacoesPresencaGrupos.AnyAsync(x => x.AtletaId == atletaId);
     }
 }
 
@@ -565,6 +635,8 @@ public sealed class PostgresIntegracaoFixture : IAsyncLifetime
             $"delete from inscricoes_campeonato where dupla_id in (select id from duplas where nome like {prefixo + "%"})");
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"delete from duplas where nome like {prefixo + "%"} or atleta1_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or atleta2_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"})");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"delete from confirmacoes_presenca_grupos where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or encontro_grupo_id in (select e.id from encontros_grupos e join grupos g on g.id = e.grupo_id where g.nome like {prefixo + "%"})");
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"delete from grupos_atletas where atleta_id in (select id from atletas where lower(btrim(email)) like {prefixo + "%@example.com"}) or grupo_id in (select id from grupos where nome like {prefixo + "%"})");
         await dbContext.Database.ExecuteSqlInterpolatedAsync(

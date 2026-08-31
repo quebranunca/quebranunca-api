@@ -192,7 +192,9 @@ public record SaneamentoAtletasEmailContadoresDto(
     int SaldosQnConsolidados = 0,
     int ExtratosQnTransferidos = 0,
     int ExtratosQnDeduplicados = 0,
-    int ResgatesQnTransferidos = 0
+    int ResgatesQnTransferidos = 0,
+    int ConfirmacoesPresencaAtualizadas = 0,
+    int ConfirmacoesPresencaConsolidadas = 0
 );
 
 public record ConsolidacaoAtletaMetricasDto(
@@ -205,7 +207,8 @@ public record ConsolidacaoAtletaMetricasDto(
     int TotalPendencias,
     int TotalConvites,
     int TotalMedidas,
-    DateTime DataCriacao)
+    DateTime DataCriacao,
+    int TotalConfirmacoesPresenca = 0)
 {
     public int TotalHistorico =>
         TotalDuplas +
@@ -213,7 +216,8 @@ public record ConsolidacaoAtletaMetricasDto(
         TotalAprovacoes +
         TotalPendencias +
         TotalConvites +
-        TotalMedidas;
+        TotalMedidas +
+        TotalConfirmacoesPresenca;
 }
 
 public record ConsolidacaoAtletaResultadoDto(
