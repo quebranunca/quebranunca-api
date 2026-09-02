@@ -1,0 +1,23 @@
+name: Propor melhoria
+description: Sugira uma melhoria de produto, domínio ou operação.
+title: "[Melhoria] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema ou oportunidade
+      description: Explique a necessidade antes da solução proposta.
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Resultado desejado
+    validations:
+      required: true
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impactos conhecidos
+      description: Cite regras, permissões, dados, migrations, integrações ou deploy afetados.

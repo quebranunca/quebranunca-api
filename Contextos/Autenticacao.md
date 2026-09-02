@@ -6,7 +6,7 @@
 * Autenticacao utiliza JWT.
 * Login utiliza fluxo de codigo enviado por e-mail.
 * Convites de cadastro sao controlados exclusivamente pelo backend.
-* Regras oficiais de convite, aceite e perfil criado ficam em `../../../Contextos/Dominio.md`.
+* Regras oficiais de convite, aceite e perfil criado ficam em `../AGENTS.md` e nos fluxos existentes do domínio.
 
 ## Login
 

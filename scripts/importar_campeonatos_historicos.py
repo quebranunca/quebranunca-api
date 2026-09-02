@@ -175,7 +175,7 @@ def atualizar_categoria(api, categoria, inscricoes_encerradas):
 def main():
     parser = argparse.ArgumentParser(description="Importa CSV historico de campeonatos usando a API da plataforma.")
     parser.add_argument("csv")
-    parser.add_argument("--base-url", default="http://localhost:5000")
+    parser.add_argument("--base-url", default="http://localhost:5080")
     parser.add_argument("--email", default="admin@teste.com")
     parser.add_argument("--senha", default="123456")
     parser.add_argument("--liga", default="Liga Praia Grande")

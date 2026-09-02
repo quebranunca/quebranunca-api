@@ -48,7 +48,6 @@ coverage-report/
 .env
 .env.*
 secrets.json
-appsettings.Production.json
 appsettings.Development.json
 appsettings.Local.json
 appsettings.Staging.Local.json
@@ -88,7 +87,6 @@ postgres-data/
 
 *.tmp
 *.temp
-PlataformaFutevolei.Api/appsettings.Production.json
 PlataformaFutevolei.Api/Properties/launchSettings.json
 .ia/backend/agente-backend.md
 .ia/checklists/checklist-deploy.md

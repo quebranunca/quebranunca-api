@@ -1,4 +1,4 @@
-@PlataformaFutevolei.Api_HostAddress = http://localhost:5000
+@PlataformaFutevolei.Api_HostAddress = http://localhost:5080
 @TokenAdministrador = COLE_O_TOKEN_AQUI
 @ConviteId = 00000000-0000-0000-0000-000000000000
 @ConviteIdPublico = IDENTIFICADOR_PUBLICO_DO_CONVITE
