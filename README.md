@@ -1,504 +1,102 @@
-# Base de Conhecimento Backend QNF
+# QuebraNunca API
 
-Conhecimento especializado do backend da Plataforma QuebraNunca Futevolei.
+[![CI](https://github.com/quebranunca/quebranunca-api/actions/workflows/ci.yml/badge.svg)](https://github.com/quebranunca/quebranunca-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/quebranunca/quebranunca-api/actions/workflows/codeql.yml/badge.svg)](https://github.com/quebranunca/quebranunca-api/actions/workflows/codeql.yml)
 
-## Escopo
+Backend da Plataforma QuebraNunca Futevôlei. A API concentra autenticação, regras de partidas e grupos, rankings, scouts, competições, convites, arenas, pendências e Pontos QN.
 
-- Arquitetura .NET, ASP.NET Core, EF Core e PostgreSQL.
-- Controllers, services, DTOs, repositorios, mapeamentos e migrations.
-- Autenticacao, autorizacao, integracoes externas e seguranca operacional.
+> Repositório proprietário. O uso, a cópia e a distribuição dependem de autorização dos responsáveis pelo projeto.
 
-## Fora do escopo
+## Tecnologias
 
-- Decisao de produto pura: usar `../../Contextos`.
-- UX, componentes e layout: usar `../Web`.
+- .NET 10 e ASP.NET Core Web API
+- Entity Framework Core
+- PostgreSQL
+- autenticação JWT
+- xUnit para testes unitários e de integração
+- Railway para produção
 
-## Uso
+## Arquitetura
 
-Leia `Contextos/ArquiteturaBackend.md` antes de alterar fluxo backend e use os agentes de revisao conforme o tipo de mudanca.
+O código segue a divisão em camadas existente:
 
+- `PlataformaFutevolei.Api`: endpoints, autenticação e pipeline HTTP;
+- `PlataformaFutevolei.Aplicacao`: casos de uso, DTOs e orquestração;
+- `PlataformaFutevolei.Dominio`: entidades e regras de domínio;
+- `PlataformaFutevolei.Infraestrutura`: EF Core, repositórios, migrations e integrações;
+- `PlataformaFutevolei.Admin`: comandos administrativos fora do fluxo público;
+- projetos `*.Tests`: testes unitários, de API e de integração.
 
-# Plataforma QuebraNunca Futevôlei
+As regras recorrentes para manutenção estão em [AGENTS.md](AGENTS.md) e os contextos técnicos em [Contextos](Contextos/).
 
-Plataforma web para registro de partidas, grupos, rankings, campeonatos, convites e arenas de futevôlei.
+## Ambiente local
 
----
+Pré-requisitos:
 
-## Estrutura do Workspace
+- .NET SDK definido em `global.json`;
+- PostgreSQL 16 ou superior;
+- Docker, opcional, para iniciar apenas o banco local.
 
-Este workspace contém dois repositórios Git separados:
-
-- `quebranunca-api`: backend .NET 10, ASP.NET Core Web API, EF Core e PostgreSQL.
-- `quebranunca-web`: frontend React + Vite em JavaScript.
-
-A raiz do workspace concentra documentação compartilhada, `infra/`, scripts e a base de conhecimento `.ai`.
-
-Projetos principais do backend:
-
-- `quebranunca-api/PlataformaFutevolei.Api`
-- `quebranunca-api/PlataformaFutevolei.Aplicacao`
-- `quebranunca-api/PlataformaFutevolei.Dominio`
-- `quebranunca-api/PlataformaFutevolei.Infraestrutura`
-- `quebranunca-api/PlataformaFutevolei.Aplicacao.Tests`
-
----
-
-## Conhecimento do Projeto
-
-- `AGENTS.md`: guardrails operacionais do workspace.
-- `.ai/INDEX.md`: ponto central de navegação da base de conhecimento.
-- `.ai/Contextos`: regras e decisões de domínio.
-- `.ai/Projetos/Api`: arquitetura, persistência, segurança e integrações backend.
-- `.ai/Projetos/Web`: arquitetura frontend, navegação, componentes, design system e integração com API.
-- `CHECKLIST-MASTER.md`: checklist de prontidão por repositório.
-
----
-
-## Fluxo Obrigatório para IA
-
-Antes de qualquer implementação:
-
-1. Ler `AGENTS.md`.
-2. Ler `.ai/INDEX.md`.
-3. Identificar domínio impactado.
-4. Ler os contextos relevantes.
-5. Executar mentalmente:
-   - MapearContexto
-   - PlanejarFeature
-6. Implementar.
-7. Executar:
-   - AuditarFluxo
-   - Checklist aplicável.
-8. Atualizar contextos quando uma regra recorrente mudar.
-
----
-
-## Reutilização Obrigatória
-
-Antes de criar:
-
-- entidade
-- endpoint
-- DTO
-- service
-- repository
-- componente
-- hook
-- helper
-
-verificar implementações existentes.
-
-Priorizar extensão antes de criação.
-
-Evitar:
-
-- fluxo paralelo
-- endpoint paralelo
-- service paralelo
-- componente paralelo
-
-sem justificativa clara.
-
----
-
-## Fonte Oficial de Verdade
-
-### Frontend
-
-Responsável por:
-
-- apresentar dados
-- coletar entradas
-- controlar navegação
-- apresentar estados
-
-### Backend
-
-Responsável por:
-
-- validar regras
-- validar permissões
-- validar ownership
-- validar domínio
-
-A API é a fonte oficial de verdade.
-
-Não duplicar regras de negócio entre frontend e backend.
-
----
-
-## Decisões Atuais
-
-- Cadastro público está desativado.
-- Convites de cadastro criam usuários do tipo `Atleta` no fluxo padrão atual.
-- Primeiro usuário `Administrador` deve ser criado por bootstrap operacional fora do fluxo normal.
-- Arena é o domínio oficial de local esportivo.
-- `/api/locais` existe apenas como compatibilidade legada para clientes antigos e delega para Arena.
-- Em partida de grupo, o usuário autenticado que registra precisa pertencer ao grupo, exceto permissões administrativas previstas.
-- Atletas informados na partida não precisam estar previamente no grupo; a API vincula automaticamente os ausentes ao salvar.
-- Grupo Geral mantém fluxo livre/manual.
-
----
-
-## Domínios Críticos
-
-Qualquer alteração deve avaliar impacto em:
-
-- Atletas
-- Partidas
-- Grupos
-- Ranking
-- Aprovações
-- Pendências
-- Competições
-- Ligas
-- Arenas
-- Convites
-- Dashboards
-
-Se houver impacto indireto:
-
-- documentar
-- explicar
-- validar antes da implementação
-
----
-
-## Docker Local
-
-O `docker-compose` em `infra/` sobe PostgreSQL e API para desenvolvimento local.
+Inicie o PostgreSQL local:
 
 ```bash
-cd infra
-docker compose up --build -d
+docker compose -f infra/docker-compose.yml up -d postgres
 ```
 
-Serviços padrão:
-
-- API: `http://localhost:5000`
-- Swagger: `http://localhost:5000/swagger`
-- PostgreSQL: `localhost:55432`
-
-Observações:
-
-- A API do container roda em `Development` e escuta internamente em `8080`, exposta como `5000` pelo compose.
-- Se quiser apenas o banco para desenvolvimento manual, rode `docker compose up -d postgres`.
-- Antes de subir backend/frontend manualmente, confira se containers ou processos locais já estão usando as mesmas portas.
-
----
-
-## Backend Local sem Container da API
-
-### 1. Subir PostgreSQL
+Configure os valores locais com `dotnet user-secrets` no projeto da API. Nunca grave credenciais em `appsettings.*`:
 
 ```bash
-cd infra
-docker compose up -d postgres
+dotnet user-secrets set --project PlataformaFutevolei.Api "ConnectionStrings:DefaultConnection" "Host=localhost;Port=55432;Database=plataforma_futevolei_dev;Username=postgres;Password=postgres;Ssl Mode=Disable"
+dotnet user-secrets set --project PlataformaFutevolei.Api "Jwt:Chave" "substitua-por-uma-chave-local-longa"
 ```
 
-### 2. Executar API
+Restaure, compile e execute em `http://localhost:5080`:
 
 ```bash
-cd ../quebranunca-api
-PORT=5000 ASPNETCORE_ENVIRONMENT=Development dotnet run --project PlataformaFutevolei.Api --no-launch-profile
+dotnet restore PlataformaFutevolei.sln
+ASPNETCORE_ENVIRONMENT=Development PORT=5080 dotnet run --project PlataformaFutevolei.Api
 ```
 
-### 3. Validar
+Verificações locais:
+
+- saúde: `http://localhost:5080/health`;
+- banco: `http://localhost:5080/db-test`;
+- Swagger: `http://localhost:5080/swagger/index.html`.
+
+Se a API local usar um banco compartilhado da Railway, defina `Database__MigrateOnStartup=false` e use a conexão pública/TCP Proxy. O endereço interno da Railway não funciona fora da plataforma.
+
+## Testes
+
+Os testes de integração exigem PostgreSQL. Com o banco local ativo:
 
 ```bash
-curl -s http://localhost:5000/health
+QNF_TEST_DATABASE_URL="Host=localhost;Port=55432;Database=plataforma_futevolei_test;Username=postgres;Password=postgres;Ssl Mode=Disable;Include Error Detail=true" dotnet test PlataformaFutevolei.sln --configuration Release
 ```
 
-Observação:
+O workflow de CI executa restore, build e todos os testes em cada pull request e em cada atualização de `main`.
 
-`Program.cs` usa a variável `PORT` e, sem override, assume `8080`.
+## Banco de dados
 
----
-
-## Frontend Local
+Migrations do EF Core são a fonte oficial do schema. Para listar ou aplicar migrations localmente:
 
 ```bash
-cd quebranunca-web
-npm install
-npm run dev
+dotnet ef migrations list --project PlataformaFutevolei.Infraestrutura --startup-project PlataformaFutevolei.Api
+dotnet ef database update --project PlataformaFutevolei.Infraestrutura --startup-project PlataformaFutevolei.Api
 ```
 
-Frontend:
+Em produção, quando `Database:MigrateOnStartup=false`, use [scripts/aplicar-migrations-producao.sh](scripts/aplicar-migrations-producao.sh). Não adicione SQL estrutural ao startup.
 
-```text
-http://localhost:5173
-```
+## Configuração e deploy
 
-Utilize:
+O deploy de produção usa o `Dockerfile` da raiz e [railway.json](railway.json). Connection string, JWT, URLs de ambiente e credenciais de integrações devem ser configurados como variáveis protegidas na Railway.
 
-```text
-quebranunca-web/.env.example
-```
+Antes de promover uma versão:
 
-como base para configuração local.
+1. confirme que o CI de `main` está verde;
+2. valide migrations no banco de destino;
+3. verifique `/health` depois do deploy;
+4. crie uma tag SemVer e uma release com as mudanças relevantes.
 
-Sem override, o frontend utiliza `/api` e o proxy configurado em `vite.config.js`.
+## Colaboração e segurança
 
----
-
-## Staging e Produção
-
-O backend possui:
-
-- `appsettings.Staging.json`
-- `appsettings.Production.json`
-
-Defaults restritivos:
-
-```text
-Database:MigrateOnStartup=false
-Database:ValidateOnStartup=true
-Diagnostics:EnableSwagger=false
-Diagnostics:EnableDbTestEndpoint=false
-HttpsRedirection:Enabled=true
-```
-
----
-
-## Variáveis Mínimas Fora de Development
-
-```bash
-ASPNETCORE_ENVIRONMENT=Production
-
-ConnectionStrings__DefaultConnection=Host=...;Port=5432;Database=...;Username=...;Password=...;Ssl Mode=Require;Trust Server Certificate=true
-
-Jwt__Chave=uma-chave-forte-e-unica
-Jwt__Emissor=PlataformaFutevolei.Api
-Jwt__Audiencia=PlataformaFutevolei.Web
-
-Frontend__Url=https://app.seudominio.com
-
-EmailConvitesCadastro__UrlApp=https://app.seudominio.com
-WhatsappConvitesCadastro__UrlApp=https://app.seudominio.com
-```
-
----
-
-## E-mail
-
-Convites:
-
-- `EmailConvitesCadastro`
-
-Login por código:
-
-- `EmailCodigoLogin`
-
-Pode reaproveitar:
-
-- `EmailConvitesCadastro`
-- `RESEND_API_KEY`
-
-quando a configuração específica não estiver preenchida.
-
-Sem provedor configurado:
-
-- convite continua válido
-- envio fica pendente/manual
-
----
-
-## Variáveis Comuns de E-mail
-
-```bash
-EmailConvitesCadastro__ApiKey=...
-EmailConvitesCadastro__RemetenteEmail=plataforma@seudominio.com
-EmailConvitesCadastro__RemetenteNome=Plataforma QuebraNunca Futevolei
-EmailConvitesCadastro__ReplyTo=contato@seudominio.com
-
-EmailCodigoLogin__ApiKey=...
-EmailCodigoLogin__RemetenteEmail=plataforma@seudominio.com
-EmailCodigoLogin__RemetenteNome=Plataforma QuebraNunca Futevolei
-EmailCodigoLogin__UrlApp=https://app.seudominio.com
-```
-
----
-
-## Observações de Produção
-
-- A API falha ao iniciar se `Jwt:Chave` estiver vazia ou usando placeholder.
-- `Frontend:Url` deve apontar para URL pública real.
-- Não utilizar localhost em Staging ou Production.
-- Application Insights é opcional.
-
----
-
-## Azure App Service + Key Vault
-
-Arquitetura recomendada:
-
-- Backend: Azure App Service
-- Banco: Azure PostgreSQL Flexible Server
-- Segredos: Azure Key Vault
-- Frontend: Azure Static Web Apps ou App Service
-
-### Configurações não sensíveis
-
-```bash
-ASPNETCORE_ENVIRONMENT=Production
-Jwt__Emissor=PlataformaFutevolei.Api
-Jwt__Audiencia=PlataformaFutevolei.Web
-Jwt__ExpiracaoMinutos=120
-
-Frontend__Url=https://app.seudominio.com
-
-EmailConvitesCadastro__UrlApp=https://app.seudominio.com
-WhatsappConvitesCadastro__UrlApp=https://app.seudominio.com
-
-Database__MigrateOnStartup=false
-
-Diagnostics__EnableSwagger=false
-Diagnostics__EnableDbTestEndpoint=false
-
-WhatsappConvitesCadastro__Enabled=false
-```
-
-### Segredos
-
-Utilizar Key Vault References.
-
----
-
-## Build e Publicação
-
-### Backend
-
-```bash
-cd quebranunca-api
-
-dotnet build PlataformaFutevolei.sln
-
-dotnet publish PlataformaFutevolei.Api \
-  -c Release \
-  -o ./publish
-```
-
-### Frontend
-
-```bash
-cd quebranunca-web
-
-npm run build
-```
-
-Variáveis possíveis:
-
-```bash
-VITE_API_URL=https://api.seudominio.com
-```
-
-ou
-
-```bash
-VITE_API_BASE_URL=https://app.seudominio.com/api
-```
-
----
-
-## Migrations
-
-Quando:
-
-```text
-Database:MigrateOnStartup=false
-```
-
-Aplicar manualmente:
-
-```bash
-cd quebranunca-api
-
-dotnet ef database update \
-  --project PlataformaFutevolei.Infraestrutura \
-  --startup-project PlataformaFutevolei.Api \
-  --configuration Release
-```
-
-Script operacional:
-
-```bash
-scripts/aplicar-migrations-producao.sh
-```
-
----
-
-## Bootstrap Inicial
-
-O primeiro Administrador deve ser criado fora do fluxo padrão.
-
-Motivos:
-
-- Cadastro público desativado.
-- Convites comuns criam Atletas.
-- Convites exigem autenticação administrativa.
-
-Gerar hash:
-
-```bash
-scripts/gerar-hash-senha-admin.sh
-```
-
-Promover usuário:
-
-```text
-perfil = 1
-ativo = true
-atleta_id = null
-```
-
----
-
-## Checklist de Master
-
-Antes de publicar ou mergear:
-
-```text
-CHECKLIST-MASTER.md
-```
-
-Aplicar separadamente para:
-
-- quebranunca-api
-- quebranunca-web
-
----
-
-## Domínios Customizados
-
-Para App Service:
-
-- CNAME apontando para `<app>.azurewebsites.net`
-- TXT `asuid` conforme validação do Azure
-
-Erro:
-
-```text
-DNS_PROBE_FINISHED_NXDOMAIN
-```
-
-normalmente indica DNS inexistente, não falha da aplicação.
-
----
-
-## Autenticação
-
-Endpoints principais:
-
-```text
-POST /api/autenticacao/registrar
-POST /api/autenticacao/login
-POST /api/autenticacao/login/codigo/solicitar
-POST /api/autenticacao/login/codigo
-GET  /api/autenticacao/me
-```
-
-JWT:
-
-```text
-Authorization: Bearer <token>
-```
+Consulte [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir uma mudança. Vulnerabilidades devem seguir o canal privado descrito em [SECURITY.md](SECURITY.md), nunca uma issue pública.

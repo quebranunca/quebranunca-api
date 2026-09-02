@@ -19,8 +19,8 @@ services:
 
   api:
     build:
-      context: ../quebranunca-api
-      dockerfile: PlataformaFutevolei.Api/Dockerfile
+      context: ..
+      dockerfile: Dockerfile
     container_name: plataforma-futevolei-api
     restart: unless-stopped
     depends_on:
@@ -35,7 +35,7 @@ services:
       EmailConvitesCadastro__UrlApp: http://localhost:${FRONTEND_PORT:-5173}
       WhatsappConvitesCadastro__UrlApp: http://localhost:${FRONTEND_PORT:-5173}
     ports:
-      - "${API_PORT:-5000}:8080"
+      - "${API_PORT:-5080}:8080"
 
 volumes:
   postgres_data:

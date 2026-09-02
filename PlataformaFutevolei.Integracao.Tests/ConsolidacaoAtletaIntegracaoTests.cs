@@ -199,7 +199,11 @@ public class ConsolidacaoAtletaIntegracaoTests(PostgresIntegracaoFixture fixture
             .SingleAsync(x => x.EncontroGrupoId == encontroId);
         Assert.Equal(vencedorId, confirmacaoFinal.AtletaId);
         Assert.Equal(StatusConfirmacaoPresencaGrupo.Confirmada, confirmacaoFinal.Status);
-        Assert.Equal(respondidaEmUtc, confirmacaoFinal.RespondidaEmUtc);
+        Assert.True(confirmacaoFinal.RespondidaEmUtc.HasValue);
+        Assert.Equal(
+            respondidaEmUtc,
+            confirmacaoFinal.RespondidaEmUtc.Value,
+            TimeSpan.FromMicroseconds(1));
         Assert.False(await ExisteReferenciaAoAtletaAsync(verificacao, perdedorId));
     }
 

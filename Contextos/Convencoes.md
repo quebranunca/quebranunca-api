@@ -56,9 +56,9 @@
 
 ## Dominio
 
-* Regras oficiais de Arena e compatibilidade legada de `/api/locais` ficam em `../../../Contextos/Arenas.md`.
+* Regras oficiais de Arena e compatibilidade legada de `/api/locais` ficam em `../AGENTS.md` e nos fluxos existentes do domínio.
 * Regras de autenticacao e convites ficam em `Autenticacao.md`.
-* Regras de negocio oficiais ficam em `../../../Contextos`.
+* Regras de negócio oficiais ficam em `../AGENTS.md` e nos arquivos deste diretório.
 
 ## Evolucao
 

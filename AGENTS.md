@@ -32,8 +32,8 @@
 - Para bootstrap do primeiro `Administrador`, gerar `senha_hash` com `scripts/gerar-hash-senha-admin.sh` e inserir/promover no banco com `perfil = 1`, `ativo = true` e `atleta_id = null`
 - Quando `Database:MigrateOnStartup` estiver desabilitado em produção, aplicar migrations via `scripts/aplicar-migrations-producao.sh`; não substituir migration por SQL estrutural manual no startup
 - Antes de assumir que produção está migrada, validar `dotnet ef migrations list` contra o banco alvo e conferir se migrations críticas aparecem como aplicadas; no caso do endpoint `POST /api/partidas`, conferir especialmente `20260401103000_AdicionarCriadoPorUsuarioNaPartida`, `20260401233000_AdicionarFluxoAprovacaoResultados` e `20260402213000_CompatibilizarStatusAprovacaoPartidas`
-- Antes de subir `master`, revisar também `.gitignore`, artefatos de publish, documentação de deploy e checklist operacional
-- Toda feature criada ou alterada deve avaliar se `AGENTS.md`, `AGENTS.override.md` ou `ai/` precisam registrar uma decisão recorrente
+- Antes de subir `main`, revisar também `.gitignore`, artefatos de publish, documentação de deploy e checklist operacional
+- Toda feature criada ou alterada deve avaliar se `AGENTS.md`, `AGENTS.override.md` ou `Contextos/` precisam registrar uma decisão recorrente
 
 ## Contexto local recorrente
 
@@ -82,7 +82,7 @@
 
 ## Fase atual do produto
 
-- A fase atual compartilhada fica em `ai/Contextos/FaseAtualProduto.md`
+- As decisões vigentes da fase atual ficam registradas nesta seção e nos arquivos temáticos de `Contextos/`
 - O backend permanece fonte final de regra, permissão, ownership, consistência, ranking, scout, pendências e vínculos
 - Partida comum de grupo não deve exigir competição, categoria ou liga
 - Não confundir pontuação de competição com ranking da plataforma
